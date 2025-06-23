@@ -25,6 +25,8 @@
 #include "Detector.hpp"
 #include "MathFunctions.hpp"
 
+#include <filesystem>
+
 bool CPipeline::Init(int argc, char ** argv)
 {
     end = 0, len = 0;
@@ -1546,90 +1548,24 @@ bool CPipeline::solveNextVelocityField(uint itID)
 
 bool CPipeline::createOutputPaths(string path)
 {
-    const char * sep = SEP;
-    string::size_type pos1 = 0, pos2 = 0;
-    int len = -1;
-    uint offset;
+    std::error_code	ec;
 
-#ifdef WINDOWS
-    offset = 0;
-#else
-    offset = 1;
-#endif
+    path_data = path + "data";
+    path_plot = path + "plots";
 
-    path_data = path + "data" + sep;
-    path_plot = path + "plots" + sep;
-
-    strlist folders;
-    string folder;
-
-    while(path.find(sep, offset) != string::npos)
-    {
-        pos1 = path.find(sep, offset);
-        pos2 = path.find(sep, pos1 + 1);
-
-        len = int(pos2 - pos1 + 1);
-
-        if(len < 0)
-            break;
-
-        folder = path.substr(pos1 + 1, len - 2);
-        path.erase(pos1 + 1, len - 1);
-        folders.push_back(folder);
+    if (filesystem::create_directories(path_data, ec) && ec) {
+	cout << "Could not create directory " << path_data << endl;
+	return false;
     }
 
-    for(uint i = 0; i < folders.size(); i++)
-    {
-        folder = folders[i];
-        path += folder + sep;
-
-        if(!createPath(path))
-        {
-            cout << ERROR_LINE << "Failed to create output folder for data!" << endl;
-            cout << path << std::endl;
-            return false;
-        }
-    }
-
-    if(!createPath(path))
-    {
-        cout << ERROR_LINE << "Failed to create output folder(s)!" << endl;
-        cout << path << std::endl;
-        return false;
-    }
-
-    if(!createPath(path_data))
-    {
-        cout << ERROR_LINE << "Failed to create output folder for data!" << endl;
-        cout << path_data << std::endl;
-        return false;
-    }
-
-    if(!createPath(path_plot))
-    {
-        cout << ERROR_LINE << "Failed to create output folder for plots!" << endl;
-        cout << path_plot << std::endl;
-        return false;
+    if (filesystem::create_directories(path_plot, ec) && ec) {
+	cout << "Could not create directory " << path_plot << endl;
+	return false;
     }
 
     return true;
 }
 
-bool CPipeline::createPath(string path)
-{
-    const char * tmp_path = path.c_str();
-#ifdef WINDOWS
-    if(_access(tmp_path, 0) != 0)
-        if(_mkdir(tmp_path))
-            return false;
-#else
-    if(access(tmp_path, 0) != 0)
-        if(mkdir(tmp_path, S_IRWXU | S_IRWXG | S_IRWXO))
-            return false;
-#endif
-
-    return true;
-}
 
 void CPipeline::printConversionParameters(parameters & param)
 {

@@ -78,8 +78,6 @@ public:
 
     bool assignGridType(CGridBasic *& grid, parameters & param);
 
-    bool createPath(string path);
-
     void printConversionParameters(parameters & param);
 
     void printAdditionalParameters(parameters & param);
