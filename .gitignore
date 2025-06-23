@@ -24,3 +24,7 @@ null.d
 
 **/*.bak
 examples*
+
+bin/
+.clang/
+.cache/
