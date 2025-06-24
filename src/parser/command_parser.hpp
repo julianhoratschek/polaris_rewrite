@@ -1,12 +1,19 @@
+#ifndef RW_COMMAND_PARSER
+#define RW_COMMAND_PARSER
+
 #include <string_view>
 #include <string>
-#include <cctype>
 #include <expected>
+#include <optional>
 #include <vector>
 #include <charconv>
 #include <sstream>
 
-#include "polaris_commands.hpp"
+#include <filesystem>
+#include <fstream>
+
+// TODO: we don't want this
+#include <iostream>
 
 namespace rewrite {
 
@@ -48,7 +55,8 @@ namespace rewrite {
 	/**
 	 *
 	 */
-	auto as_number() -> std::expected<double, std::string> {
+	// TODO: Do we need to unquote strings before from_chars?
+	auto as_number() const -> std::expected<double, std::string> {
 	    double	result{0};
 	    auto 	[ptr, ec] = std::from_chars(value.begin(), value.end(), result);
 
@@ -57,13 +65,6 @@ namespace rewrite {
 	    if (ec == std::errc::invalid_argument)
 		return std::unexpected { "Could not convert number" };
 	    return std::unexpected{ "Unknown conversion Error" };
-	}
-
-	/**
-	 *
-	 */
-	auto unquoted() -> std::string_view {
-	    return value.substr(1, value.length() - 2);
 	}
     };
 
@@ -84,7 +85,12 @@ namespace rewrite {
      *
      */
     struct ParsedLine {
+	enum class Type {
+	    ClosingTag, Command
+	};
+
 	std::string_view		command;
+	Type				type { Type::Command };
 	std::vector<ParsedParameter>	parameters;
 	unsigned int			named_parameter_count{0};
 
@@ -94,23 +100,53 @@ namespace rewrite {
 	 * @returns: An unquoted string of the found named parameter or
 	 * 	     std::unexpected if no matching parameter was found.
 	 */
-	auto get_named(const std::string& name)
-	    -> std::expected<std::string_view, std::string> {
+	auto get_named(const std::string& name) const
+	    -> std::optional<ParsedParameter> {
 	    for(auto i = 0; i < named_parameter_count; i += 2)
 		if (parameters[i].value == name)
-		    return parameters[i + 1].unquoted();
-	    return std::unexpected { comp_error( "Unknown named parameter ", name) };
+		    return parameters[i + 1];
+	    return {};
+	}
+
+	std::vector<double> num_values() {
+	    std::vector<double>	result;
+
+	    result.reserve(size());
+	    for (auto i = named_parameter_count * 2;
+		    i < parameters.size(); i++)
+		if (const auto n = parameters[i].as_number(); n.has_value())
+		     result.push_back(n.value());
+	    return result;
+	}
+
+	auto get_optional(const size_t i) const
+	    -> std::optional<ParsedParameter> {
+
+	    const size_t idx = named_parameter_count * 2 + i;
+	    if (idx < parameters.size())
+		return parameters.at(idx);
+	    return {};
 	}
 
 	/**
 	 *
 	 */
 	auto get_value(const unsigned int i) const {
-	    return parameters[named_parameter_count * 2 + i];
+	    return parameters.at(named_parameter_count * 2 + i);
 	}
 
 	auto operator[](const unsigned int i) const {
 	    return get_value(i);
+	}
+
+	size_t size() const {
+	    return parameters.size() - (named_parameter_count * 2);
+	}
+
+	void clear() {
+	    parameters.clear();
+	    type = Type::Command;
+	    named_parameter_count = 0;
 	}
     };
 
@@ -120,17 +156,8 @@ namespace rewrite {
      */
     class CommandParser {
 	private:
-	    struct Token {
-		enum class Type {
-		    Number, Identifier, String, Quote = '"',
-		    OpenTag = '<', CloseTag = '>', Slash = '/'
-		};
-
-		std::string_view	value;
-	    };
-
-	    std::string_view			current_line;
-	    std::string_view::const_iterator	pos;
+	    std::string				current_line;
+	    std::string::iterator		pos;
 	    unsigned int			line_nr{0};
 	
 	    /**
@@ -140,15 +167,19 @@ namespace rewrite {
 	    std::string_view read_while() {
 		const auto	start = pos;
 
-		while (++pos < current_line.cend() && check(*pos));
+		while (++pos < current_line.end() && check(*pos))
+		    if constexpr (check == is_number)
+			if(*pos == ',')
+			    *pos = '.';
 
-		return current_line.substr(
-		    std::distance(current_line.cbegin(), start),
-		    std::distance(start, pos));
+		return {current_line.substr(
+		    std::distance(current_line.begin(), start),
+		    std::distance(start, pos))};
 	    }
 
 	    /**
-	     *
+	     * Skips whitespace and then returns true if check returns
+	     * true for the next character.
 	     */
 	    template<CharCheckFn check>
 	    bool expect_next() {
@@ -160,71 +191,52 @@ namespace rewrite {
 	     *
 	     */
 	    auto get_command(ParsedLine& result)
-		-> std::expected<bool, std::string> {
-
-		if (!expect_next<is_identifier>())
-		    return std::unexpected { "Expected Polaris command after '<'" };
-
-		result.command = read_while<is_identifier>();
-		while (expect_next<is_identifier>()) {
-		    const auto	param_name = read_while<is_identifier>();
-		    if (!expect_next<is_equals>())
-			return std::unexpected{ "Expected '=' after named parameter" };
-		    if (!expect_next<is_quote>())
-			return std::unexpected { "Expected String after named parameter" };
-		    const auto param_value = read_while<is_string>();
-
-		    result.parameters.emplace_back(param_name, ParsedParameter::Type::Identifier);
-		    result.parameters.emplace_back(param_value, ParsedParameter::Type::String);
-		}
-
-		if (pos >= current_line.cend() || *pos != '>')
-		    return std::unexpected{ "Expected '>' after command" };
-
-		return true;
-	    }
+		-> std::expected<bool, std::string>;
 
 	public:
 	    /**
-	     *
+	     * @param out: Reuse ParsedLine to have its memory hotloaded
 	     */
-	    auto parse_line(const std::string& line)
-		-> std::expected<ParsedLine, std::string> {
+	    auto parse_line(const std::string& line, ParsedLine &out)
+		-> std::expected<ParsedLine*, std::string> {
 
-		ParsedLine		result;
+		std::string_view	tmp_string;
+
+		out.parameters.clear();
 
 		current_line = line;
 		line_nr++;
-		pos = current_line.cbegin();
+		pos = current_line.begin();
 
-		while (pos < current_line.cend()) {
+		while (pos < current_line.end()) {
 		    const char c = *pos;
 
 		    switch (c) {
 			case '#':
 			case '!':
-			    return result;
+			    return &out;
 
 			case '"':
-			    result.parameters.emplace_back(
-				    read_while<is_string>(),
+			    tmp_string = read_while<is_string>();
+			    out.parameters.emplace_back(
+				    tmp_string.substr(1, tmp_string.size() - 2),
 				    ParsedParameter::Type::String);
 			    if (pos == current_line.end())
 				return std::unexpected{ "Missing '\"'" };
 			    continue;
 
 			case '<':
-			    if (const auto e = get_command(result);
+			    if (const auto e = get_command(out);
 				not e) return std::unexpected{ e.error() };
 			    continue;
 
 			default:
 			    if (is_identifier(c))
-				result.parameters.emplace_back(
+				out.parameters.emplace_back(
 				    read_while<is_identifier>(), ParsedParameter::Type::Identifier);
 
 			    else if (is_number(c))
-				result.parameters.emplace_back(
+				out.parameters.emplace_back(
 				    read_while<is_number>(), ParsedParameter::Type::Number);
 
 			    else
@@ -235,7 +247,28 @@ namespace rewrite {
 		    ++pos;
 		}
 
-		return result;
+		return &out;
+	    }
+
+	    using ProcessFn = bool(*)(const ParsedLine&);
+	    void parse_file(const std::filesystem::path& path, ProcessFn proc) {
+		std::ifstream		file(path);
+		std::string		line;
+		ParsedLine		parsed;
+
+		while(std::getline(file, line)) {
+		    if (const auto res = parse_line(line, parsed); not res) {
+			std::cout << "Parsing Error ["
+			    << line_nr << ":" << std::distance(current_line.cbegin(), pos) << "]: "
+			    << res.error();
+			continue;
+		    }
+
+		    proc(parsed);
+		}
+
 	    }
     };
 }
+
+#endif
