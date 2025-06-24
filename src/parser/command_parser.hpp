@@ -11,6 +11,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <map>
 
 // TODO: we don't want this
 #include <iostream>
@@ -41,49 +42,9 @@ namespace rewrite {
 
 
     /**
-     *
-     */
-    struct ParsedParameter {
-	enum class Type {
-	    Identifier,
-	    String,
-	    Number
-	};
-
-	std::string_view	value;
-	Type			type;
-
-	/**
-	 *
-	 */
-	// TODO: Do we need to unquote strings before from_chars?
-	auto as_number() const -> std::expected<double, std::string> {
-	    double	result{0};
-	    auto 	[ptr, ec] = std::from_chars(value.begin(), value.end(), result);
-
-	    if (ec == std::errc{})
-		return result;
-	    if (ec == std::errc::invalid_argument)
-		return std::unexpected{ "Could not convert number" };
-	    return std::unexpected{ "Unknown conversion Error" };
-	}
-    };
-
-
-    /**
-     * Fully parsed line with all found parameters
-     * The decision to use the parameters-vector to store named parameters
-     * as prepended name-value pairs was made as maps won't have much of
-     * a performance increase with small numbers of parameters, but will
-     * take much more space.
-     *
-     * @ivar command: Holds the command (<command>) of this line
-     * @ivar paramters: List of all found parameters. Named parameters are
-     * 			prepended as pairs (2 indices per named parameter as
-     * 			name - value pair). The effective index of positional
-     * 			parameters starts at named_parameter_count * 2 + 0
-     * 	@ivar named_parameter_count: Number of named parameters
-     *
+     * Chose multiple vector layout because of multiple conversions during cmd
+     * file processing. Memory fragmentation is preferable to multiple
+     * loops through the same arrays.
      */
     struct ParsedLine {
 	enum class Type {
@@ -91,65 +52,18 @@ namespace rewrite {
 	};
 
 	std::string_view		command;
-	Type				type { Type::Command };
-	std::vector<ParsedParameter>	parameters;
-	unsigned int			named_parameter_count{0};
-
-	/**
-	 * Get named parameter by its name
-	 * @param name: String representing the desired parameter
-	 * @returns: An unquoted string of the found named parameter or
-	 * 	     std::unexpected if no matching parameter was found.
-	 */
-	auto get_named(const std::string& name) const
-	    -> std::optional<ParsedParameter> {
-	    for(auto i = 0; i < named_parameter_count; i += 2)
-		if (parameters[i].value == name)
-		    return parameters[i + 1];
-	    return {};
-	}
-
-
-	// TODO safer
-	auto num_values(std::vector<double>& out, const size_t from=0) 
-	    -> std::optional<std::string> {
-
-	    const size_t start = named_parameter_count * 2 + from;
-	    size_t skipped = 0;
-	    for (auto i = start; i < parameters.size(); i++)
-		if (const auto n = parameters[i].as_number(); n.has_value())
-		    out[i - start - skipped] = n.value();
-		else ++skipped;
-	}
-
-	auto get_optional(const size_t i) const
-	    -> std::optional<ParsedParameter> {
-
-	    const size_t idx = named_parameter_count * 2 + i;
-	    if (idx < parameters.size())
-		return parameters.at(idx);
-	    return {};
-	}
-
-	/**
-	 *
-	 */
-	auto get_value(const unsigned int i) const {
-	    return parameters.at(named_parameter_count * 2 + i);
-	}
-
-	auto operator[](const unsigned int i) const {
-	    return get_value(i);
-	}
-
-	size_t size() const {
-	    return parameters.size() - (named_parameter_count * 2);
-	}
+	Type				type{Type::Command};
+	std::vector<double>		num_params;
+	std::vector<std::string_view>	str_params;
+	std::vector<std::string_view>	id_params;
+	std::map<std::string, std::string_view> named_params;
 
 	void clear() {
-	    parameters.clear();
 	    type = Type::Command;
-	    named_parameter_count = 0;
+	    num_params.clear();
+	    str_params.clear();
+	    id_params.clear();
+	    named_params.clear();
 	}
     };
 
@@ -162,6 +76,8 @@ namespace rewrite {
 	    std::string				current_line;
 	    std::string::iterator		pos;
 	    unsigned int			line_nr{0};
+
+	    ParsedLine				parsed_line;
 	
 	    /**
 	     *
@@ -193,19 +109,19 @@ namespace rewrite {
 	    /**
 	     *
 	     */
-	    auto get_command(ParsedLine& result)
+	    auto get_command()
 		-> std::expected<bool, std::string>;
 
 	public:
 	    /**
 	     * @param out: Reuse ParsedLine to have its memory hotloaded
 	     */
-	    auto parse_line(const std::string& line, ParsedLine &out)
+	    auto parse_line(const std::string& line)
 		-> std::expected<ParsedLine*, std::string> {
 
 		std::string_view	tmp_string;
 
-		out.parameters.clear();
+		parsed_line.clear();
 
 		current_line = line;
 		line_nr++;
@@ -217,13 +133,12 @@ namespace rewrite {
 		    switch (c) {
 			case '#':
 			case '!':
-			    return &out;
+			    return;
 
 			case '"':
 			    tmp_string = read_while<is_string>();
-			    out.parameters.emplace_back(
-				    tmp_string.substr(1, tmp_string.size() - 2),
-				    ParsedParameter::Type::String);
+			    parsed_line.str_params.emplace_back(
+				tmp_string.substr(1, tmp_string.size() - 2));
 			    if (pos == current_line.end())
 				return std::unexpected{ "Missing '\"'" };
 			    continue;
@@ -235,13 +150,23 @@ namespace rewrite {
 
 			default:
 			    if (is_identifier(c))
-				out.parameters.emplace_back(
-				    read_while<is_identifier>(), ParsedParameter::Type::Identifier);
+				parsed_line.id_params.emplace_back(
+				    read_while<is_identifier>());
 
-			    else if (is_number(c))
-				out.parameters.emplace_back(
-				    read_while<is_number>(), ParsedParameter::Type::Number);
-
+			    else if (is_number(c)) {
+				tmp_string = read_while<is_number>();
+				try {
+				    double val = 0;
+				    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
+				    parsed_line.num_params.push_back(val);
+				}
+				catch ( std::out_of_range ) {
+				    return std::unexpected{""};
+				}
+				catch ( std::invalid_argument ) {
+				    return std::unexpected{""};
+				}
+			    }
 			    else
 				return std::unexpected{
 				    comp_error( "Unknown Token '", c, "'" ) };
@@ -249,8 +174,6 @@ namespace rewrite {
 
 		    ++pos;
 		}
-
-		return &out;
 	    }
 
 	    using ProcessFn = bool(*)(const ParsedLine&);

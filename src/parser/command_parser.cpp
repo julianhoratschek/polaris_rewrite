@@ -31,15 +31,19 @@ namespace rewrite {
     }
 
 
-    auto CommandParser::get_command(ParsedLine& result)
+    auto CommandParser::get_command()
 	-> std::expected<bool, std::string> {
 
-	if (expect_next<is_slash>())
-	    result.type = ParsedLine::Type::ClosingTag;
-	else if (!is_identifier(*pos))
+	if (expect_next<is_slash>()) {
+	    parsed_line.type = ParsedLine::Type::ClosingTag;
+	    ++pos;
+	}
+
+	if (!is_identifier(*pos))
 	    return std::unexpected { "Expected Polaris command after '<'" };
 
-	result.command = read_while<is_identifier>();
+	parsed_line.command = read_while<is_identifier>();
+
 	while (expect_next<is_identifier>()) {
 	    const auto	param_name = read_while<is_identifier>();
 	    if (!expect_next<is_equals>())
@@ -48,8 +52,8 @@ namespace rewrite {
 		return std::unexpected { "Expected String after named parameter" };
 	    const auto param_value = read_while<is_string>();
 
-	    result.parameters.emplace_back(param_name, ParsedParameter::Type::Identifier);
-	    result.parameters.emplace_back(param_value, ParsedParameter::Type::String);
+	    parsed_line.named_params.insert(
+		param_name, param_value.substr(1, param_value.size() - 2));
 	}
 
 	if (pos >= current_line.cend() || *pos != '>')
