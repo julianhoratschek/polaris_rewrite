@@ -37,6 +37,7 @@ namespace rewrite {
     bool is_quote(const char c);
     bool is_string(const char c);
     bool is_equals(const char c);
+    bool is_slash(const char c);
 
 
     /**
@@ -63,7 +64,7 @@ namespace rewrite {
 	    if (ec == std::errc{})
 		return result;
 	    if (ec == std::errc::invalid_argument)
-		return std::unexpected { "Could not convert number" };
+		return std::unexpected{ "Could not convert number" };
 	    return std::unexpected{ "Unknown conversion Error" };
 	}
     };
@@ -108,15 +109,17 @@ namespace rewrite {
 	    return {};
 	}
 
-	std::vector<double> num_values() {
-	    std::vector<double>	result;
 
-	    result.reserve(size());
-	    for (auto i = named_parameter_count * 2;
-		    i < parameters.size(); i++)
+	// TODO safer
+	auto num_values(std::vector<double>& out, const size_t from=0) 
+	    -> std::optional<std::string> {
+
+	    const size_t start = named_parameter_count * 2 + from;
+	    size_t skipped = 0;
+	    for (auto i = start; i < parameters.size(); i++)
 		if (const auto n = parameters[i].as_number(); n.has_value())
-		     result.push_back(n.value());
-	    return result;
+		    out[i - start - skipped] = n.value();
+		else ++skipped;
 	}
 
 	auto get_optional(const size_t i) const

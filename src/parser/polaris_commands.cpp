@@ -2,7 +2,7 @@
 
 namespace rewrite {
 
-    auto cmd_cmd(ParsedLine& line, parameters& param)
+    auto cmd_cmd(const ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 
 	constexpr auto commands = std::array {
@@ -22,8 +22,9 @@ namespace rewrite {
     }
 
 
-    auto cmd_delta0(ParsedLine& line, parameters& param)
+    auto cmd_delta0(const ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
+	
 	if (const auto e = line[0].as_number();
 	    not e) return std::unexpected{e.error()};
 	else param.setDelta0(e.value());
@@ -31,7 +32,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_larm_f(ParsedLine& line, parameters& param)
+    auto cmd_larm_f(const ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 	if (const auto e = line[0].as_number();
 	    not e) return std::unexpected{e.error()};
@@ -40,7 +41,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_plot_list(ParsedLine& line, parameters& param)
+    auto cmd_plot_list(const ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 	
 	if (line.size() == 0)
@@ -152,6 +153,9 @@ namespace rewrite {
 		not num) return std::unexpected{num.error()};
 	    else nr_of_photons = static_cast<ullong>(num.value());
 	}
+
+	std::vector<double>	values(NR_OF_POINT_SOURCES, 0);
+	line.num_values(values);
 
 	if (line[3].type == ParsedParameter::Type::String) {
 	    ps_path = line[3].value;
