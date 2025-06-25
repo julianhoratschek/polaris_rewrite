@@ -380,4 +380,164 @@ namespace rewrite {
 	}
 	return true;
     }
+
+    auto cmd_healpix_orientation(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	constexpr auto healpix = std::array{
+	    "HEALPIX_FIXED", "HEALPIX_YAXIS", "HEALPIX_CENTER" };
+
+	const auto e = line.get_id(0);
+	if (!e)
+	    return std::unexpected{ e.error() };
+	const auto res = std::ranges::find(healpix, e.value());
+	if (res == healpix.end())
+	    return std::unexpected{ "Unknown healpix orientation" };
+	param.setHealpixOrientation(std::distance(healpix.begin(), res));
+	return true;
+    }
+
+    auto cmd_path_grid(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_str(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setPathGrid(std::string{e.value()});
+	return true;
+    }
+
+    auto cmd_path_grid_csg(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_str(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setPathGrid(std::string{e.value()});
+
+        param.updateSIConvDH(1e6);
+        param.updateSIConvLength(1e-2);
+        param.updateSIConvBField(1e-4);
+        param.updateSIConvVField(1e-2);
+
+        return true;
+    }
+
+
+    auto cmd_sub_dust(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setSublimate(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_vel_maps(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setVelMaps(static_cast<bool>(e.value()));
+	return true;
+    }
+
+    auto cmd_max_subpixel_lvl(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setMaxSubpixelLvl(static_cast<int>(e.value()))
+	return true;
+    }
+
+    auto cmd_path_input(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_str(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setPathInput(std::string{e.value()});
+	return true;
+    }
+
+    auto cmd_dust_component(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	
+	uint 		dust_component_choice = 0;
+
+	if (line.named_params.contains("id")) try {
+	    dust_component_choice = std::stoul(
+		std::string{line.named_params["id"]});
+	}
+	catch(...) {
+	    return std::unexpected{ "Invalid dust component ID"};
+	}
+
+	const auto 	path_param = line.get_str(0);
+
+	if (!path_param.has_value())
+	    return std::unexpected{ "Expected path as first parameter" };
+
+	const std::string path{path_param.value()};
+
+        param.AddDustComponentChoice(dust_component_choice);
+
+	const auto 	sz_keyword_param = line.get_str(1);
+
+	uint 		nr_size_parameter = 0;
+	std::string 	size_keyword;
+
+	if (!sz_keyword_param.has_value())
+	    size_keyword = "plaw";
+
+	else {
+	    size_keyword = sz_keyword_param.value();
+
+	    // TODO make this better
+	    if (size_keyword == "plaw") {
+		++nr_size_parameter;
+		if (size_keyword.contains("-ed"))
+		    nr_size_parameter += 3;
+		if (size_keyword.contains("-cv"))
+		    nr_size_parameter += 3;
+	    }
+	    else if (size_keyword == "logn")
+		nr_size_parameter += 2;
+	    else if (size_keyword == "zda")
+		nr_size_parameter += 14;
+	    else
+		return std::unexpected{ "Unknown size distribution keyword" };
+	}
+
+	std::vector<double>	size_parameter(NR_OF_SIZE_DIST_PARAM, 0);
+
+	if (nr_size_parameter > 0 && line.num_params.size() == nr_size_parameter + 4) {
+	    std::copy(line.num_params.begin() + 4, line.num_params.end(), size_parameter.begin());
+	    param.addDustComponent(path, size_keyword,
+		line.num_params[0], line.num_params[1], line.num_params[2], line.num_params[3],
+		size_parameter);
+	    return true;
+	}
+
+	if (nr_size_parameter == 0) {
+	    double	fr = line.num_params[0], a_min = 0, a_max = 0;
+
+	    switch (line.num_params.size()) {
+		case 4:
+		    size_parameter[0] = line.num_params[1];
+		    a_min = line.num_params[2];
+		    a_max = line.num_params[3];
+		    break;
+
+		case 2:
+		    size_parameter[0] = line.num_params[1];
+		    break;
+
+		case 0:
+		    fr = 1.0;
+		    break;
+
+		default:
+		    return std::unexpected{ "Wrong number of parameters" };
+	    }
+
+	    param.addDustComponent(path, size_keyword, fr, 0, a_min, a_max, size_parameter);
+	    return true;
+	}
+
+        return std::unexpected{ "Wrong number of size parameters" };
+    }
+
 }
