@@ -4,9 +4,7 @@
 #include <string_view>
 #include <string>
 #include <expected>
-#include <optional>
 #include <vector>
-#include <charconv>
 #include <sstream>
 
 #include <filesystem>
@@ -57,54 +55,83 @@ namespace rewrite {
 
 	std::string_view				command;
 	Type						type{Type::Command};
-	std::vector<std::pair<ParamType, size_t>>	sequence;
 	std::vector<double>				num_params;
 	std::vector<std::string_view>			str_params;
 	std::vector<std::string_view>			id_params;
 	std::map<std::string, std::string_view> 	named_params;
 
-	template<typename T, std::vector<T> v>
+	std::vector<std::pair<ParamType, size_t>>	sequence;
+
+	consteval std::string param_type(ParamType tp) {
+	    if (tp == ParamType::Identifier)
+		return "Identifier";
+	    if (tp == ParamType::Number)
+		return "String";
+	    return "Number";
+	}
+
+	template<ParamType pt>
+	consteval auto get_vector() {
+	    if (pt == ParamType::Number)
+		return &num_params;
+	    else if (pt == ParamType::Identifier)
+		return &id_params;
+	    else
+		return &str_params;
+	}
+
+	template<ParamType pt, typename T>
 	void push_param(T val) {
+	    auto	pv = get_vector<pt>();
+	    const auto idx = pv->size();
+
+	    sequence.emplace_back(pt, idx);
+	    pv->push_back(val);
 	}
 
-	auto get_id(const size_t idx) const
-	    -> std::expected<std::string_view, std::string> {
+	template<ParamType pt, typename T>
+	auto get_param(const size_t idx) const
+	    -> std::expected<T, std::string> {
 	    if (idx >= sequence.size())
 		return std::unexpected{ "Too few parameters" };
-	    const auto param = sequence[idx];
-	    if (param.first != ParamType::Identifier)
-		return std::unexpected{ comp_error("Expected Identifier Parameter at position ", idx)};
-	    return id_params[param.second];
-	}
 
-	auto get_str(const size_t idx) const
-	    -> std::expected<std::string_view, std::string> {
-	    if (idx >= sequence.size())
-		return std::unexpected{ "Too few parameters" };
 	    const auto param = sequence[idx];
-	    if (param.first != ParamType::String)
-		return std::unexpected{ comp_error("Expected String Parameter at position ", idx)};
-	    return str_params[param.second];
-	}
+	    if (param.first != pt)
+		return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
 
-	auto get_num(const size_t idx) const
-	    -> std::expected<double, std::string> {
-	    if (idx >= sequence.size())
-		return std::unexpected{ "Too few parameters" };
-	    const auto param = sequence[idx];
-	    if (param.first != ParamType::Number)
-		return std::unexpected{ comp_error("Expected Number Parameter at position ", idx)};
-	    return num_params[param.second];
+	    auto pv = get_vector<pt>();
+	    return pv->at(param.second);
 	}
 
 	void clear() {
 	    type = Type::Command;
+	    sequence.clear();
 	    num_params.clear();
 	    str_params.clear();
 	    id_params.clear();
 	    named_params.clear();
 	}
     };
+
+    std::ostream& operator<<(std::ostream& os, const ParsedLine& line) {
+	os << "Parsed Line\n\nCommand: " << line.command << "\nParameter Sequence:\n";
+	for (auto& v: line.sequence)
+	    os << v.second << " ";
+	os << "\nNamed Parameters:\n";
+	for (auto& v: line.named_params)
+	    os << "\t" << v.first << ": " << v.second << "\n";
+	os << "\nNumber Parameters:\n";
+	for (auto& v: line.num_params)
+	    os << v << "; ";
+	os << "\nID Parameters:\n";
+	for (auto& v: line.id_params)
+	    os << v << "; ";
+	os << "\nString Parameters:\n";
+	for (auto& v: line.str_params)
+	    os << "\t" << v << "\n";
+
+	return os;
+    }
 
 
     /**
@@ -152,68 +179,8 @@ namespace rewrite {
 		-> std::expected<bool, std::string>;
 
 	public:
-	    /**
-	     * @param out: Reuse ParsedLine to have its memory hotloaded
-	     */
 	    auto parse_line(const std::string& line)
-		-> std::expected<ParsedLine*, std::string> {
-
-		std::string_view	tmp_string;
-
-		parsed_line.clear();
-
-		current_line = line;
-		line_nr++;
-		pos = current_line.begin();
-
-		while (pos < current_line.end()) {
-		    const char c = *pos;
-
-		    switch (c) {
-			case '#':
-			case '!':
-			    return;
-
-			case '"':
-			    tmp_string = read_while<is_string>();
-			    parsed_line.str_params.emplace_back(
-				tmp_string.substr(1, tmp_string.size() - 2));
-			    if (pos == current_line.end())
-				return std::unexpected{ "Missing '\"'" };
-			    continue;
-
-			case '<':
-			    if (const auto e = get_command(out);
-				not e) return std::unexpected{ e.error() };
-			    continue;
-
-			default:
-			    if (is_identifier(c))
-				parsed_line.id_params.emplace_back(
-				    read_while<is_identifier>());
-
-			    else if (is_number(c)) {
-				tmp_string = read_while<is_number>();
-				try {
-				    double val = 0;
-				    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
-				    parsed_line.num_params.push_back(val);
-				}
-				catch ( std::out_of_range ) {
-				    return std::unexpected{""};
-				}
-				catch ( std::invalid_argument ) {
-				    return std::unexpected{""};
-				}
-			    }
-			    else
-				return std::unexpected{
-				    comp_error( "Unknown Token '", c, "'" ) };
-		    }
-
-		    ++pos;
-		}
-	    }
+		-> std::expected<ParsedLine*, std::string>;
 
 	    using ProcessFn = bool(*)(const ParsedLine&);
 	    void parse_file(const std::filesystem::path& path, ProcessFn proc) {
@@ -222,7 +189,7 @@ namespace rewrite {
 		ParsedLine		parsed;
 
 		while(std::getline(file, line)) {
-		    if (const auto res = parse_line(line, parsed); not res) {
+		    if (const auto res = parse_line(line); not res) {
 			std::cout << "Parsing Error ["
 			    << line_nr << ":" << std::distance(current_line.cbegin(), pos) << "]: "
 			    << res.error();
