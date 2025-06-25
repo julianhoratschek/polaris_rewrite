@@ -6,6 +6,17 @@
 #include <functional>
 
 namespace rewrite {
+    template<typename SetterFn>
+	// requires std::is_invocable_v<SetterFn, parameters, double>
+    auto param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else 
+	    std::invoke(setter, param, e.value());
+	return true;
+    }
 
     auto cmd_cmd(const ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -35,10 +46,7 @@ namespace rewrite {
     auto cmd_delta0(const ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 	
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{e.error()};
-	else param.setDelta0(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setDelta0);
     }
 
 
@@ -862,6 +870,300 @@ namespace rewrite {
             return std::unexpected { "For stochastic heating, a non-negative dust grain size limit needs to be chosen!" };
 
 	param.setStochasticHeatingMaxSize(line.num_params[0]);
+	return true;
+    }
+
+    auto cmd_source_dust(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (line.named_params.contains("nr_photons")) try {
+	    param.setNrOfDustPhotons(std::stod(
+		std::string{line.named_params["nr_photons"]}));
+	    return true;
+	}
+	catch(...) {
+	    return std::unexpected{ "Ill formed number of photons" };
+	}
+
+	return std::unexpected{ "Number of photons could not be recognized!" };
+    }
+
+
+    auto cmd_source_isrf(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (!line.named_params.contains("nr_photons"))
+	    return std::unexpected{ "Parameter nr_photons required" };
+
+	try {
+	    param.setNrOfISRFPhotons(std::stod(
+		std::string{line.named_params["nr_photons"]}));
+	}
+	catch(...) {
+	    return std::unexpected{ "Invalid number for nr_photons" };
+	}
+	
+	const std::string	path{line.get_str(0).value_or("")};
+
+	// Set to default values for ISRF
+	std::vector<double>	values{0, 2};
+	const auto		end = std::min(
+	    line.num_params.begin() + 2,
+	    line.num_params.end());
+
+	std::copy(line.num_params.begin(), end, values.begin());
+
+	param.setISRF(path, values[0], values[1]);
+	return true;
+    }
+    
+
+    auto cmd_foreground_extinction(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (line.num_params.size() < 1 || line.num_params.size() > 3)
+	    return std::unexpected{ "Wrong number of parameters" };
+
+	std::vector<double>	values{0, 0.55e-6, MAX_UINT};
+	const auto		end = std::min(
+	    line.num_params.begin() + 3,
+	    line.num_params.end());
+
+	std::copy(line.num_params.begin(), end, values.begin());
+	param.setForegroundExtinction(values[0], values[1], values[2]);
+    }
+
+
+    auto cmd_enfsca(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setEnfScattering(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_peel_off(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setPeelOff(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_acceptance_angle(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (line.num_params.empty())
+	    return std::unexpected{ "Expected parameter" };
+	if (line.num_params[0] <= 0)
+	    return std::unexpected{ "Acceptance angle must be greater than 0" };
+	param.setAcceptanceAngle(line.num_params[0]);
+	return true;
+    }
+
+
+    auto cmd_nr_threads(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (line.num_params.empty())
+	    return std::unexpected{ "Expected parameter" };
+
+        const int max_t = omp_get_max_threads();
+	int tr = line.num_params[0];
+
+	if (tr <= 0 || tr > max_t) {
+	    tr = tr <= 0 ? 1 : max_t;
+	    cout << WARNING_LINE << "Max. nr. of threads is:  " << max_t << endl;
+            cout << WARNING_LINE << "Max. nr. of threads is set to: " << tr << endl;
+	}
+
+        param.setNrOfThreads(tr);
+        return true;
+    }
+
+    auto cmd_vel_is_speed_of_sound(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setIsSpeedOfSound(static_cast<bool>(e.value()));
+	return true;
+    }
+
+    auto cmd_amira_inp_points(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setInpAMIRAPoints(static_cast<uint>(e.value()));
+	return true;
+    }
+
+    auto cmd_amira_out_points(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setOutAMIRAPoints(static_cast<uint>(e.value()));
+	return true;
+    }
+
+    auto cmd_plot_inp_midplanes(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setInpMidPlot(static_cast<bool>(e.value()));
+	return true;
+    }
+
+    auto cmd_plot_out_midplanes(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setOutMidPlot(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_write_3d_midplanes(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (line.num_params.size() < 1 || line.num_params.size() > 4)
+	    return std::unexpected{ "Wrong number of parameters for 3D midplane files" };
+
+	std::vector<double>	values{0, 0, 0, 0};
+	const auto		end = std::min(
+	    line.num_params.begin() + 4,
+	    line.num_params.end());
+	std::copy(line.num_params.begin(), end, values.begin());
+
+	if (values[2] > values[3])
+	    return std::unexpected{ "z_min is larger than z_max" };
+
+	if (values[0] < 1 || values[0] > 3) // PROJ_XY, PROJ_XZ, PROJ_YZ
+	    return std::unexpected{ "Wrong plane for 3D midplane files" };
+
+	param.set3dMidplane(values[0], values[1], values[2], values[3]);
+        return true;
+    }
+
+
+    auto cmd_write_inp_midplanes(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setInpMidDataPoints(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_write_out_midplanes(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setOutMidDataPoints(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_write_radiation_field(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	const auto val = e.value();
+        if(val > 3) {
+            cout << WARNING_LINE << "Command \"<write_radiation_field>\" accepts only paramers between 0 to 3!" << endl;
+            param.setWriteRadiationField(0);
+        } else
+	    param.setWriteRadiationField(val);
+
+        return true;
+    }
+
+    auto cmd_write_full_radiation_field(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+        cout << WARNING_LINE << "Command <write_full_radiation_field> is no longer available!" << endl;
+        return true;
+    }
+
+    auto cmd_write_g_zero(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setWriteGZero(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_write_dust_files(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setWriteDustFiles(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_midplane_zoom(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setMidplaneZoom(static_cast<uint>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_kepler_star_mass(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setKeplerStarMass(e.value());
+	return true;
+    }
+
+
+    auto cmd_turbulent_velocity(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setTurbulentVelocity(e.value());
+	return true;
+    }
+
+
+    auto cmd_mc_lvl_pop_photons(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setMCLvlPopNrOfPhotons(static_cast<uint>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_mc_lvl_pop_seed(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setMCLvlPopSeed(static_cast<uint>(e.value()));
 	return true;
     }
 }
