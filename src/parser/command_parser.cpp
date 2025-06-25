@@ -46,14 +46,14 @@ namespace rewrite {
 
 	while (expect_next<is_identifier>()) {
 	    const auto	param_name = read_while<is_identifier>();
+
 	    if (!expect_next<is_equals>())
 		return std::unexpected{ "Expected '=' after named parameter" };
+
 	    if (!expect_next<is_quote>())
 		return std::unexpected { "Expected String after named parameter" };
-	    const auto param_value = read_while<is_string>();
 
-	    parsed_line.named_params[std::string{param_name}] =
-		param_value.substr(1, param_value.size() - 2);
+	    parsed_line.named_params[std::string{param_name}] = unquote(read_while<is_string>());
 	}
 
 	if (pos >= current_line.cend() || *pos != '>')
@@ -64,14 +64,12 @@ namespace rewrite {
     }
 
     auto CommandParser::parse_line(const std::string& line)
-	-> std::expected<ParsedLine*, std::string> {
-
-	std::string_view	tmp_string;
+	-> std::expected<bool, std::string> {
 
 	parsed_line.clear();
 
 	current_line = line;
-	line_nr++;
+	++parsed_line.line_nr;
 	pos = current_line.begin();
 
 	while (pos < current_line.end()) {
@@ -81,14 +79,15 @@ namespace rewrite {
 	    switch (c) {
 		case '#':
 		case '!':
-		    return;
+		    return true;
 
 		case '"':
-		    tmp_string = read_while<is_string>();
 		    parsed_line.push_param<ParsedLine::ParamType::String>(
-			tmp_string.substr(1, tmp_string.size() - 2));
+			unquote(read_while<is_string>()));
+
 		    if (pos == current_line.end())
 			return std::unexpected{ "Missing '\"'" };
+
 		    continue;
 
 		case '<':
@@ -102,7 +101,8 @@ namespace rewrite {
 			    read_while<is_identifier>());
 
 		    else if (is_number(c)) {
-			tmp_string = read_while<is_number>();
+			const auto	tmp_string = read_while<is_number>();
+
 			try {
 			    double val = 0;
 			    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
@@ -116,9 +116,10 @@ namespace rewrite {
 			}
 		    }
 		    else
-			return std::unexpected{
-			    comp_error( "Unknown Token '", c, "'" ) };
+			return std::unexpected{ comp_error( "Unknown Token '", c, "'" ) };
 	    }
 	}
+
+	return true;
     }
 }

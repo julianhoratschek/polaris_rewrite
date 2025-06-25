@@ -1,6 +1,7 @@
 #ifndef RW_COMMAND_PARSER
 #define RW_COMMAND_PARSER
 
+#include <cstddef>
 #include <string_view>
 #include <string>
 #include <expected>
@@ -55,6 +56,7 @@ namespace rewrite {
 
 	std::string_view				command;
 	Type						type{Type::Command};
+	size_t						line_nr{0};
 	std::vector<double>				num_params;
 	std::vector<std::string_view>			str_params;
 	std::vector<std::string_view>			id_params;
@@ -62,19 +64,23 @@ namespace rewrite {
 
 	std::vector<std::pair<ParamType, size_t>>	sequence;
 
-	consteval std::string param_type(ParamType tp) {
-	    if (tp == ParamType::Identifier)
+	// TODO test with consteval
+	template<ParamType tp>
+	static constexpr std::string param_type() {
+	    if constexpr (tp == ParamType::Identifier)
 		return "Identifier";
-	    if (tp == ParamType::Number)
+	    else if constexpr (tp == ParamType::Number)
 		return "String";
-	    return "Number";
+	    else
+		return "Number";
 	}
 
+	// TODO test with consteval
 	template<ParamType pt>
-	consteval auto get_vector() {
-	    if (pt == ParamType::Number)
+	constexpr auto get_vector() const {
+	    if constexpr (pt == ParamType::Number)
 		return &num_params;
-	    else if (pt == ParamType::Identifier)
+	    else if constexpr (pt == ParamType::Identifier)
 		return &id_params;
 	    else
 		return &str_params;
@@ -99,8 +105,20 @@ namespace rewrite {
 	    if (param.first != pt)
 		return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
 
-	    auto pv = get_vector<pt>();
+	    const auto pv = get_vector<pt>();
 	    return pv->at(param.second);
+	}
+
+	auto get_num(const size_t idx) const {
+	    return get_param<ParamType::Number, double>(idx);
+	}
+
+	auto get_id(const size_t idx) const {
+	    return get_param<ParamType::Identifier, std::string_view>(idx);
+	}
+
+	auto get_str(const size_t idx) const {
+	    return get_param<ParamType::String, std::string_view>(idx);
 	}
 
 	void clear() {
@@ -141,9 +159,12 @@ namespace rewrite {
 	private:
 	    std::string				current_line;
 	    std::string::iterator		pos;
-	    unsigned int			line_nr{0};
 
 	    ParsedLine				parsed_line;
+
+	    static std::string_view unquote(const std::string_view& str) {
+		return str.substr(1, str.size() - 2);
+	    }
 	
 	    /**
 	     *
@@ -180,25 +201,24 @@ namespace rewrite {
 
 	public:
 	    auto parse_line(const std::string& line)
-		-> std::expected<ParsedLine*, std::string>;
+		-> std::expected<bool, std::string>;
 
 	    using ProcessFn = bool(*)(const ParsedLine&);
-	    void parse_file(const std::filesystem::path& path, ProcessFn proc) {
+	    auto parse_file(const std::filesystem::path& path, ProcessFn proc)
+		-> std::expected<bool, std::string> {
+
 		std::ifstream		file(path);
 		std::string		line;
-		ParsedLine		parsed;
 
 		while(std::getline(file, line)) {
-		    if (const auto res = parse_line(line); not res) {
-			std::cout << "Parsing Error ["
-			    << line_nr << ":" << std::distance(current_line.cbegin(), pos) << "]: "
-			    << res.error();
-			continue;
-		    }
-
-		    proc(parsed);
+		    if (const auto res = parse_line(line); not res)
+			return std::unexpected { comp_error(
+			    "Parsing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]: ",
+			    res.error()) };
+		    proc(parsed_line);
 		}
 
+		return true;
 	    }
     };
 }
