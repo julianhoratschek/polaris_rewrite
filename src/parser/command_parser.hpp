@@ -51,12 +51,51 @@ namespace rewrite {
 	    ClosingTag, Command
 	};
 
-	std::string_view		command;
-	Type				type{Type::Command};
-	std::vector<double>		num_params;
-	std::vector<std::string_view>	str_params;
-	std::vector<std::string_view>	id_params;
-	std::map<std::string, std::string_view> named_params;
+	enum class ParamType {
+	    Identifier, String, Number
+	};
+
+	std::string_view				command;
+	Type						type{Type::Command};
+	std::vector<std::pair<ParamType, size_t>>	sequence;
+	std::vector<double>				num_params;
+	std::vector<std::string_view>			str_params;
+	std::vector<std::string_view>			id_params;
+	std::map<std::string, std::string_view> 	named_params;
+
+	template<typename T, std::vector<T> v>
+	void push_param(T val) {
+	}
+
+	auto get_id(const size_t idx) const
+	    -> std::expected<std::string_view, std::string> {
+	    if (idx >= sequence.size())
+		return std::unexpected{ "Too few parameters" };
+	    const auto param = sequence[idx];
+	    if (param.first != ParamType::Identifier)
+		return std::unexpected{ comp_error("Expected Identifier Parameter at position ", idx)};
+	    return id_params[param.second];
+	}
+
+	auto get_str(const size_t idx) const
+	    -> std::expected<std::string_view, std::string> {
+	    if (idx >= sequence.size())
+		return std::unexpected{ "Too few parameters" };
+	    const auto param = sequence[idx];
+	    if (param.first != ParamType::String)
+		return std::unexpected{ comp_error("Expected String Parameter at position ", idx)};
+	    return str_params[param.second];
+	}
+
+	auto get_num(const size_t idx) const
+	    -> std::expected<double, std::string> {
+	    if (idx >= sequence.size())
+		return std::unexpected{ "Too few parameters" };
+	    const auto param = sequence[idx];
+	    if (param.first != ParamType::Number)
+		return std::unexpected{ comp_error("Expected Number Parameter at position ", idx)};
+	    return num_params[param.second];
+	}
 
 	void clear() {
 	    type = Type::Command;

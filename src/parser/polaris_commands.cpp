@@ -12,7 +12,7 @@ namespace rewrite {
 	    "CMD_SYNCHROTRON"
 	};
 
-	auto res = std::ranges::find(commands, line[0].value);
+	auto res = std::ranges::find(commands, line.id_params[0]);
 	if (res == commands.end())
 	    return std::unexpected{"Command cannot be recognized!"};
 
