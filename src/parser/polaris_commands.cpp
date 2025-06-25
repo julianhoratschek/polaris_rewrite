@@ -540,4 +540,328 @@ namespace rewrite {
         return std::unexpected{ "Wrong number of size parameters" };
     }
 
+
+    auto cmd_path_out(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_str(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setPathOutput(std::string{e.value()});
+	return true;
+    }
+
+
+    auto cmd_nr_plot_points(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setNrOfPlotPoints(static_cast<uint>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_nr_plot_vectors(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setnrOfPlotVectors(static_cast<uint>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_f_highJ(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setFhighJ(e.value());
+	return true;
+    }
+
+
+    auto cmd_Q_ref(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setQref(e.value());
+	return true;
+    }
+
+
+    auto cmd_alpha_Q(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setAlphaQ(e.value());
+	return true;
+    }
+
+
+    auto cmd_R_rayleigh(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setRayleighReductionFactor(e.value());
+	return true;
+    }
+
+
+    auto cmd_f_c(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setFcorr(e.value());
+	return true;
+    }
+
+
+    auto cmd_adj_tgs(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setAdjTgas(e.value());
+	return true;
+    }
+
+
+    auto cmd_max_plot_lines(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setMaxPlotLines(static_cast<uint>(e.value()));
+	return true;
+    }
+
+    auto cmd_start(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setStart(static_cast<uint>(e.value()));
+	return true;
+    }
+
+    auto cmd_stop(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setStop(static_cast<uint>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_cons_dens(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	auto value = e.value();
+	if (value < 0) {
+	    // TODO we don't like this
+	    std::cout << WARNING_LINE << "Negative conversion factors are no longer supported!\n"
+	    << "\tGrid must always contain number densities" << endl;
+	    value = -value;
+	}
+	param.updateSIConvDH(value);
+
+	return true;
+    }
+
+
+    auto cmd_conv_len(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.updateSIConvLength(e.value());
+	return true;
+    }
+
+
+    auto cmd_conv_mag(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.updateSIConvBField(e.value());
+	return true;
+    }
+
+
+    auto cmd_conv_vel(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	double conv = e.value();
+	if (conv < 0) {
+            cout << WARNING_LINE << "Negative conversion factor are no longer allowed!\n"
+		<< "\tThe grid can only contain number densities.\n\n";
+	    conv = std::abs(conv);
+	}
+
+        param.updateSIConvVField(conv);
+	return true;
+    }
+
+
+    auto cmd_mass_fraction(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	const double value = e.value();
+
+	if (value == 0) {
+            param.setDustMassFraction(1.0);
+            param.setIndividualDustMassFractions(true);
+	}
+	else
+            param.setDustMassFraction(value);
+
+        return true;
+    }
+
+    auto cmd_mrw(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setMRW(static_cast<bool>(e.value()));
+	std::cout << WARNING_LINE << "MRW currently unavailable!\n";
+	return true;
+    }
+
+
+    auto cmd_pda(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setPDA(static_cast<bool>(e.value()));
+	std::cout << WARNING_LINE << "PDA currently unavailable!\n";
+	return true;
+    }
+
+
+    auto cmd_dust_offset(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	if (e.value() == 0)
+	    return true;
+
+	if (!line.named_params.contains("min_gas_density"))
+	    param.setDustOffset(true);
+	else try {
+	    param.setDustOffset(
+		std::stod(std::string{line.named_params["min_gas_density"]}));
+	}
+	catch(...) {
+	    return std::unexpected{ "Invalid number for min_gas_density" };
+	}
+
+	return true;
+    }
+    
+
+    auto cmd_gas_coupling(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	if (e.value() == 0)
+	    return true;
+
+	if (!line.named_params.contains("min_gas_density"))
+	    param.setDustGasCoupling(true);
+	else try {
+	    param.setDustGasCoupling(
+		std::stod(std::string{line.named_params["min_gas_density"]}));
+	}
+	catch(...) {
+	    return std::unexpected{ "Invalid number for min_gas_density" };
+	}
+
+	return true;
+    }
+
+
+    auto cmd_radiation_field(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setSaveRadiationField(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_rt_scattering(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setScatteringToRay(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_split_dust_emission(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setSplitDustEmission(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_full_dust_temp(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	const auto e = line.get_num(0);
+
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+	param.setFullDustTemp(static_cast<bool>(e.value()));
+	return true;
+    }
+
+
+    auto cmd_stochastic_heating(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	if (line.num_params.size() != 1 || line.num_params[0] < 0)
+            return std::unexpected { "For stochastic heating, a non-negative dust grain size limit needs to be chosen!" };
+
+	param.setStochasticHeatingMaxSize(line.num_params[0]);
+	return true;
+    }
 }
