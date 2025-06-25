@@ -6,8 +6,13 @@
 #include <functional>
 
 namespace rewrite {
+
+    /**
+     * Helper function to set one singular numerical parameter with a
+     * setter function of parameters
+     */
     template<typename SetterFn>
-	// requires std::is_invocable_v<SetterFn, parameters, double>
+	requires std::is_invocable_v<SetterFn, parameters, double>
     auto param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
 	-> std::expected<bool, std::string> {
 
@@ -18,7 +23,69 @@ namespace rewrite {
 	return true;
     }
 
-    auto cmd_cmd(const ParsedLine& line, parameters& param)
+
+    /**
+     * Helper function to set sources
+     */
+    template<typename Fn>
+	requires std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>
+	      || std::is_invocable_v<Fn, parameters, std::vector<double>&>
+    auto add_source(
+	ParsedLine& line, parameters& param,
+	Fn add_function, const std::string& source_name, const size_t nr_of_sources)
+	-> std::expected<bool, std::string> {
+
+	constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
+
+	if (!line.named_params.contains("nr_photons"))
+	    return std::unexpected{ "Expected parameter 'nr_photons'" };
+
+	const ullong nr_of_photons = std::stoull(
+	    std::string{line.named_params["nr_photons"]});
+
+	if (nr_of_photons <= 0)
+	    return std::unexpected{ 
+		comp_error("Number of ", source_name, " photons could not be recognized!") };
+
+	std::string ps_path;
+
+	// TODO: consteval?
+	if constexpr (with_path) {
+	    if (!line.str_params.empty()) {
+		ps_path = line.str_params[0];
+		if (line.num_params.size() != nr_of_sources - 5)
+		    return std::unexpected{
+			comp_error("False amount of parameters for source ", source_name) };
+		line.num_params.resize(nr_of_sources - 1, 0);
+	    }
+	}
+
+	if (line.num_params.size() == nr_of_sources - 3)
+	    line.num_params.resize(nr_of_sources - 1, 0);
+
+	if (line.num_params.size() != nr_of_sources - 1)
+	    return std::unexpected{
+		comp_error("False amount of parameters for source ", source_name)};
+
+	const auto	q = line.num_params[nr_of_sources - 3],
+			u = line.num_params[nr_of_sources - 2];
+        const auto 	P_l = sqrt(q * q + u * u);
+
+        if(P_l > 1.0)
+	    return std::unexpected { "Chosen polarization of source star is larger than 1!" };
+        else if(P_l < 0)
+	    return std::unexpected{ "Chosen polarization of source is smaller than 0!" };
+
+        line.num_params.push_back(static_cast<double>(nr_of_photons));
+
+	if constexpr (with_path)
+	    std::invoke(add_function, param, line.num_params, ps_path);
+	else
+	    std::invoke(add_function, param, line.num_params);
+        return true;
+    }
+
+    auto cmd_cmd(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 
 	constexpr auto commands = std::array {
@@ -42,24 +109,17 @@ namespace rewrite {
 	return true;
     }
 
-
-    auto cmd_delta0(const ParsedLine& line, parameters& param)
+    auto cmd_delta0(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	
 	return param_set_number(line, param, &parameters::setDelta0);
     }
 
-
-    auto cmd_larm_f(const ParsedLine& line, parameters& param)
+    auto cmd_larm_f(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{e.error()};
-	else param.setLarmF(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setLarmF);
     }
 
-
-    auto cmd_plot_list(const ParsedLine& line, parameters& param)
+    auto cmd_plot_list(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 
 	if (line.num_params.empty())
@@ -168,69 +228,6 @@ namespace rewrite {
         return true;
     }
 
-
-    template<typename Fn>
-	requires std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>
-	    || std::is_invocable_v<Fn, parameters, std::vector<double>&>
-    auto add_source(
-	ParsedLine& line,
-	parameters& param,
-	Fn add_function,
-	const std::string& source_name,
-	const size_t nr_of_sources)
-	-> std::expected<bool, std::string> {
-
-	constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
-
-	if (!line.named_params.contains("nr_photons"))
-	    return std::unexpected{ "Expected parameter 'nr_photons'" };
-
-	const ullong nr_of_photons = std::stoull(
-	    std::string{line.named_params["nr_photons"]});
-
-	if (nr_of_photons <= 0)
-	    return std::unexpected{ 
-		comp_error("Number of ", source_name, " photons could not be recognized!") };
-
-	std::string ps_path;
-
-	// TODO: consteval?
-	if constexpr (with_path) {
-	    const bool has_path = !line.str_params.empty();
-	    if (has_path) {
-		ps_path = line.str_params[0];
-		if (line.num_params.size() != nr_of_sources - 5)
-		    return std::unexpected{
-			comp_error("False amount of parameters for source ", source_name) };
-		line.num_params.resize(nr_of_sources - 1, 0);
-	    }
-	}
-
-	if (line.num_params.size() == nr_of_sources - 3)
-	    line.num_params.resize(nr_of_sources - 1, 0);
-
-	if (line.num_params.size() != nr_of_sources - 1)
-	    return std::unexpected{
-		comp_error("False amount of parameters for source ", source_name)};
-
-	const auto	q = line.num_params[nr_of_sources - 3],
-			u = line.num_params[nr_of_sources - 2];
-        const auto 	P_l = sqrt(q * q + u * u);
-
-        if(P_l > 1.0)
-	    return std::unexpected { "Chosen polarization of source star is larger than 1!" };
-        else if(P_l < 0)
-	    return std::unexpected{ "Chosen polarization of source is smaller than 0!" };
-
-        line.num_params.push_back(static_cast<double>(nr_of_photons));
-	if constexpr (with_path)
-	    std::invoke(add_function, param, line.num_params, ps_path);
-	else
-	    std::invoke(add_function, param, line.num_params);
-        return true;
-    }
-    
-
     auto cmd_source_star(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 	return add_source(
@@ -239,7 +236,6 @@ namespace rewrite {
 
     auto cmd_source_starfield(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	
 	return add_source(
 	    line, param, &parameters::addDiffuseSource, "starfield", NR_OF_DIFF_SOURCES);
     }
@@ -283,13 +279,11 @@ namespace rewrite {
 	return true;
     }
 
-
     auto cmd_source_laser(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 	return add_source(
 	    line, param, &parameters::addLaserSource, "laser", NR_OF_LASER_SOURCES);
     }
-
 
     auto cmd_axis1(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -306,7 +300,6 @@ namespace rewrite {
 	param.setAxis2(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return true;
     }
-
 
     auto cmd_align(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -328,13 +321,9 @@ namespace rewrite {
 	return true;
     }
 
-
     auto cmd_mu(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setMu(e.value());
-	return true;
+	    return param_set_number(line, param, &parameters::setMu);
     }
 
     auto cmd_xy_min(ParsedLine& line, parameters& param)
@@ -372,10 +361,7 @@ namespace rewrite {
 
     auto cmd_xy_bins(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setXYBins(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setXYBins);
     }
 
     auto cmd_xy_label(ParsedLine& line, parameters& param)
@@ -426,30 +412,19 @@ namespace rewrite {
         return true;
     }
 
-
     auto cmd_sub_dust(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setSublimate(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setSublimate);
     }
-
 
     auto cmd_vel_maps(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setVelMaps(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setVelMaps);
     }
 
     auto cmd_max_subpixel_lvl(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setMaxSubpixelLvl(static_cast<int>(e.value()))
-	return true;
+	return param_set_number(line, param, &parameters::setMaxSubpixelLvl);
     }
 
     auto cmd_path_input(ParsedLine& line, parameters& param)
@@ -548,7 +523,6 @@ namespace rewrite {
         return std::unexpected{ "Wrong number of size parameters" };
     }
 
-
     auto cmd_path_out(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 
@@ -561,111 +535,66 @@ namespace rewrite {
 
     auto cmd_nr_plot_points(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setNrOfPlotPoints(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setNrOfPlotPoints);
     }
 
 
     auto cmd_nr_plot_vectors(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setnrOfPlotVectors(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setnrOfPlotVectors);
     }
 
 
     auto cmd_f_highJ(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setFhighJ(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setFhighJ);
     }
 
 
     auto cmd_Q_ref(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setQref(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setQref);
     }
 
 
     auto cmd_alpha_Q(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setAlphaQ(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setAlphaQ);
     }
 
 
     auto cmd_R_rayleigh(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setRayleighReductionFactor(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setRayleighReductionFactor);
     }
 
 
     auto cmd_f_c(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setFcorr(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setFcorr);
     }
 
 
     auto cmd_adj_tgs(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setAdjTgas(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setAdjTgas);
     }
 
 
     auto cmd_max_plot_lines(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setMaxPlotLines(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setMaxPlotLines);
     }
 
     auto cmd_start(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setStart(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setStart);
     }
 
     auto cmd_stop(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setStop(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setStop);
     }
-
 
     auto cmd_cons_dens(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -687,26 +616,15 @@ namespace rewrite {
 	return true;
     }
 
-
     auto cmd_conv_len(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.updateSIConvLength(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::updateSIConvLength);
     }
-
 
     auto cmd_conv_mag(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.updateSIConvBField(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::updateSIConvBField);
     }
-
 
     auto cmd_conv_vel(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -726,7 +644,6 @@ namespace rewrite {
         param.updateSIConvVField(conv);
 	return true;
     }
-
 
     auto cmd_mass_fraction(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -749,27 +666,17 @@ namespace rewrite {
 
     auto cmd_mrw(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setMRW(static_cast<bool>(e.value()));
+	const auto res = param_set_number(line, param, &parameters::setMRW);
 	std::cout << WARNING_LINE << "MRW currently unavailable!\n";
-	return true;
+	return res;
     }
-
 
     auto cmd_pda(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setPDA(static_cast<bool>(e.value()));
+	const auto res = param_set_number(line, param, &parameters::setPDA);
 	std::cout << WARNING_LINE << "PDA currently unavailable!\n";
-	return true;
+	return res;
     }
-
 
     auto cmd_dust_offset(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -794,7 +701,6 @@ namespace rewrite {
 	return true;
     }
     
-
     auto cmd_gas_coupling(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 
@@ -819,50 +725,25 @@ namespace rewrite {
 	return true;
     }
 
-
     auto cmd_radiation_field(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setSaveRadiationField(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setSaveRadiationField);
     }
-
 
     auto cmd_rt_scattering(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setScatteringToRay(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setScatteringToRay);
     }
-
 
     auto cmd_split_dust_emission(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setSplitDustEmission(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setSplitDustEmission);
     }
-
 
     auto cmd_full_dust_temp(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setFullDustTemp(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setFullDustTemp);
     }
-
 
     auto cmd_stochastic_heating(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -886,7 +767,6 @@ namespace rewrite {
 
 	return std::unexpected{ "Number of photons could not be recognized!" };
     }
-
 
     auto cmd_source_isrf(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -916,7 +796,6 @@ namespace rewrite {
 	return true;
     }
     
-
     auto cmd_foreground_extinction(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 
@@ -932,28 +811,15 @@ namespace rewrite {
 	param.setForegroundExtinction(values[0], values[1], values[2]);
     }
 
-
     auto cmd_enfsca(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setEnfScattering(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setEnfScattering);
     }
-
 
     auto cmd_peel_off(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setPeelOff(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setPeelOff);
     }
-
 
     auto cmd_acceptance_angle(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -964,7 +830,6 @@ namespace rewrite {
 	param.setAcceptanceAngle(line.num_params[0]);
 	return true;
     }
-
 
     auto cmd_nr_threads(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -986,52 +851,28 @@ namespace rewrite {
 
     auto cmd_vel_is_speed_of_sound(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setIsSpeedOfSound(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setIsSpeedOfSound);
     }
 
     auto cmd_amira_inp_points(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setInpAMIRAPoints(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setInpAMIRAPoints);
     }
 
     auto cmd_amira_out_points(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setOutAMIRAPoints(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setOutAMIRAPoints);
     }
 
     auto cmd_plot_inp_midplanes(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setInpMidPlot(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setInpMidPlot);
     }
 
     auto cmd_plot_out_midplanes(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setOutMidPlot(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setOutMidPlot);
     }
-
 
     auto cmd_write_3d_midplanes(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -1055,28 +896,15 @@ namespace rewrite {
         return true;
     }
 
-
     auto cmd_write_inp_midplanes(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setInpMidDataPoints(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setInpMidDataPoints);
     }
-
 
     auto cmd_write_out_midplanes(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setOutMidDataPoints(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setOutMidDataPoints);
     }
-
 
     auto cmd_write_radiation_field(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
@@ -1103,67 +931,36 @@ namespace rewrite {
 
     auto cmd_write_g_zero(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setWriteGZero(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setWriteGZero);
     }
-
 
     auto cmd_write_dust_files(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	const auto e = line.get_num(0);
-
-	if (!e.has_value())
-	    return std::unexpected{ e.error() };
-	param.setWriteDustFiles(static_cast<bool>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setWriteDustFiles);
     }
-
 
     auto cmd_midplane_zoom(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setMidplaneZoom(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setMidplaneZoom);
     }
-
 
     auto cmd_kepler_star_mass(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setKeplerStarMass(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setKeplerStarMass);
     }
-
 
     auto cmd_turbulent_velocity(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setTurbulentVelocity(e.value());
-	return true;
+	return param_set_number(line, param, &parameters::setTurbulentVelocity);
     }
-
 
     auto cmd_mc_lvl_pop_photons(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setMCLvlPopNrOfPhotons(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setMCLvlPopNrOfPhotons);
     }
-
 
     auto cmd_mc_lvl_pop_seed(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else param.setMCLvlPopSeed(static_cast<uint>(e.value()));
-	return true;
+	return param_set_number(line, param, &parameters::setMCLvlPopSeed);
     }
 }
