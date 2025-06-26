@@ -3,24 +3,29 @@
 #include "Matrix2D.hpp"
 #include "Vector3D.hpp"
 
+#include <array>
 #include <cstddef>
 #include <string>
 #include <functional>
 #include <algorithm>
 
 namespace rewrite {
+    
+    // TODO: additional namespace
 
+    /**
+     *
+     */
     auto read_nr_value(const std::string& str)
 	-> std::expected<std::vector<double>, std::string> {
+
 	std::vector<double>	result;
 
-	try {
-	    for (auto i = 0; i < str.length(); i++) {
-		std::size_t	read = 0;
-		result.push_back(
-			std::stod(str.substr(i), &read));
-		i += read + 1;
-	    }
+	for (auto i = 0; i < str.length(); i++) try {
+	    std::size_t	read = 0;
+	    result.push_back(
+		std::stod(str.substr(i), &read));
+	    i += read + 1;
 	}
 	catch(...) {
 	    return std::unexpected{ "Could not read Number" };
@@ -29,49 +34,181 @@ namespace rewrite {
 	return result;
     }
 
-    auto check_pixel(
-	std::vector<double>& values,
-	const std::vector<double>& nr_of_pixel,
-	const bool nsides_as_pixel = false)
-	-> std::expected<void, std::string> {
+    /**
+     *
+     */
+	//    auto check_pixel(
+	// std::vector<double>& values,
+	// const std::vector<double>& nr_of_pixel,
+	// const bool nsides_as_pixel = false)
+	// -> std::expected<void, std::string> {
+	//
+	// if (nr_of_pixel.empty()
+	//     || nr_of_pixel.size() > 2
+	//     || std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
+	//     return std::unexpected { "Number could not be recognized!" }; 
+	//
+	// if(nsides_as_pixel) {
+	//     const auto n = static_cast<uint>(nr_of_pixel[0]);
+	//     if((n & (n - 1)) != 0) 
+	// 	return std::unexpected{ "Number of sides must be a power of two!" };
+	//
+	//     values.push_back(n);
+	//     values.push_back(n);
+	// }
+	//
+	// else {
+	//     const uint a = nr_of_pixel[0];
+	//     const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
+	//
+	//     values.push_back(a);
+	//     values.push_back(b);
+	// }
+	//
+	// return {};
+	//    }
+
+    /*
+     *
+     */
+	//    auto check_vel_channels(
+	// dlist& values,
+	// const dlist& nr_of_channels)
+	// -> std::expected<void, std::string> {
+	//
+	// if(nr_of_channels.size() != 1
+	//     || nr_of_channels[0] <= 0)
+	//     return std::unexpected {"Number of velocity channels for ray tracing detector could not be recognized!"  };
+	//
+	// values.push_back(uint(nr_of_channels[0]));
+	// return {};
+	//    }
+
+
+    /**
+     *
+     */
+    struct DetectorRegistration {
+	struct Flags {
+	    bool		is_healpix;
+	    bool		with_vel_channels;
+	    bool		check_wavelength;
+	} flags;
+
+	struct Param {
+	    size_t		min_cnt;
+	    size_t		fill_cnt;
+	    size_t		check_cnt;
+	    size_t		add_360_begin;
+	} param;
+
+	uint		det_type;
+
+	constexpr DetectorRegistration(Flags _flags, Param _param, uint _det)
+	    : flags(_flags), param(_param), det_type(_det) {}
+    };
+
+    /**
+     *
+     */
+    template<DetectorRegistration reg, size_t N>
+    auto register_detector(
+	ParsedLine& line,
+	std::array<double, N> defaults) -> std::expected<void, std::string> {
+	
+	if (line.num_params.size() < reg.param.min_cnt)
+	    return std::unexpected{ "Too few parameters" };
+	
+	if constexpr (reg.flags.check_wavelength) {
+	    if (line.num_params[2] < 1)
+		return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+
+	    if (line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+		return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	}
+
+	const std::string pixel_name = reg.flags.is_healpix ?
+	    "nr_sides" : "nr_pixel";
+
+	if (!line.named_params.contains(pixel_name))
+	    return std::unexpected{
+		comp_error("Expected ", pixel_name, " named parameter") };
+	
+	std::vector<double>	nr_of_channels;
+	std::vector<double>	nr_of_pixel{
+	    read_nr_value(std::string{line.named_params[pixel_name]})
+		.value_or(std::vector<double>{})};
 
 	if (nr_of_pixel.empty()
 	    || nr_of_pixel.size() > 2
 	    || std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
-	    return std::unexpected { "Number could not be recognized!" }; 
+	    return std::unexpected {
+		comp_error(pixel_name, " could not be recognized!") }; 
 
-	if(nsides_as_pixel) {
+	if constexpr (reg.flags.is_healpix) {
 	    const auto n = static_cast<uint>(nr_of_pixel[0]);
 	    if((n & (n - 1)) != 0) 
 		return std::unexpected{ "Number of sides must be a power of two!" };
+	}
 
-	    values.push_back(n);
-	    values.push_back(n);
+	if constexpr (reg.flags.with_vel_channels) {
+	    if (!line.named_params.contains("vel_channels"))
+		return std::unexpected{ "Expected vel_channels named parameter" };
+
+	    nr_of_channels = read_nr_value(
+		std::string{line.named_params["vel_channels"]})
+		.value_or(std::vector<double>{});
+
+	    if(nr_of_channels.size() != 1
+		|| nr_of_channels[0] <= 0)
+		return std::unexpected {
+		    "Number of velocity channels could not be recognized!"  };
+	}
+
+	// TODO: rather not is_healpix?
+	if constexpr (reg.param.add_360_begin != 0) {
+	    constexpr auto a = reg.param.add_360_begin;
+	    constexpr auto b = a + 1;
+	    while(line.num_params[a] < 0)
+		line.num_params[a] += 360;
+	    while(line.num_params[b] < 0)
+		line.num_params[b] += 360;
+	}
+
+	const size_t 	sz = line.num_params.size();
+	line.num_params.resize(reg.param.fill_cnt, 0.0);
+	std::copy(
+	    defaults.begin() + sz - reg.param.min_cnt,
+	    defaults.end(),
+	    line.num_params.begin() + sz);
+
+	if (reg.det_type != DET_MC)
+	    line.num_params.push_back(reg.det_type);
+
+	if constexpr (reg.flags.is_healpix)  {
+	    const uint a = nr_of_pixel[0];
+	    line.num_params.push_back(a);
+	    line.num_params.push_back(a);
 	}
 
 	else {
 	    const uint a = nr_of_pixel[0];
 	    const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
 
-	    values.push_back(a);
-	    values.push_back(b);
+	    line.num_params.push_back(a);
+	    line.num_params.push_back(b);
 	}
 
-	return {};
+	if constexpr (reg.flags.with_vel_channels)
+	    line.num_params.push_back(static_cast<uint>(nr_of_channels[0]));
+
+        if(line.num_params.size() != reg.param.check_cnt) 
+	    return std::unexpected {
+		"Number of parameters could not be recognized!" };
+
+        return {};
     }
 
-    auto check_vel_channels(
-	dlist& values,
-	const dlist& nr_of_channels)
-	-> std::expected<void, std::string> {
-
-	if(nr_of_channels.size() != 1
-	    || nr_of_channels[0] <= 0)
-	    return std::unexpected {"Number of velocity channels for ray tracing detector could not be recognized!"  };
-
-	values.push_back(uint(nr_of_channels[0]));
-	return {};
-    }
 
     /**
      * Helper function to set one singular numerical parameter with a
@@ -137,9 +274,9 @@ namespace rewrite {
 			u = line.num_params[nr_of_sources - 2];
         const auto 	P_l = sqrt(q * q + u * u);
 
-        if(P_l > 1.0)
+        if (P_l > 1.0)
 	    return std::unexpected { "Chosen polarization of source star is larger than 1!" };
-        else if(P_l < 0)
+        else if (P_l < 0)
 	    return std::unexpected{ "Chosen polarization of source is smaller than 0!" };
 
         line.num_params.push_back(static_cast<double>(nr_of_photons));
@@ -151,6 +288,8 @@ namespace rewrite {
 
         return {};
     }
+
+    //---------------------------------------------------------------------
 
     auto cmd_cmd(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
@@ -909,7 +1048,7 @@ namespace rewrite {
 	if (tr <= 0 || tr > max_t) {
 	    tr = tr <= 0 ? 1 : max_t;
 	    cout << WARNING_LINE << "Max. nr. of threads is:  " << max_t << endl;
-            cout << WARNING_LINE << "Max. nr. of threads is set to: " << tr << endl;
+            cout << WARNING_LINE << "Nr. of threads is set to: " << tr << endl;
 	}
 
         param.setNrOfThreads(tr);
@@ -982,7 +1121,7 @@ namespace rewrite {
 
 	const auto val = e.value();
         if(val > 3) {
-            cout << WARNING_LINE << "Command \"<write_radiation_field>\" accepts only paramers between 0 to 3!" << endl;
+            cout << WARNING_LINE << "Command \"<write_radiation_field>\" accepts only parameters between 0 to 3!" << endl;
             param.setWriteRadiationField(0);
         } else
 	    param.setWriteRadiationField(val);
@@ -1033,54 +1172,31 @@ namespace rewrite {
 
     auto cmd_detector_opiate(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
+	
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = true,
+		.check_wavelength = false
+	    },
 
-	constexpr auto min_param_cnt = NR_OF_OPIATE_DET - 13;
-	constexpr auto fill_param_cnt = NR_OF_OPIATE_DET - 4;
-	constexpr auto check_param_cnt = NR_OF_OPIATE_DET;
+	    {
+		.min_cnt = NR_OF_OPIATE_DET - 13,
+		.fill_cnt = NR_OF_OPIATE_DET - 4,
+		.check_cnt = NR_OF_OPIATE_DET,
+		.add_360_begin = 2
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    // DetectorRegistration::PixelName::NrPixel,
+	    DET_PLANE
+	};
 
 	if (line.str_params.empty())
 	    return std::unexpected{ "String ID needed" };
+	const std::string str_id{line.str_params[0]};
 
-	if (!line.named_params.contains("nr_pixel")
-	    || !line.named_params.contains("vel_channels"))
-	    return std::unexpected{ "Expected nr_pixel and vel_channels named commands" };
-
-	std::string		str_id{line.str_params[0]};
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-		.value_or(std::vector<double>{})};
-	std::vector<double>	nr_of_channels{
-	    read_nr_value(std::string{line.named_params["vel_channels"]})
-		.value_or(std::vector<double>{})};
-
-        while(line.num_params[2] < 0)
-            line.num_params[2] += 360;
-        while(line.num_params[3] < 0)
-            line.num_params[3] += 360;
-
-	const size_t 	sz = line.num_params.size();
-	const auto	defaults = std::array{1.0, -1.0, -1.0};
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-        line.num_params.push_back(DET_PLANE);
-
-        if(const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-            return e;
-        if(const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
-	    return e;
-
-        if(line.num_params.size() != check_param_cnt) 
-	    return std::unexpected {
-		"Number of parameters in plane opiate detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 3>(line, {1.0, -1.0, -1.0});
+	    not e) return e;
 
         param.addOpiateRayDetector(line.num_params);
         param.addOpiateSpec(str_id);
@@ -1094,60 +1210,102 @@ namespace rewrite {
 	    static_cast<uint>(line.num_params[NR_OF_OPIATE_DET - 2]));
 
         return {};
+
+	// constexpr auto min_param_cnt = NR_OF_OPIATE_DET - 13;
+	// constexpr auto fill_param_cnt = NR_OF_OPIATE_DET - 4;
+	// constexpr auto check_param_cnt = NR_OF_OPIATE_DET;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	// if (line.str_params.empty())
+	//     return std::unexpected{ "String ID needed" };
+	//
+	// if (!line.named_params.contains("nr_pixel")
+	//     || !line.named_params.contains("vel_channels"))
+	//     return std::unexpected{ "Expected nr_pixel and vel_channels named commands" };
+	//
+	// std::string		str_id{line.str_params[0]};
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	// 	.value_or(std::vector<double>{})};
+	// std::vector<double>	nr_of_channels{
+	//     read_nr_value(std::string{line.named_params["vel_channels"]})
+	// 	.value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[2] < 0)
+	//            line.num_params[2] += 360;
+	//        while(line.num_params[3] < 0)
+	//            line.num_params[3] += 360;
+	//
+	// const size_t 	sz = line.num_params.size();
+	// const auto	defaults = std::array{1.0, -1.0, -1.0};
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	//        line.num_params.push_back(DET_PLANE);
+	//
+	//        if(const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//            return e;
+	//        if(const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	//     return e;
+	//
+	//        if(line.num_params.size() != check_param_cnt) 
+	//     return std::unexpected {
+	// 	"Number of parameters in plane opiate detector could not be recognized!" };
+	//
+	//        param.addOpiateRayDetector(line.num_params);
+	//        param.addOpiateSpec(str_id);
+	//
+	//        param.updateDetectorAngles(line.num_params[2], line.num_params[3]);
+	//        param.updateObserverDistance(line.num_params[4]);
+	//        param.updateMapSidelength(line.num_params[5], line.num_params[6]);
+	//        param.updateRayGridShift(line.num_params[7], line.num_params[8]);
+	//        param.updateDetectorPixel(
+	//     static_cast<uint>(line.num_params[NR_OF_OPIATE_DET - 3]), 
+	//     static_cast<uint>(line.num_params[NR_OF_OPIATE_DET - 2]));
+	//
+	//        return {};
     }
 
 
     auto cmd_detector_opiate_healpix(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_OPIATE_DET - 12;
-	constexpr auto fill_param_cnt = NR_OF_OPIATE_DET - 4;
-	constexpr auto check_param_cnt = NR_OF_OPIATE_DET;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = true,
+		.with_vel_channels = true,
+		.check_wavelength = false
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_OPIATE_DET - 12,
+		.fill_cnt = NR_OF_OPIATE_DET - 4,
+		.check_cnt = NR_OF_OPIATE_DET,
+		.add_360_begin = 0
+	    },
+
+	    // DetectorRegistration::PixelName::NrPixel,
+	    DET_SPHER
+	};
 
 	if (line.str_params.empty())
 	    return std::unexpected{ "String ID needed" };
+	const std::string str_id{line.str_params[0]};
 
-	if (!line.named_params.contains("nr_sides")
-	    || !line.named_params.contains("vel_channels"))
-	    return std::unexpected{ "Expected nr_sides and vel_channels named commands" };
-
-	std::string		str_id{line.str_params[0]};
-
-	std::vector<double>	nr_of_sides{
-	    read_nr_value(std::string{line.named_params["nr_sides"]})
-		.value_or(std::vector<double>{})};
-	std::vector<double>	nr_of_channels{
-	    read_nr_value(std::string{line.named_params["vel_channels"]})
-		.value_or(std::vector<double>{})};
-
-	const size_t 	sz = line.num_params.size();
-	const auto	defaults = std::array{-180.0, 180.0, -90.0, 90.0};
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-
-        line.num_params.push_back(DET_SPHER);
-
-        if(const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
-            return e;
-        if(const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
-	    return e;
-
-        if(line.num_params.size() != check_param_cnt) 
-	    return std::unexpected {
-		"Number of parameters in plane opiate detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 4>(line, {-180.0, 180.0, -90.0, 90.0});
+	    not e) return e;
 
         param.addOpiateRayDetector(line.num_params);
         param.addOpiateSpec(str_id);
 
-        param.updateDetectorPixel(static_cast<uint>(nr_of_sides[0]), 0);
+        param.updateDetectorPixel(static_cast<uint>(line.num_params[line.num_params.size() - 2]), 0);
 
         const double distance = sqrt(line.num_params[2] * line.num_params[2] + line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4]);
         param.updateObserverDistance(distance);
@@ -1156,65 +1314,90 @@ namespace rewrite {
         param.updateDetectorAngles(-90, -180);
         param.updateDetectorAngles(90, 180);
 
-        return {};
+	// ---------------------------
+	// constexpr auto min_param_cnt = NR_OF_OPIATE_DET - 12;
+	// constexpr auto fill_param_cnt = NR_OF_OPIATE_DET - 4;
+	// constexpr auto check_param_cnt = NR_OF_OPIATE_DET;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	// if (line.str_params.empty())
+	//     return std::unexpected{ "String ID needed" };
+	//
+	// if (!line.named_params.contains("nr_sides")
+	//     || !line.named_params.contains("vel_channels"))
+	//     return std::unexpected{ "Expected nr_sides and vel_channels named commands" };
+	//
+	// std::string		str_id{line.str_params[0]};
+	//
+	// std::vector<double>	nr_of_sides{
+	//     read_nr_value(std::string{line.named_params["nr_sides"]})
+	// 	.value_or(std::vector<double>{})};
+	// std::vector<double>	nr_of_channels{
+	//     read_nr_value(std::string{line.named_params["vel_channels"]})
+	// 	.value_or(std::vector<double>{})};
+	//
+	// const size_t 	sz = line.num_params.size();
+	// const auto	defaults = std::array{-180.0, 180.0, -90.0, 90.0};
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	//
+	//        line.num_params.push_back(DET_SPHER);
+	//
+	//        if(const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
+	//            return e;
+	//        if(const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	//     return e;
+	//
+	//        if(line.num_params.size() != check_param_cnt) 
+	//     return std::unexpected {
+	// 	"Number of parameters in plane opiate detector could not be recognized!" };
+	//
+	//        param.addOpiateRayDetector(line.num_params);
+	//        param.addOpiateSpec(str_id);
+	//
+	//        param.updateDetectorPixel(static_cast<uint>(nr_of_sides[0]), 0);
+	//
+	//        const double distance = sqrt(line.num_params[2] * line.num_params[2] + line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4]);
+	//        param.updateObserverDistance(distance);
+	//
+	//        // Showing full sphere coverage
+	//        param.updateDetectorAngles(-90, -180);
+	//        param.updateDetectorAngles(90, 180);
+	//
+	//        return {};
     }
 
     auto cmd_detector_line(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	// return get_detector(line, param, NR_OF_LINE_DET - 11,
-	//     NR_OF_LINE_DET - 3, DET_POLAR, true);
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = true,
+		.check_wavelength = false
+	    },
 
-	constexpr auto min_param_cnt =  NR_OF_LINE_DET - 11;
-	constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	    {
+		.min_cnt = NR_OF_LINE_DET - 11,
+		.fill_cnt = NR_OF_LINE_DET - 3,
+		.check_cnt = NR_OF_LINE_DET + 1,
+		.add_360_begin = 3
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
-	
-	if (!line.named_params.contains("nr_pixel")
-	    || !line.named_params.contains("vel_channels"))
-	    return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	    DET_PLANE
+	};
 
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})},
-				nr_of_channels{
-	    read_nr_value(std::string{line.named_params["vel_channels"]})
-	    .value_or(std::vector<double>{})};
-
-	while (line.num_params[3] < 0)
-	    line.num_params[3] += 360;
-	while (line.num_params[4] < 0)
-	    line.num_params[4] += 360;
-
-	const double b = line.num_params.size() > NR_OF_LINE_DET - 10 ?
+	const double dupl = line.num_params.size() > NR_OF_LINE_DET - 10 ?
 	    line.num_params[NR_OF_LINE_DET - 10] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-            // Only gas_species_id, transition_id, source_id, max_velocity, rot_angle_1
-            // and rot_angle_2 Set distance to 1
-            // Set sidelength in x-direction to cube sidelength
-            // Set sidelength in y-direction to cube sidelength
-            // Do not use the other values
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_PLANE);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-	if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
-	    return e;
-
-	// TODO this can probably not happen
-        // HINT: +1 because the gas species id is not saved in the gas_species list!
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 3>(line, {1.0, -1.0, dupl});
+	    not e) return e;
 
         param.addLineRayDetector(line.num_params);
         param.updateDetectorAngles(
@@ -1229,51 +1412,100 @@ namespace rewrite {
 	    static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
 
         return {};
+
+	// --------------------------------
+	//
+	// constexpr auto min_param_cnt =  NR_OF_LINE_DET - 11;
+	// constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	// if (!line.named_params.contains("nr_pixel")
+	//     || !line.named_params.contains("vel_channels"))
+	//     return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})},
+	// 			nr_of_channels{
+	//     read_nr_value(std::string{line.named_params["vel_channels"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	// while (line.num_params[3] < 0)
+	//     line.num_params[3] += 360;
+	// while (line.num_params[4] < 0)
+	//     line.num_params[4] += 360;
+	//
+	// const double b = line.num_params.size() > NR_OF_LINE_DET - 10 ?
+	//     line.num_params[NR_OF_LINE_DET - 10] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	//            // Only gas_species_id, transition_id, source_id, max_velocity, rot_angle_1
+	//            // and rot_angle_2 Set distance to 1
+	//            // Set sidelength in x-direction to cube sidelength
+	//            // Set sidelength in y-direction to cube sidelength
+	//            // Do not use the other values
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_PLANE);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	// if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	//     return e;
+	//
+	// // TODO this can probably not happen
+	//        // HINT: +1 because the gas species id is not saved in the gas_species list!
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addLineRayDetector(line.num_params);
+	//        param.updateDetectorAngles(
+	// 	line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(
+	// 	line.num_params[7], line.num_params[8]);
+	//        param.updateRayGridShift(
+	// 	line.num_params[9], line.num_params[10]);
+	//        param.updateDetectorPixel(
+	//     static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]),
+	//     static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
+	//
+	//        return {};
     }
 
     auto cmd_detector_line_healpix(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt =  NR_OF_LINE_DET - 10;
-	constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = true,
+		.with_vel_channels = true,
+		.check_wavelength = false
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
-	
-	if (!line.named_params.contains("nr_sides")
-	    || !line.named_params.contains("vel_channels"))
-	    return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	    {
+		.min_cnt = NR_OF_LINE_DET - 10,
+		.fill_cnt = NR_OF_LINE_DET - 3,
+		.check_cnt = NR_OF_LINE_DET + 1,
+		.add_360_begin = 0
+	    },
 
-	std::vector<double>	nr_of_sides{
-	    read_nr_value(std::string{line.named_params["nr_sides"]})
-	    .value_or(std::vector<double>{})},
-				nr_of_channels{
-	    read_nr_value(std::string{line.named_params["vel_channels"]})
-	    .value_or(std::vector<double>{})};
+	    DET_SPHER
+	};
 
-	const auto defaults = std::array{ -180.0, 180.0, -90.0, 90.0};
-	const size_t sz = line.num_params.size();
+	if (const auto e = register_detector<reg, 4>(line, { -180.0, 180.0, -90.0, 90.0});
+	    not e) return e;
 
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_SPHER);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
-	    return e;
-	if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
-	    return e;
-
-	// TODO this can probably not happen
-        // HINT: +1 because the gas species id is not saved in the gas_species list!
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
         param.addLineRayDetector(line.num_params);
-        param.updateDetectorPixel(uint(nr_of_sides[0]), 0);
+        param.updateDetectorPixel(static_cast<uint>(line.num_params[line.num_params.size() - 2]), 0);
 
         double distance = sqrt(line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5] + line.num_params[6] * line.num_params[6]);
         param.updateObserverDistance(distance);
@@ -1283,56 +1515,84 @@ namespace rewrite {
         param.updateDetectorAngles(90, 180);
 
         return {};
+
+	//--------------------------------------------------
+
+	// constexpr auto min_param_cnt =  NR_OF_LINE_DET - 10;
+	// constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	// if (!line.named_params.contains("nr_sides")
+	//     || !line.named_params.contains("vel_channels"))
+	//     return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	//
+	// std::vector<double>	nr_of_sides{
+	//     read_nr_value(std::string{line.named_params["nr_sides"]})
+	//     .value_or(std::vector<double>{})},
+	// 			nr_of_channels{
+	//     read_nr_value(std::string{line.named_params["vel_channels"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	// const auto defaults = std::array{ -180.0, 180.0, -90.0, 90.0};
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_SPHER);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
+	//     return e;
+	// if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	//     return e;
+	//
+	// // TODO this can probably not happen
+	//        // HINT: +1 because the gas species id is not saved in the gas_species list!
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//        param.addLineRayDetector(line.num_params);
+	//        param.updateDetectorPixel(uint(nr_of_sides[0]), 0);
+	//
+	//        double distance = sqrt(line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5] + line.num_params[6] * line.num_params[6]);
+	//        param.updateObserverDistance(distance);
+	//
+	//        // Showing full sphere coverage
+	//        param.updateDetectorAngles(-90, -180);
+	//        param.updateDetectorAngles(90, 180);
+	//
+	//        return {};
     }
 
     auto cmd_detector_line_polar(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt =  NR_OF_LINE_DET - 11;
-	constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = true,
+		.check_wavelength = false
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
-	
-	if (!line.named_params.contains("nr_pixel")
-	    || !line.named_params.contains("vel_channels"))
-	    return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	    {
+		.min_cnt = NR_OF_LINE_DET - 11,
+		.fill_cnt = NR_OF_LINE_DET - 3,
+		.check_cnt = NR_OF_LINE_DET + 1,
+		.add_360_begin = 3
+	    },
 
-	std::vector<double>	nr_of_sides{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})},
-				nr_of_channels{
-	    read_nr_value(std::string{line.named_params["vel_channels"]})
-	    .value_or(std::vector<double>{})};
+	    DET_POLAR
+	};
 
-        while(line.num_params[3] < 0)
-            line.num_params[3] += 360;
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-
-	const double b = line.num_params.size() > NR_OF_LINE_DET - 10 ?
+	const double dupl = line.num_params.size() > NR_OF_LINE_DET - 10 ?
 	    line.num_params[NR_OF_LINE_DET - 10] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_POLAR);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_sides); !e)
-	    return e;
-	if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
-	    return e;
-
-	// TODO this can probably not happen
-        // HINT: +1 because the gas species id is not saved in the gas_species list!
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 3>(line, {1.0, -1.0, dupl});
+	    not e) return e;
 
         param.addLineRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1341,56 +1601,88 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]), static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
 
         return {};
+
+	//-------------------------------------------------------
+	//
+	// constexpr auto min_param_cnt =  NR_OF_LINE_DET - 11;
+	// constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	// if (!line.named_params.contains("nr_pixel")
+	//     || !line.named_params.contains("vel_channels"))
+	//     return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	//
+	// std::vector<double>	nr_of_sides{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})},
+	// 			nr_of_channels{
+	//     read_nr_value(std::string{line.named_params["vel_channels"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[3] < 0)
+	//            line.num_params[3] += 360;
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//
+	// const double b = line.num_params.size() > NR_OF_LINE_DET - 10 ?
+	//     line.num_params[NR_OF_LINE_DET - 10] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_POLAR);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_sides); !e)
+	//     return e;
+	// if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	//     return e;
+	//
+	// // TODO this can probably not happen
+	//        // HINT: +1 because the gas species id is not saved in the gas_species list!
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addLineRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]), static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
+	//
+	//        return {};
     }
 
     auto cmd_detector_line_slice(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt =  NR_OF_LINE_DET - 11;
-	constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = true,
+		.check_wavelength = false
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
-	
-	if (!line.named_params.contains("nr_pixel")
-	    || !line.named_params.contains("vel_channels"))
-	    return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	    {
+		.min_cnt = NR_OF_LINE_DET - 11,
+		.fill_cnt = NR_OF_LINE_DET - 3,
+		.check_cnt = NR_OF_LINE_DET + 1,
+		.add_360_begin = 3
+	    },
 
-	std::vector<double>	nr_of_sides{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})},
-				nr_of_channels{
-	    read_nr_value(std::string{line.named_params["vel_channels"]})
-	    .value_or(std::vector<double>{})};
+	    DET_SLICE
+	};
 
-        while(line.num_params[3] < 0)
-            line.num_params[3] += 360;
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-
-	const double b = line.num_params.size() > NR_OF_LINE_DET - 10 ?
+	const double dupl = line.num_params.size() > NR_OF_LINE_DET - 10 ?
 	    line.num_params[NR_OF_LINE_DET - 10] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_SLICE);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_sides); !e)
-	    return e;
-	if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
-	    return e;
-
-	// TODO this can probably not happen
-        // HINT: +1 because the gas species id is not saved in the gas_species list!
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 3>(line, {1.0, -1.0, dupl});
+	    not e) return e;
 
         param.addLineRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1400,56 +1692,90 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]), static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
 
         return {};
+
+	//----------------------------------------------------------------
+
+	// constexpr auto min_param_cnt =  NR_OF_LINE_DET - 11;
+	// constexpr auto fill_param_cnt = NR_OF_LINE_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_OPIATE_DET + 1;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	// if (!line.named_params.contains("nr_pixel")
+	//     || !line.named_params.contains("vel_channels"))
+	//     return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+	//
+	// std::vector<double>	nr_of_sides{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})},
+	// 			nr_of_channels{
+	//     read_nr_value(std::string{line.named_params["vel_channels"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[3] < 0)
+	//            line.num_params[3] += 360;
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//
+	// const double b = line.num_params.size() > NR_OF_LINE_DET - 10 ?
+	//     line.num_params[NR_OF_LINE_DET - 10] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_SLICE);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_sides); !e)
+	//     return e;
+	// if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	//     return e;
+	//
+	// // TODO this can probably not happen
+	//        // HINT: +1 because the gas species id is not saved in the gas_species list!
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addLineRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateRayGridShift(line.num_params[9], line.num_params[10]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]), static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
+	//
+	//        return {};
     }
 
 
     auto cmd_detector_dust(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
-	constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_RAY_DET - 9,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 4
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_PLANE
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_pixel"))
-	    return std::unexpected{ "Expected nr_pixel named Parameter" };
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})};
-
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-        while(line.num_params[5] < 0)
-            line.num_params[5] += 360;
-
-	const double b = line.num_params.size() > copy_param ?
-	    line.num_params[copy_param] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_PLANE);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	const double dupl = line.num_params.size() > NR_OF_RAY_DET - 8 ?
+	    line.num_params[NR_OF_RAY_DET - 8] : -1;
+	if (const auto e = register_detector<reg, 3>(line, {1.0, -1.0, dupl});
+	    not e) return e;
 
         param.addDustRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1459,51 +1785,90 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
 
         return {};
+
+	// -----------------------------------------------------------
+
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	// constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_pixel"))
+	//     return std::unexpected{ "Expected nr_pixel named Parameter" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//        while(line.num_params[5] < 0)
+	//            line.num_params[5] += 360;
+	//
+	// const double b = line.num_params.size() > copy_param ?
+	//     line.num_params[copy_param] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_PLANE);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addDustRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateRayGridShift(line.num_params[9], line.num_params[10]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
+	//
+	//        return {};
     }
 
 
     auto cmd_detector_dust_healpix(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 8;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = true,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_RAY_DET - 8,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 0
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_SPHER
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_sides"))
-	    return std::unexpected{ "Expected nr_sides named Parameter" };
-
-	std::vector<double>	nr_of_sides{
-	    read_nr_value(std::string{line.named_params["nr_sides"]})
-	    .value_or(std::vector<double>{})};
-
-	const auto defaults = std::array{ -180.0, 180.0, -90.0, 90.0 };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_SPHER);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 4>(line, { -180.0, 180.0, -90.0, 90.0 });
+	    not e) return e;
 
         param.addDustRayDetector(line.num_params);
-        param.updateDetectorPixel(static_cast<uint>(nr_of_sides[0]), 0);
+        param.updateDetectorPixel(static_cast<uint>(line.num_params[line.num_params.size() - 2]), 0);
 
         double distance = sqrt(line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5]);
         param.updateObserverDistance(distance);
@@ -1513,55 +1878,83 @@ namespace rewrite {
         param.updateDetectorAngles(180, 360);
 
         return {};
+
+	// ------------------------------------------------------
+
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 8;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_sides"))
+	//     return std::unexpected{ "Expected nr_sides named Parameter" };
+	//
+	// std::vector<double>	nr_of_sides{
+	//     read_nr_value(std::string{line.named_params["nr_sides"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	// const auto defaults = std::array{ -180.0, 180.0, -90.0, 90.0 };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_SPHER);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addDustRayDetector(line.num_params);
+	//        param.updateDetectorPixel(static_cast<uint>(nr_of_sides[0]), 0);
+	//
+	//        double distance = sqrt(line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5]);
+	//        param.updateObserverDistance(distance);
+	//
+	//        // Showing full sphere coverage
+	//        param.updateDetectorAngles(0, 0);
+	//        param.updateDetectorAngles(180, 360);
+	//
+	//        return {};
     }
 
     auto cmd_detector_dust_polar(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
-	constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_RAY_DET - 9,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 4
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_POLAR
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_pixel"))
-	    return std::unexpected{ "Expected nr_pixel named Parameter" };
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})};
-
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-        while(line.num_params[5] < 0)
-            line.num_params[5] += 360;
-
-	const double b = line.num_params.size() > copy_param ?
-	    line.num_params[copy_param] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_POLAR);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	const double dupl = line.num_params.size() > NR_OF_RAY_DET - 8 ?
+	    line.num_params[NR_OF_RAY_DET - 8] : -1;
+	if (const auto e = register_detector<reg, 3>(line, { 1.0, -1.0, dupl });
+	    not e) return e;
 
         param.addDustRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1570,55 +1963,87 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
 
         return {};
+
+	// -----------------------------------------------------------
+	//
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	// constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_pixel"))
+	//     return std::unexpected{ "Expected nr_pixel named Parameter" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//        while(line.num_params[5] < 0)
+	//            line.num_params[5] += 360;
+	//
+	// const double b = line.num_params.size() > copy_param ?
+	//     line.num_params[copy_param] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_POLAR);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addDustRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
+	//
+	//        return {};
     }
 
     auto cmd_detector_dust_slice(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
-	constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_RAY_DET - 9,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 4
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_SLICE
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_pixel"))
-	    return std::unexpected{ "Expected nr_pixel named Parameter" };
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})};
-
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-        while(line.num_params[5] < 0)
-            line.num_params[5] += 360;
-
-	const double b = line.num_params.size() > copy_param ?
-	    line.num_params[copy_param] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_SLICE);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	const double dupl = line.num_params.size() > NR_OF_RAY_DET - 8 ?
+	    line.num_params[NR_OF_RAY_DET - 8] : -1;
+	if (const auto e = register_detector<reg, 3>(line, { 1.0, -1.0, dupl });
+	    not e) return e;
 
         param.addDustRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1627,51 +2052,87 @@ namespace rewrite {
         param.updateRayGridShift(line.num_params[9], line.num_params[10]);
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
 
-        return {};
+	return {};
+
+	// ------------------------------------------------------------
+
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	// constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_pixel"))
+	//     return std::unexpected{ "Expected nr_pixel named Parameter" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//        while(line.num_params[5] < 0)
+	//            line.num_params[5] += 360;
+	//
+	// const double b = line.num_params.size() > copy_param ?
+	//     line.num_params[copy_param] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_SLICE);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addDustRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateRayGridShift(line.num_params[9], line.num_params[10]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
+	//
+	//        return {};
     }
 
     auto cmd_detector_dust_mc(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_MC_DET - 6;
-	constexpr auto fill_param_cnt = NR_OF_MC_DET - 2;
-	constexpr auto check_param_cnt = NR_OF_MC_DET;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_MC_DET - 6,
+		.fill_cnt = NR_OF_MC_DET - 2,
+		.check_cnt = NR_OF_MC_DET,
+		.add_360_begin = 0
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_MC
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_pixel"))
-	    return std::unexpected{ "Expected nr_pixel named Parameter" };
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})};
-
-        while(line.num_params[3] < 0)
-            line.num_params[3] += 360;
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-
-	const auto defaults = std::array{ -1.0, -1.0 };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 2>(line, { -1.0, -1.0 });
+	    not e) return e;
 
         param.addDustMCDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[3], line.num_params[4]);
@@ -1680,56 +2141,83 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_MC_DET - 2]), static_cast<uint>(line.num_params[NR_OF_MC_DET - 1]));
 
         return {};
+
+	// -------------------------------------------------------------
+
+	// constexpr auto min_param_cnt = NR_OF_MC_DET - 6;
+	// constexpr auto fill_param_cnt = NR_OF_MC_DET - 2;
+	// constexpr auto check_param_cnt = NR_OF_MC_DET;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_pixel"))
+	//     return std::unexpected{ "Expected nr_pixel named Parameter" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[3] < 0)
+	//            line.num_params[3] += 360;
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//
+	// const auto defaults = std::array{ -1.0, -1.0 };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addDustMCDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[3], line.num_params[4]);
+	//        param.updateObserverDistance(line.num_params[5]);
+	//        param.updateMapSidelength(line.num_params[6], line.num_params[7]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_MC_DET - 2]), static_cast<uint>(line.num_params[NR_OF_MC_DET - 1]));
+	//
+	//        return {};
     }
 
 
     auto cmd_detector_sync(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
-	constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_RAY_DET - 9,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 4
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_PLANE
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_pixel"))
-	    return std::unexpected{ "Expected nr_pixel named Parameter" };
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})};
-
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-        while(line.num_params[5] < 0)
-            line.num_params[5] += 360;
-
-	const double b = line.num_params.size() > copy_param ?
-	    line.num_params[copy_param] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_PLANE);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	const double dupl = line.num_params.size() > NR_OF_RAY_DET - 8 ?
+	    line.num_params[NR_OF_RAY_DET - 8] : -1;
+	if (const auto e = register_detector<reg, 3>(line, { 1.0, -1.0, dupl });
+	    not e) return e;
 
         param.addSyncRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1739,56 +2227,89 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
 
         return {};
+
+	// -------------------------------------------------------------
+
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	// constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_pixel"))
+	//     return std::unexpected{ "Expected nr_pixel named Parameter" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//        while(line.num_params[5] < 0)
+	//            line.num_params[5] += 360;
+	//
+	// const double b = line.num_params.size() > copy_param ?
+	//     line.num_params[copy_param] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_PLANE);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addSyncRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateRayGridShift(line.num_params[9], line.num_params[10]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
+	//
+	//        return {};
     }
 
 
     auto cmd_detector_sync_slice(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
-	constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = false,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    {
+		.min_cnt = NR_OF_RAY_DET - 9,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 4
+	    },
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	    DET_SLICE
+	};
 
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_pixel"))
-	    return std::unexpected{ "Expected nr_pixel named Parameter" };
-
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params["nr_pixel"]})
-	    .value_or(std::vector<double>{})};
-
-        while(line.num_params[4] < 0)
-            line.num_params[4] += 360;
-        while(line.num_params[5] < 0)
-            line.num_params[5] += 360;
-
-	const double b = line.num_params.size() > copy_param ?
-	    line.num_params[copy_param] : -1;
-	const auto defaults = std::array{ 1.0, -1.0, b };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_SLICE);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	const double dupl = line.num_params.size() > NR_OF_RAY_DET - 8 ?
+	    line.num_params[NR_OF_RAY_DET - 8] : -1;
+	if (const auto e = register_detector<reg, 3>(line, { 1.0, -1.0, dupl });
+	    not e) return e;
 
         param.addSyncRayDetector(line.num_params);
         param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
@@ -1798,54 +2319,92 @@ namespace rewrite {
         param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
 
         return {};
+
+	// -----------------------------------------------------------
+
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 9;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	// constexpr auto copy_param = NR_OF_RAY_DET - 8;
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_pixel"))
+	//     return std::unexpected{ "Expected nr_pixel named Parameter" };
+	//
+	// std::vector<double>	nr_of_pixel{
+	//     read_nr_value(std::string{line.named_params["nr_pixel"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	//        while(line.num_params[4] < 0)
+	//            line.num_params[4] += 360;
+	//        while(line.num_params[5] < 0)
+	//            line.num_params[5] += 360;
+	//
+	// const double b = line.num_params.size() > copy_param ?
+	//     line.num_params[copy_param] : -1;
+	// const auto defaults = std::array{ 1.0, -1.0, b };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_SLICE);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addSyncRayDetector(line.num_params);
+	//        param.updateDetectorAngles(line.num_params[4], line.num_params[5]);
+	//        param.updateObserverDistance(line.num_params[6]);
+	//        param.updateMapSidelength(line.num_params[7], line.num_params[8]);
+	//        param.updateRayGridShift(line.num_params[9], line.num_params[10]);
+	//        param.updateDetectorPixel(static_cast<uint>(line.num_params[NR_OF_RAY_DET - 2]), static_cast<uint>(line.num_params[NR_OF_RAY_DET - 1]));
+	//
+	//        return {};
     }
 
-    auto cmd_detector_sync_healpic(ParsedLine& line, parameters& param)
+    auto cmd_detector_sync_healpix(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
-	constexpr auto min_param_cnt = NR_OF_RAY_DET - 8;
-	constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
-	constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	constexpr DetectorRegistration	reg{
+	    {
+		.is_healpix = true,
+		.with_vel_channels = false,
+		.check_wavelength = true
+	    },
 
-	// TODO put pixel checks in front
+	    {
+		.min_cnt = NR_OF_RAY_DET - 8,
+		.fill_cnt = NR_OF_RAY_DET - 3,
+		.check_cnt = NR_OF_RAY_DET,
+		.add_360_begin = 0
+	    },
 
-	if (line.num_params.size() < min_param_cnt)
-	    return std::unexpected{ "Too few parameters" };
+	    DET_SPHER
+	};
 
-        if(line.num_params[2] < 1)
-	    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
-
-        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-	    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	
-	if (!line.named_params.contains("nr_sides"))
-	    return std::unexpected{ "Expected nr_sides named Parameter" };
-
-	std::vector<double>	nr_of_sides{
-	    read_nr_value(std::string{line.named_params["nr_sides"]})
-	    .value_or(std::vector<double>{})};
-
-	const auto defaults = std::array{ -180.0, 180.0, -90.0, 90.0 };
-	const size_t sz = line.num_params.size();
-
-	line.num_params.resize(fill_param_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - min_param_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	line.num_params.push_back(DET_SPHER);
-
-	if (const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
-	    return e;
-
-	if (line.num_params.size() != check_param_cnt)
-            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	if (const auto e = register_detector<reg, 4>(line, { -180.0, 180.0, -90.0, 90.0 });
+	    not e) return e;
 
         param.addSyncRayDetector(line.num_params);
-        param.updateDetectorPixel(static_cast<uint>(12 * nr_of_sides[0] * nr_of_sides[0]), 0);
+	const uint det_pix = line.num_params[line.num_params.size() - 2];
+        param.updateDetectorPixel(12 * det_pix * det_pix, 0);
 
-        const double distance = sqrt(line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5]);
+        double distance = sqrt(line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5]);
         param.updateObserverDistance(distance);
 
         // Showing full sphere coverage
@@ -1853,5 +2412,58 @@ namespace rewrite {
         param.updateDetectorAngles(180, 360);
 
         return {};
+
+	// --------------------------------------------------------------
+	// //
+	// constexpr auto min_param_cnt = NR_OF_RAY_DET - 8;
+	// constexpr auto fill_param_cnt = NR_OF_RAY_DET - 3;
+	// constexpr auto check_param_cnt = NR_OF_RAY_DET;
+	//
+	// // TODO put pixel checks in front
+	//
+	// if (line.num_params.size() < min_param_cnt)
+	//     return std::unexpected{ "Too few parameters" };
+	//
+	//        if(line.num_params[2] < 1)
+	//     return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+	//
+	//        if(line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+	//     return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	//
+	// if (!line.named_params.contains("nr_sides"))
+	//     return std::unexpected{ "Expected nr_sides named Parameter" };
+	//
+	// std::vector<double>	nr_of_sides{
+	//     read_nr_value(std::string{line.named_params["nr_sides"]})
+	//     .value_or(std::vector<double>{})};
+	//
+	// const auto defaults = std::array{ -180.0, 180.0, -90.0, 90.0 };
+	// const size_t sz = line.num_params.size();
+	//
+	// line.num_params.resize(fill_param_cnt, 0.0);
+	// std::copy(
+	//     defaults.begin() + sz - min_param_cnt,
+	//     defaults.end(),
+	//     line.num_params.begin() + sz);
+	//
+	// line.num_params.push_back(DET_SPHER);
+	//
+	// if (const auto e = check_pixel(line.num_params, nr_of_sides, true); !e)
+	//     return e;
+	//
+	// if (line.num_params.size() != check_param_cnt)
+	//            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+	//
+	//        param.addSyncRayDetector(line.num_params);
+	//        param.updateDetectorPixel(static_cast<uint>(12 * nr_of_sides[0] * nr_of_sides[0]), 0);
+	//
+	//        const double distance = sqrt(line.num_params[3] * line.num_params[3] + line.num_params[4] * line.num_params[4] + line.num_params[5] * line.num_params[5]);
+	//        param.updateObserverDistance(distance);
+	//
+	//        // Showing full sphere coverage
+	//        param.updateDetectorAngles(0, 0);
+	//        param.updateDetectorAngles(180, 360);
+	//
+	//        return {};
     }
 }

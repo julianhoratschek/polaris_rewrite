@@ -98,6 +98,7 @@ namespace rewrite {
 	template<ParamType pt, typename T>
 	auto get_param(const size_t idx) const
 	    -> std::expected<T, std::string> {
+
 	    if (idx >= sequence.size())
 		return std::unexpected{ "Too few parameters" };
 

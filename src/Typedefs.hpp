@@ -155,6 +155,7 @@ using namespace std;
 #define DET_POLAR 1
 #define DET_SPHER 2
 #define DET_SLICE 3
+#define DET_MC	  999
 
 // source ids
 #define SRC_BASIC 0
