@@ -2,10 +2,57 @@
 #include "Matrix2D.hpp"
 #include "Vector3D.hpp"
 
+#include <cstddef>
 #include <string>
 #include <functional>
+#include <algorithm>
 
 namespace rewrite {
+
+    auto check_pixel(
+	std::vector<double>& values,
+	const std::vector<double>& nr_of_pixel,
+	const bool nsides_as_pixel = false)
+	-> std::expected<bool, std::string> {
+
+	if (nr_of_pixel.empty()
+	    || nr_of_pixel.size() > 2
+	    || std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
+	    return std::unexpected { "Number could not be recognized!" }; 
+
+	if(nsides_as_pixel) {
+	    const auto n = static_cast<uint>(nr_of_pixel[0]);
+	    if(n & (n - 1) != 0) 
+		return std::unexpected{ "Number of sides must be a power of two!" };
+
+	    values.push_back(n);
+	    values.push_back(n);
+	}
+
+	else {
+	    const uint a = nr_of_pixel[0];
+	    const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
+
+	    values.push_back(a);
+	    values.push_back(b);
+
+	}
+
+	return true;
+    }
+
+    auto cehck_vel_channels(
+	dlist& values,
+	const dlist& nr_of_channels)
+	-> std::expected<bool, std::string> {
+
+	if(nr_of_channels.size() != 1
+	    || nr_of_channels[0] <= 0)
+	    return std::unexpected {"Number of velocity channels for ray tracing detector could not be recognized!"  };
+
+	values.push_back(uint(nr_of_channels[0]));
+	return true;
+    }
 
     /**
      * Helper function to set one singular numerical parameter with a
@@ -962,5 +1009,189 @@ namespace rewrite {
     auto cmd_mc_lvl_pop_seed(ParsedLine& line, parameters& param)
 	-> std::expected<bool, std::string> {
 	return param_set_number(line, param, &parameters::setMCLvlPopSeed);
+    }
+
+
+    auto read_nr_value(const std::string& str)
+	-> std::expected<std::vector<double>, std::string> {
+	std::vector<double>	result;
+
+	try {
+	    for (auto i = 0; i < str.length(); i++) {
+		std::size_t	read = 0;
+		result.push_back(
+			std::stod(str.substr(i), &read));
+		i += read + 1;
+	    }
+	}
+	catch(...) {
+	    return std::unexpected{ "Could not read Number" };
+	}
+
+	return result;
+    }
+
+
+    auto get_detector(
+	ParsedLine& line,
+	parameters& param,
+	const size_t min_param,
+	const size_t goal_param,
+	const uint det_id,
+	const bool set_grid_shift = true)
+	-> std::expected<bool, std::string> {
+
+	if (line.num_params.size() < min_param)
+	    return std::unexpected{ "Too few parameters" };
+	
+	if (!line.named_params.contains("nr_pixel")
+	    || !line.named_params.contains("vel_channels"))
+	    return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+
+	std::vector<double>	nr_of_pixel{
+	    read_nr_value(std::string{line.named_params["nr_pixel"]})
+	    .value_or({})},
+				nr_of_channels{
+	    read_nr_value(std::string{line.named_params["vel_channels"]})
+	    .value_or({})};
+
+	while (line.num_params[3] < 0)
+	    line.num_params[3] += 360;
+	while (line.num_params[4] < 0)
+	    line.num_params[4] += 360;
+
+	// NR_OF_LINE_DET - 10
+	const double b = line.num_params.size() > 7 ?
+	    line.num_params[7] : -1;
+	const auto arr = std::array<double, 3>{
+	    1.0, -1, b
+	};
+	const size_t sz = line.num_params.size();
+
+            // Only gas_species_id, transition_id, source_id, max_velocity, rot_angle_1
+            // and rot_angle_2 Set distance to 1
+            // Set sidelength in x-direction to cube sidelength
+            // Set sidelength in y-direction to cube sidelength
+            // Do not use the other values
+	line.num_params.resize(goal_param, 0.0);
+	std::copy(
+	    arr.begin() + sz - min_param,
+	    arr.end(),
+	    line.num_params.begin() + sz);
+
+	line.num_params.push_back(det_id);
+
+	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	    return e;
+	if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	    return e;
+
+        // HINT: +1 because the gas species id is not saved in the gas_species list!
+	if (line.num_params.size() != NR_OF_LINE_DET + 1)
+            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+
+        param.addLineRayDetector(line.num_params);
+        param.updateDetectorAngles(
+		line.num_params[4], line.num_params[5]);
+        param.updateObserverDistance(line.num_params[6]);
+        param.updateMapSidelength(
+		line.num_params[7], line.num_params[8]);
+
+	if (set_grid_shift)
+	    param.updateRayGridShift(
+		line.num_params[9], line.num_params[10]);
+
+        param.updateDetectorPixel(
+	    static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]),
+	    static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
+
+        return true;
+    }
+
+    auto cmd_detector_line_polar(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	
+	return get_detector(line, param, NR_OF_LINE_DET - 11,
+	    NR_OF_LINE_DET - 3, DET_POLAR, false);
+    }
+
+    auto cmd_detector_line_slice(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+	
+	return get_detector(line, param, NR_OF_LINE_DET - 11,
+	    NR_OF_LINE_DET - 3, DET_SLICE, true);
+    }
+
+    auto cmd_detector_line(ParsedLine& line, parameters& param)
+	-> std::expected<bool, std::string> {
+
+	// return get_detector(line, param, NR_OF_LINE_DET - 11,
+	//     NR_OF_LINE_DET - 3, DET_POLAR, true);
+
+	const size_t min_param = NR_OF_LINE_DET - 11;
+	const size_t goal_param = NR_OF_LINE_DET - 3;
+
+	if (line.num_params.size() < min_param)
+	    return std::unexpected{ "Too few parameters" };
+	
+	if (!line.named_params.contains("nr_pixel")
+	    || !line.named_params.contains("vel_channels"))
+	    return std::unexpected{ "Expected nr_pixel and vel_channels named Parameters" };
+
+	std::vector<double>	nr_of_pixel{
+	    read_nr_value(std::string{line.named_params["nr_pixel"]})
+	    .value_or({})},
+				nr_of_channels{
+	    read_nr_value(std::string{line.named_params["vel_channels"]})
+	    .value_or({})};
+
+	while (line.num_params[3] < 0)
+	    line.num_params[3] += 360;
+	while (line.num_params[4] < 0)
+	    line.num_params[4] += 360;
+
+	const double b = line.num_params.size() > 7 ?
+	    line.num_params[7] : -1;
+	const auto arr = std::array<double, 3>{
+	    1.0, -1, b
+	};
+	const size_t sz = line.num_params.size();
+
+            // Only gas_species_id, transition_id, source_id, max_velocity, rot_angle_1
+            // and rot_angle_2 Set distance to 1
+            // Set sidelength in x-direction to cube sidelength
+            // Set sidelength in y-direction to cube sidelength
+            // Do not use the other values
+	line.num_params.resize(goal_param, 0.0);
+	std::copy(
+	    arr.begin() + sz - min_param,
+	    arr.end(),
+	    line.num_params.begin() + sz);
+
+	line.num_params.push_back(DET_PLANE);
+
+	if (const auto e = check_pixel(line.num_params, nr_of_pixel); !e)
+	    return e;
+	if (const auto e = check_vel_channels(line.num_params, nr_of_channels); !e)
+	    return e;
+
+	// TODO this can probably not happen
+        // HINT: +1 because the gas species id is not saved in the gas_species list!
+	if (line.num_params.size() != NR_OF_LINE_DET + 1)
+            return std::unexpected{ "Number of parameters in line detector could not be recognized!" };
+
+        param.addLineRayDetector(line.num_params);
+        param.updateDetectorAngles(
+		line.num_params[4], line.num_params[5]);
+        param.updateObserverDistance(line.num_params[6]);
+        param.updateMapSidelength(
+		line.num_params[7], line.num_params[8]);
+        param.updateRayGridShift(
+		line.num_params[9], line.num_params[10]);
+        param.updateDetectorPixel(
+	    static_cast<uint>(line.num_params[NR_OF_LINE_DET - 2]),
+	    static_cast<uint>(line.num_params[NR_OF_LINE_DET - 1]));
+
+        return true;
     }
 }
