@@ -33,6 +33,7 @@ namespace rewrite {
 
     bool is_whitespace(const char c);
     bool is_number(const char c);
+    bool is_identifier_start(const char c);
     bool is_identifier(const char c);
     bool is_quote(const char c);
     bool is_string(const char c);
@@ -47,7 +48,7 @@ namespace rewrite {
      */
     struct ParsedLine {
 	enum class Type {
-	    ClosingTag, Command
+	    ValueLine, Command, ClosingTag
 	};
 
 	enum class ParamType {
@@ -55,7 +56,7 @@ namespace rewrite {
 	};
 
 	std::string_view				command;
-	Type						type{Type::Command};
+	Type						type{Type::ValueLine};
 	size_t						line_nr{0};
 	std::vector<double>				num_params;
 	std::vector<std::string_view>			str_params;
@@ -133,7 +134,7 @@ namespace rewrite {
 	}
 
 	void clear() {
-	    type = Type::Command;
+	    type = Type::ValueLine;
 	    sequence.clear();
 	    num_params.clear();
 	    str_params.clear();
@@ -142,26 +143,7 @@ namespace rewrite {
 	}
     };
 
-    std::ostream& operator<<(std::ostream& os, const ParsedLine& line) {
-	os << "Parsed Line (" << line.line_nr << ")\n\nCommand: " << line.command << "\nParameter Sequence:\n";
-	for (auto& v: line.sequence)
-	    os << v.second << " ";
-	os << "\nNamed Parameters:\n";
-	for (auto& v: line.named_params)
-	    os << "\t" << v.first << ": " << v.second << "\n";
-	os << "\nNumber Parameters:\n";
-	for (auto& v: line.num_params)
-	    os << v << "; ";
-	os << "\nID Parameters:\n";
-	for (auto& v: line.id_params)
-	    os << v << "; ";
-	os << "\nString Parameters:\n";
-	for (auto& v: line.str_params)
-	    os << "\t" << v << "\n";
-
-	return os;
-    }
-
+    std::ostream& operator<<(std::ostream& os, const ParsedLine& line);
 
     /**
      *
@@ -174,7 +156,7 @@ namespace rewrite {
 	    ParsedLine				parsed_line;
 
 	    static std::string_view unquote(const std::string_view& str) {
-		return str.substr(1, str.size() - 2);
+		return str.substr(1, str.size() - 1);
 	    }
 	
 	    /**
@@ -189,9 +171,7 @@ namespace rewrite {
 			if(*pos == ',')
 			    *pos = '.';
 
-		return {current_line.substr(
-		    std::distance(current_line.begin(), start),
-		    std::distance(start, pos))};
+		return {start, pos};
 	    }
 
 	    /**
@@ -201,7 +181,7 @@ namespace rewrite {
 	    template<CharCheckFn check>
 	    bool expect_next() {
 		read_while<is_whitespace>();
-		return pos < current_line.cend() && check(*pos);
+		return pos < current_line.end() && check(*pos);
 	    }
 
 	    /**

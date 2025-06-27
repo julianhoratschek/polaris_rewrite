@@ -10,8 +10,12 @@ namespace rewrite {
 	return std::isdigit(c) || c == '+' || c == '-' || c == ',' || c == '.' || c == 'e' || c == 'E';
     }
 
-    bool is_identifier(const char c) {
+    bool is_identifier_start(const char c) {
 	return std::isalpha(c) || c == '_';
+    }
+
+    bool is_identifier(const char c) {
+	return std::isalpha(c) || c == '_' || std::isdigit(c);
     }
 
     bool is_quote(const char c) {
@@ -30,22 +34,43 @@ namespace rewrite {
 	return c == '/';
     }
 
+    std::ostream& operator<<(std::ostream& os, const ParsedLine& line) {
+	os << "Parsed Line (" << line.line_nr << ")\n\nCommand: " << line.command << "\nParameter Sequence:\n";
+	for (auto& v: line.sequence)
+	    os << v.second << " ";
+	os << "\nNamed Parameters:\n";
+	for (auto& v: line.named_params)
+	    os << "\t" << v.first << ": " << v.second << "\n";
+	os << "\nNumber Parameters:\n";
+	for (auto& v: line.num_params)
+	    os << v << "; ";
+	os << "\nID Parameters:\n";
+	for (auto& v: line.id_params)
+	    os << v << "; ";
+	os << "\nString Parameters:\n";
+	for (auto& v: line.str_params)
+	    os << "\t" << v << "\n";
+
+	return os;
+    }
 
     auto CommandParser::get_command()
 	-> std::expected<void, std::string> {
-
+	
 	if (expect_next<is_slash>()) {
 	    parsed_line.type = ParsedLine::Type::ClosingTag;
-	    ++pos;
+	    expect_next<is_identifier>();
 	}
 
 	if (!is_identifier(*pos))
 	    return std::unexpected { "Expected Polaris command after '<'" };
 
 	parsed_line.command = read_while<is_identifier>();
+	--pos;
 
 	while (expect_next<is_identifier>()) {
 	    const auto	param_name = read_while<is_identifier>();
+	    --pos;
 
 	    if (!expect_next<is_equals>())
 		return std::unexpected{ "Expected '=' after named parameter" };
@@ -56,9 +81,8 @@ namespace rewrite {
 	    parsed_line.named_params[std::string{param_name}] = unquote(read_while<is_string>());
 	}
 
-	if (pos >= current_line.cend() || *pos != '>')
+	if (pos >= current_line.end() || *pos != '>')
 	    return std::unexpected{ "Expected '>' after command" };
-	++pos;
 
 	return {};
     }
@@ -73,7 +97,6 @@ namespace rewrite {
 	pos = current_line.begin();
 
 	while (pos < current_line.end()) {
-	    read_while<is_whitespace>();
 	    const char c = *pos;
 
 	    switch (c) {
@@ -85,18 +108,20 @@ namespace rewrite {
 		    parsed_line.push_param<ParsedLine::ParamType::String>(
 			unquote(read_while<is_string>()));
 
-		    if (pos == current_line.end())
+		    if (pos >= current_line.end())
 			return std::unexpected{ "Missing '\"'" };
-
-		    continue;
+		    break;
 
 		case '<':
 		    if (const auto e = get_command();
 			not e) return std::unexpected{ e.error() };
-		    continue;
+		    break;
 
 		default:
-		    if (is_identifier(c))
+		    if (is_whitespace(c))
+			break;
+
+		    else if (is_identifier_start(c))
 			parsed_line.push_param<ParsedLine::ParamType::Identifier>(
 			    read_while<is_identifier>());
 
@@ -118,6 +143,8 @@ namespace rewrite {
 		    else
 			return std::unexpected{ comp_error( "Unknown Token '", c, "'" ) };
 	    }
+
+	    read_while<is_whitespace>();
 	}
 
 	return {};

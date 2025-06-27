@@ -1,7 +1,4 @@
 #include "polaris_commands.hpp"
-#include "MathFunctions.hpp"
-#include "Matrix2D.hpp"
-#include "Vector3D.hpp"
 
 #include <array>
 #include <cstddef>

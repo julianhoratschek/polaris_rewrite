@@ -57,7 +57,9 @@ TARGET_LINK_LIBRARIES (polaris PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CF
 TARGET_INCLUDE_DIRECTORIES (polaris PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR} ${CCFITS_INCLUDE_DIR})
 INSTALL (TARGETS polaris)
 
-ADD_EXECUTABLE (rewrite_test parser/test_main.cpp parser/command_parser.cpp parser/polaris_commands.cpp)
+ADD_EXECUTABLE (rewrite_test ${SRC_FILES} parser/test_main.cpp parser/command_parser.cpp parser/polaris_commands.cpp)
+TARGET_LINK_LIBRARIES (rewrite_test PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CFITSIO_LIBRARY})
+TARGET_INCLUDE_DIRECTORIES (rewrite_test PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR} ${CCFITS_INCLUDE_DIR})
 
 INCLUDE (CTest)
 if(BUILD_TESTING)
