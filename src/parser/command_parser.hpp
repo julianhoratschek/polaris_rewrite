@@ -1,223 +1,88 @@
 #ifndef RW_COMMAND_PARSER
 #define RW_COMMAND_PARSER
 
-#include <cstddef>
+#include "parsed_line.hpp"
+
 #include <string_view>
 #include <string>
 #include <expected>
-#include <vector>
-#include <sstream>
 
 #include <filesystem>
-#include <fstream>
-#include <map>
 
-// TODO: we don't want this
-#include <iostream>
 
 namespace rewrite {
 
-    /**
-     *
-     */
-    template<typename... Args>
-    std::string comp_error(const std::string& msg, Args... args) {
-	return (std::ostringstream(msg) << ... << args).str();
-    }
-
-
-    /**
-     *
-     */
+    ///
     using CharCheckFn = bool(*)(const char);
 
-    bool is_whitespace(const char c);
-    bool is_number(const char c);
-    bool is_identifier_start(const char c);
-    bool is_identifier(const char c);
-    bool is_quote(const char c);
-    bool is_string(const char c);
-    bool is_equals(const char c);
-    bool is_slash(const char c);
-
-
     /**
-     * Chose multiple vector layout because of multiple conversions during cmd
-     * file processing. Memory fragmentation is preferable to multiple
-     * loops through the same arrays.
-     */
-    struct ParsedLine {
-	enum class Type {
-	    ValueLine, Command, ClosingTag
-	};
-
-	enum class ParamType {
-	    Identifier, String, Number
-	};
-
-	std::string_view				command;
-	Type						type{Type::ValueLine};
-	size_t						line_nr{0};
-	std::vector<double>				num_params;
-	std::vector<std::string_view>			str_params;
-	std::vector<std::string_view>			id_params;
-	std::map<std::string, std::string_view> 	named_params;
-
-	std::vector<std::pair<ParamType, size_t>>	sequence;
-
-	// TODO test with consteval
-	template<ParamType tp>
-	static constexpr std::string param_type() {
-	    if constexpr (tp == ParamType::Identifier)
-		return "Identifier";
-	    else if constexpr (tp == ParamType::Number)
-		return "String";
-	    else
-		return "Number";
-	}
-
-	// TODO test with consteval
-	template<ParamType pt>
-	constexpr auto get_vector() {
-	    if constexpr (pt == ParamType::Number)
-		return &num_params;
-	    else if constexpr (pt == ParamType::Identifier)
-		return &id_params;
-	    else
-		return &str_params;
-	}
-
-	template<ParamType pt>
-	constexpr auto get_vector() const {
-	    if constexpr (pt == ParamType::Number)
-		return &num_params;
-	    else if constexpr (pt == ParamType::Identifier)
-		return &id_params;
-	    else
-		return &str_params;
-	}
-
-	template<ParamType pt, typename T>
-	void push_param(T val) {
-	    auto	pv = get_vector<pt>();
-	    const auto idx = pv->size();
-
-	    sequence.emplace_back(pt, idx);
-	    pv->push_back(val);
-	}
-
-	template<ParamType pt, typename T>
-	auto get_param(const size_t idx) const
-	    -> std::expected<T, std::string> {
-
-	    if (idx >= sequence.size())
-		return std::unexpected{ "Too few parameters" };
-
-	    const auto param = sequence[idx];
-	    if (param.first != pt)
-		return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
-
-	    auto pv = get_vector<pt>();
-	    return pv->at(param.second);
-	}
-
-	auto get_num(const size_t idx) const {
-	    return get_param<ParamType::Number, double>(idx);
-	}
-
-	auto get_id(const size_t idx) const {
-	    return get_param<ParamType::Identifier, std::string_view>(idx);
-	}
-
-	auto get_str(const size_t idx) const {
-	    return get_param<ParamType::String, std::string_view>(idx);
-	}
-
-	void clear() {
-	    type = Type::ValueLine;
-	    sequence.clear();
-	    num_params.clear();
-	    str_params.clear();
-	    id_params.clear();
-	    named_params.clear();
-	}
-    };
-
-    std::ostream& operator<<(std::ostream& os, const ParsedLine& line);
-
-    /**
-     *
+     * This is a strict per-line parser. Parsed lines are invalidated as soon
+     * as the next line is read. Processing should be done by passing a
+     * processing function pointer, which will be called after each line is
+     * successfully parsed.
      */
     class CommandParser {
-	private:
-	    std::string				current_line;
-	    std::string::iterator		pos;
 
-	    ParsedLine				parsed_line;
+	/// Currently processed line
+	std::string				current_line;
 
-	    static std::string_view unquote(const std::string_view& str) {
-		return str.substr(1, str.size() - 1);
-	    }
-	
-	    /**
-	     *
-	     */
-	    template<CharCheckFn check>
-	    std::string_view read_while() {
-		const auto	start = pos;
+	/// Current position in current_line
+	std::string::iterator			pos;
 
-		while (++pos < current_line.end() && check(*pos))
-		    if constexpr (check == is_number)
-			if(*pos == ',')
-			    *pos = '.';
+	/// Result of currently parsed line (invalidated when a new line is read)
+	ParsedLine				parsed_line;
 
-		return {start, pos};
-	    }
+	/**
+	 * Removes beginning quote from read strings
+	 * @param str view to process
+	 * @returns `str` without its first character
+	 */
+	static std::string_view unquote(const std::string_view& str) {
+	    return str.substr(1, str.size() - 1);
+	}
 
-	    /**
-	     * Skips whitespace and then returns true if check returns
-	     * true for the next character.
-	     */
-	    template<CharCheckFn check>
-	    bool expect_next() {
-		read_while<is_whitespace>();
-		return pos < current_line.end() && check(*pos);
-	    }
+	/**
+	 * Reads text while `check` returns true.
+	 * @tparam check Function returning true as long as reading should be
+	 * 		 continued
+	 * @returns string_view of read characters.
+	 */
+	template<CharCheckFn check>
+	inline std::string_view read_while();
 
-	    /**
-	     *
-	     */
-	    auto get_command()
-		-> std::expected<void, std::string>;
+	/**
+	 * Skips whitespace and then returns true if check returns
+	 * true for the next character.
+	 */
+	template<CharCheckFn check>
+	inline bool expect_next();
 
-	public:
-	    ParsedLine get_last_line() {
-		return parsed_line;
-	    }
+	/**
+	 *
+	 */
+	auto get_command() -> std::expected<void, std::string>;
 
-	    auto parse_line(const std::string& line)
-		-> std::expected<void, std::string>;
+    public:
+	using ProcessLineFn = std::expected<void, std::string>(*)(const ParsedLine&);
 
-	    using ProcessFn = std::expected<void, std::string>(*)(const ParsedLine&);
-	    auto parse_file(const std::filesystem::path& path, ProcessFn proc)
-		-> std::expected<void, std::string> {
+	/**
+	 *
+	 */
+	ParsedLine get_last_line() { return parsed_line; }
 
-		std::ifstream		file(path);
-		std::string		line;
+	/**
+	 * Parses one singular line. On Success the parsed line object can be
+	 * retrieved with `get_last_line()`.
+	 */
+	auto parse_line(const std::string& line)
+	    -> std::expected<void, std::string>;
 
-		while(std::getline(file, line)) {
-		    if (const auto res = parse_line(line); not res)
-			return std::unexpected { comp_error(
-			    "Parsing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]: ",
-			    res.error()) };
-		    if (const auto res = proc(parsed_line); !res)
-			return std::unexpected { comp_error(
-			    "Processing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]:",
-			    res.error()) };
-		}
-
-		return {};
-	    }
+	/**
+	 * Reads `path` line by line, on success calls `proc` with the read
+	 * ParsedLine object.
+	 */
+	auto parse_file(const std::filesystem::path& path, ProcessLineFn proc)
+	    -> std::expected<void, std::string>;
     };
 }
 

@@ -1,66 +1,64 @@
 #include "command_parser.hpp"
 
+#include <fstream>
+
 namespace rewrite {
 
-    bool is_whitespace(const char c) {
-	return std::isspace(c) || c == ';' || c == '?' || c == '*';
+    namespace {
+	bool is_whitespace(const char c) {
+	    return std::isspace(c) || c == ';' || c == '?' || c == '*'; }
+
+	bool is_number(const char c) {
+	    return std::isdigit(c) || c == '+' || c == '-' || c == ',' || c == '.' || c == 'e' || c == 'E'; }
+
+	bool is_identifier_start(const char c) {
+	    return std::isalpha(c) || c == '_'; }
+
+	bool is_identifier(const char c) {
+	    return std::isalpha(c) || c == '_' || std::isdigit(c); }
+
+	bool is_quote(const char c) {
+	    return c == '"'; }
+
+	bool is_string(const char c) {
+	    return c != '"'; }
+
+	bool is_equals(const char c) {
+	    return c == '='; }
+
+	bool is_slash(const char c) {
+	    return c == '/'; }
     }
 
-    bool is_number(const char c) {
-	return std::isdigit(c) || c == '+' || c == '-' || c == ',' || c == '.' || c == 'e' || c == 'E';
+
+    template<CharCheckFn check>
+    inline std::string_view CommandParser::read_while() {
+	const auto	start = pos;
+
+	while (++pos < current_line.end() && check(*pos))
+	    if constexpr (check == is_number)
+		if(*pos == ',') *pos = '.';
+
+	return {start, pos};
     }
 
-    bool is_identifier_start(const char c) {
-	return std::isalpha(c) || c == '_';
+
+    template<CharCheckFn check>
+    inline bool CommandParser::expect_next() {
+	read_while<is_whitespace>();
+	return pos < current_line.end() && check(*pos);
     }
 
-    bool is_identifier(const char c) {
-	return std::isalpha(c) || c == '_' || std::isdigit(c);
-    }
-
-    bool is_quote(const char c) {
-	return c == '"';
-    }
-
-    bool is_string(const char c) {
-	return c != '"';
-    }
-
-    bool is_equals(const char c) {
-	return c == '=';
-    }
-
-    bool is_slash(const char c) {
-	return c == '/';
-    }
-
-    std::ostream& operator<<(std::ostream& os, const ParsedLine& line) {
-	os << "Parsed Line (" << line.line_nr << ")\n\nCommand: " << line.command << "\nParameter Sequence:\n";
-	for (auto& v: line.sequence)
-	    os << v.second << " ";
-	os << "\nNamed Parameters:\n";
-	for (auto& v: line.named_params)
-	    os << "\t" << v.first << ": " << v.second << "\n";
-	os << "\nNumber Parameters:\n";
-	for (auto& v: line.num_params)
-	    os << v << "; ";
-	os << "\nID Parameters:\n";
-	for (auto& v: line.id_params)
-	    os << v << "; ";
-	os << "\nString Parameters:\n";
-	for (auto& v: line.str_params)
-	    os << "\t" << v << "\n";
-
-	return os;
-    }
 
     auto CommandParser::get_command()
 	-> std::expected<void, std::string> {
-	
+
 	if (expect_next<is_slash>()) {
 	    parsed_line.type = ParsedLine::Type::ClosingTag;
 	    expect_next<is_identifier>();
 	}
+	else
+	    parsed_line.type = ParsedLine::Type::Command;
 
 	if (!is_identifier(*pos))
 	    return std::unexpected { "Expected Polaris command after '<'" };
@@ -86,6 +84,7 @@ namespace rewrite {
 
 	return {};
     }
+
 
     auto CommandParser::parse_line(const std::string& line)
 	-> std::expected<void, std::string> {
@@ -145,6 +144,28 @@ namespace rewrite {
 	    }
 
 	    read_while<is_whitespace>();
+	}
+
+	return {};
+    }
+
+
+    auto CommandParser::parse_file(const std::filesystem::path& path, ProcessLineFn proc)
+	-> std::expected<void, std::string> {
+
+	std::ifstream	file(path);
+	std::string	line;
+
+	while(std::getline(file, line)) {
+	    if (const auto res = parse_line(line); not res)
+		return std::unexpected { comp_error(
+		    "Parsing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]: ",
+		    res.error()) };
+
+	    if (const auto res = proc(parsed_line); !res)
+		return std::unexpected { comp_error(
+		    "Processing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]:",
+		    res.error()) };
 	}
 
 	return {};

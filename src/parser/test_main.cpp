@@ -1,5 +1,7 @@
 #include "command_parser.hpp"
 
+#include <iostream>
+
 int main() {
     using namespace std;
 
