@@ -12,8 +12,6 @@
 namespace rewrite {
 
     namespace {
-	// TODO: additional namespace
-
 	/**
 	 *
 	 */
@@ -42,7 +40,7 @@ namespace rewrite {
 	    // std::vector<double>& values,
 	    // const std::vector<double>& nr_of_pixel,
 	    // const bool nsides_as_pixel = false)
-	    // -> std::expected<void, std::string> {
+	    // {
 	    //
 	    // if (nr_of_pixel.empty()
 	    //     || nr_of_pixel.size() > 2
@@ -75,7 +73,7 @@ namespace rewrite {
 	    //    auto check_vel_channels(
 	    // dlist& values,
 	    // const dlist& nr_of_channels)
-	    // -> std::expected<void, std::string> {
+	    // {
 	    //
 	    // if(nr_of_channels.size() != 1
 	    //     || nr_of_channels[0] <= 0)
@@ -113,9 +111,9 @@ namespace rewrite {
 	 *
 	 */
 	template<DetectorRegistration reg, size_t N>
-	auto register_detector(
+	t_ret register_detector(
 	    ParsedLine& line,
-	    std::array<double, N> defaults) -> std::expected<void, std::string> {
+	    std::array<double, N> defaults) {
 	    
 	    if (line.num_params.size() < reg.param.min_cnt)
 		return std::unexpected{ "Too few parameters" };
@@ -217,8 +215,7 @@ namespace rewrite {
 	 */
 	template<typename SetterFn>
 	    requires std::is_invocable_v<SetterFn, parameters, double>
-	auto param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
-	    -> std::expected<void, std::string> {
+	t_ret param_set_number(ParsedLine& line, parameters& param, SetterFn setter) {
 
 	    if (const auto e = line.get_num(0); !e)
 		return std::unexpected{ e.error() };
@@ -234,10 +231,9 @@ namespace rewrite {
 	template<typename Fn>
 	    requires std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>
 		  || std::is_invocable_v<Fn, parameters, std::vector<double>&>
-	auto add_source(
+	t_ret add_source(
 	    ParsedLine& line, parameters& param,
-	    Fn add_function, const std::string& source_name, const size_t nr_of_sources)
-	    -> std::expected<void, std::string> {
+	    Fn add_function, const std::string& source_name, const size_t nr_of_sources) {
 
 	    constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
 
@@ -278,7 +274,7 @@ namespace rewrite {
 	    if (P_l > 1.0)
 		return std::unexpected { "Chosen polarization of source star is larger than 1!" };
 	    else if (P_l < 0)
-		return std::unexpected{ "Chosen polarization of source is smaller than 0!" };
+		return std::unexpected { "Chosen polarization of source is smaller than 0!" };
 
 	    line.num_params.push_back(static_cast<double>(nr_of_photons));
 
@@ -293,8 +289,7 @@ namespace rewrite {
 
     //---------------------------------------------------------------------
 
-   auto cmd_cmd(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+   t_ret cmd_cmd(ParsedLine& line, parameters& param) {
 
 	constexpr auto commands = std::array {
 	    "CMD_TEMP", "CMD_DUST_EMISSION", "CMD_DUST_SCATTERING",
@@ -317,18 +312,18 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_delta0(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_delta0(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setDelta0);
     }
 
-    auto cmd_larm_f(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_larm_f(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setLarmF);
     }
 
-    auto cmd_plot_list(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_plot_list(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.empty())
 	    return std::unexpected( "List of plot IDs is empty!\nOnly integer values are allowed");
@@ -344,8 +339,8 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_phase_function(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_phase_function(ParsedLine& line, parameters& param) {
 
 	constexpr auto phfn = std::array {
 	    "PH_ISO", "PH_HG", "PH_DHG", "PH_TTHG", "PH_MIE" };
@@ -373,16 +368,16 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_star_mass(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_star_mass(ParsedLine& line, parameters& param) {
 
 	for(const auto& mass: line.num_params)
 	    param.addStarMass(mass * M_sun);
 	return {};
     }
 
-    auto cmd_opiata_path_emi(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_opiata_path_emi(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else
@@ -390,8 +385,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_opiata_path_abs(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_opiata_path_abs(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else
@@ -399,8 +394,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_gas_species(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_gas_species(ParsedLine& line, parameters& param) {
 
 	constexpr auto pop = std::array{
 	    "POP_MC", "POP_LTE", "POP_FEP", "POP_LVG", "POP_DEGUCHI_LVG"
@@ -436,22 +431,22 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_source_star(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_source_star(ParsedLine& line, parameters& param) {
 	return add_source(
 	    line, param, &parameters::addPointSource, "star", NR_OF_POINT_SOURCES);
     }
 
-    auto cmd_source_starfield(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_source_starfield(ParsedLine& line, parameters& param) {
 	return add_source(
 	    line, param, &parameters::addDiffuseSource, "starfield", NR_OF_DIFF_SOURCES);
     }
 
+
     // TODO very strange behavior: completely differs from other sources, params
     // seem in wrong order
-    auto cmd_source_background(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_source_background(ParsedLine& line, parameters& param) {
 	
 	ullong	nr_of_photons = 0;
 	if (line.named_params.contains("nr_photons"))
@@ -487,30 +482,30 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_source_laser(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_source_laser(ParsedLine& line, parameters& param) {
 	return add_source(
 	    line, param, &parameters::addLaserSource, "laser", NR_OF_LASER_SOURCES);
     }
 
-    auto cmd_axis1(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_axis1(ParsedLine& line, parameters& param) {
 	if (line.num_params.size() != 3)
 	    return std::unexpected{ "Values for first axis are not a vector" };
 	param.setAxis1(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return {};
     }
 
-    auto cmd_axis2(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_axis2(ParsedLine& line, parameters& param) {
 	if (line.num_params.size() != 3)
 	    return std::unexpected{ "Values for second axis are not a vector" };
 	param.setAxis2(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return {};
     }
 
-    auto cmd_align(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_align(ParsedLine& line, parameters& param) {
 	
 	constexpr auto alignments = std::array{
 	    "ALIG_INTERNAL", "ALIG_PA", "ALIG_IDG", "ALIG_RAT",
@@ -529,13 +524,13 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_mu(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_mu(ParsedLine& line, parameters& param) {
 	    return param_set_number(line, param, &parameters::setMu);
     }
 
-    auto cmd_xy_min(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_xy_min(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -545,8 +540,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_xy_max(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_xy_max(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -556,8 +551,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_xy_steps(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_xy_steps(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -567,13 +562,13 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_xy_bins(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_xy_bins(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setXYBins);
     }
 
-    auto cmd_xy_label(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_xy_label(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -583,8 +578,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_healpix_orientation(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_healpix_orientation(ParsedLine& line, parameters& param) {
 	constexpr auto healpix = std::array{
 	    "HEALPIX_FIXED", "HEALPIX_YAXIS", "HEALPIX_CENTER" };
 
@@ -598,16 +593,16 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_path_grid(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_path_grid(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathGrid(std::string{e.value()});
 	return {};
     }
 
-    auto cmd_path_grid_csg(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_path_grid_cgs(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathGrid(std::string{e.value()});
@@ -620,31 +615,31 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_sub_dust(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_sub_dust(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setSublimate);
     }
 
-    auto cmd_vel_maps(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_vel_maps(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setVelMaps);
     }
 
-    auto cmd_max_subpixel_lvl(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_max_subpixel_lvl(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMaxSubpixelLvl);
     }
 
-    auto cmd_path_input(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_path_input(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathInput(std::string{e.value()});
 	return {};
     }
 
-    auto cmd_dust_component(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_dust_component(ParsedLine& line, parameters& param) {
 	
 	uint 		dust_component_choice = 0;
 
@@ -731,8 +726,8 @@ namespace rewrite {
         return std::unexpected{ "Wrong number of size parameters" };
     }
 
-    auto cmd_path_out(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_path_out(ParsedLine& line, parameters& param) {
 
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
@@ -741,71 +736,59 @@ namespace rewrite {
     }
 
 
-    auto cmd_nr_plot_points(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_nr_plot_points(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setNrOfPlotPoints);
     }
 
 
-    auto cmd_nr_plot_vectors(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_nr_plot_vectors(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setnrOfPlotVectors);
     }
 
 
-    auto cmd_f_highJ(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_f_highJ(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setFhighJ);
     }
 
 
-    auto cmd_Q_ref(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_Q_ref(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setQref);
     }
 
 
-    auto cmd_alpha_Q(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_alpha_Q(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setAlphaQ);
     }
 
 
-    auto cmd_R_rayleigh(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_R_rayleigh(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setRayleighReductionFactor);
     }
 
 
-    auto cmd_f_c(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_f_c(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setFcorr);
     }
 
 
-    auto cmd_adj_tgs(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_adj_tgas(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setAdjTgas);
     }
 
 
-    auto cmd_max_plot_lines(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_max_plot_lines(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMaxPlotLines);
     }
 
-    auto cmd_start(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_start(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setStart);
     }
 
-    auto cmd_stop(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_stop(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setStop);
     }
 
-    auto cmd_cons_dens(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_conv_dens(ParsedLine& line, parameters& param) {
 
 	const auto e = line.get_num(0);
 
@@ -824,18 +807,18 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_conv_len(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_conv_len(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::updateSIConvLength);
     }
 
-    auto cmd_conv_mag(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_conv_mag(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::updateSIConvBField);
     }
 
-    auto cmd_conv_vel(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_conv_vel(ParsedLine& line, parameters& param) {
 
 	const auto e = line.get_num(0);
 
@@ -853,8 +836,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_mass_fraction(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_mass_fraction(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -872,22 +855,22 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_mrw(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_mrw(ParsedLine& line, parameters& param) {
 	const auto res = param_set_number(line, param, &parameters::setMRW);
 	std::cout << WARNING_LINE << "MRW currently unavailable!\n";
 	return res;
     }
 
-    auto cmd_pda(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_pda(ParsedLine& line, parameters& param) {
 	const auto res = param_set_number(line, param, &parameters::setPDA);
 	std::cout << WARNING_LINE << "PDA currently unavailable!\n";
 	return res;
     }
 
-    auto cmd_dust_offset(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_dust_offset(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -909,8 +892,8 @@ namespace rewrite {
 	return {};
     }
     
-    auto cmd_gas_coupling(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_dust_gas_coupling(ParsedLine& line, parameters& param) {
 
 	const auto e = line.get_num(0);
 
@@ -933,28 +916,29 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_radiation_field(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_radiation_field(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setSaveRadiationField);
     }
 
-    auto cmd_rt_scattering(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_rt_scattering(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setScatteringToRay);
     }
 
-    auto cmd_split_dust_emission(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_split_dust_emission(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setSplitDustEmission);
     }
 
-    auto cmd_full_dust_temp(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_full_dust_temp(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setFullDustTemp);
     }
 
-    auto cmd_stochastic_heating(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_stochastic_heating(ParsedLine& line, parameters& param)
+    {
 	if (line.num_params.size() != 1 || line.num_params[0] < 0)
             return std::unexpected { "For stochastic heating, a non-negative dust grain size limit needs to be chosen!" };
 
@@ -962,8 +946,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_source_dust(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_source_dust(ParsedLine& line, parameters& param) {
 	if (line.named_params.contains("nr_photons")) try {
 	    param.setNrOfDustPhotons(std::stod(
 		std::string{line.named_params["nr_photons"]}));
@@ -976,8 +960,8 @@ namespace rewrite {
 	return std::unexpected{ "Number of photons could not be recognized!" };
     }
 
-    auto cmd_source_isrf(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_source_isrf(ParsedLine& line, parameters& param) {
 
 	if (!line.named_params.contains("nr_photons"))
 	    return std::unexpected{ "Parameter nr_photons required" };
@@ -1004,8 +988,8 @@ namespace rewrite {
 	return {};
     }
     
-    auto cmd_foreground_extinction(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_foreground_extinction(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 3)
 	    return std::unexpected{ "Wrong number of parameters" };
@@ -1019,18 +1003,18 @@ namespace rewrite {
 	param.setForegroundExtinction(values[0], values[1], values[2]);
     }
 
-    auto cmd_enfsca(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_enfsca(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setEnfScattering);
     }
 
-    auto cmd_peel_off(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_peel_off(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setPeelOff);
     }
 
-    auto cmd_acceptance_angle(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_acceptance_angle(ParsedLine& line, parameters& param) {
 	if (line.num_params.empty())
 	    return std::unexpected{ "Expected parameter" };
 	if (line.num_params[0] <= 0)
@@ -1039,8 +1023,8 @@ namespace rewrite {
 	return {};
     }
 
-    auto cmd_nr_threads(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_nr_threads(ParsedLine& line, parameters& param) {
 	if (line.num_params.empty())
 	    return std::unexpected{ "Expected parameter" };
 
@@ -1057,33 +1041,33 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_vel_is_speed_of_sound(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_vel_is_speed_of_sound(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setIsSpeedOfSound);
     }
 
-    auto cmd_amira_inp_points(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_amira_inp_points(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setInpAMIRAPoints);
     }
 
-    auto cmd_amira_out_points(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_amira_out_points(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setOutAMIRAPoints);
     }
 
-    auto cmd_plot_inp_midplanes(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_plot_inp_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setInpMidPlot);
     }
 
-    auto cmd_plot_out_midplanes(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_plot_out_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setOutMidPlot);
     }
 
-    auto cmd_write_3d_midplanes(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_3d_midplanes(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 4)
 	    return std::unexpected{ "Wrong number of parameters for 3D midplane files" };
@@ -1104,18 +1088,18 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_write_inp_midplanes(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_inp_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setInpMidDataPoints);
     }
 
-    auto cmd_write_out_midplanes(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_out_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setOutMidDataPoints);
     }
 
-    auto cmd_write_radiation_field(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_radiation_field(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -1131,49 +1115,49 @@ namespace rewrite {
         return {};
     }
 
-    auto cmd_write_full_radiation_field(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_full_radiation_field(ParsedLine& line, parameters& param) {
         cout << WARNING_LINE << "Command <write_full_radiation_field> is no longer available!" << endl;
         return {};
     }
 
-    auto cmd_write_g_zero(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_g_zero(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setWriteGZero);
     }
 
-    auto cmd_write_dust_files(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_write_dust_files(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setWriteDustFiles);
     }
 
-    auto cmd_midplane_zoom(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_midplane_zoom(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMidplaneZoom);
     }
 
-    auto cmd_kepler_star_mass(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_kepler_star_mass(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setKeplerStarMass);
     }
 
-    auto cmd_turbulent_velocity(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_turbulent_velocity(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setTurbulentVelocity);
     }
 
-    auto cmd_mc_lvl_pop_photons(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_mc_lvl_pop_photons(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMCLvlPopNrOfPhotons);
     }
 
-    auto cmd_mc_lvl_pop_seed(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_mc_lvl_pop_seed(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMCLvlPopSeed);
     }
 
-    auto cmd_detector_opiate(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_detector_opiate(ParsedLine& line, parameters& param) {
 	
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1276,8 +1260,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_detector_opiate_healpix(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_opiate_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1376,8 +1359,7 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_line(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_line(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1483,8 +1465,8 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_line_healpix(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_detector_line_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1571,8 +1553,7 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_line_polar(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_line_polar(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1661,8 +1642,7 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_line_slice(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_line_slice(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1754,8 +1734,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_detector_dust(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_dust(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1846,8 +1825,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_detector_dust_healpix(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_dust_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1933,8 +1911,7 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_dust_polar(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_dust_polar(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -2022,8 +1999,7 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_dust_slice(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_dust_slice(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -2113,8 +2089,7 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_dust_mc(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_dust_mc(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -2196,8 +2171,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_detector_sync(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_sync(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -2288,8 +2262,7 @@ namespace rewrite {
     }
 
 
-    auto cmd_detector_sync_slice(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+    t_ret cmd_detector_sync_slice(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -2379,8 +2352,8 @@ namespace rewrite {
 	//        return {};
     }
 
-    auto cmd_detector_sync_healpix(ParsedLine& line, parameters& param)
-	-> std::expected<void, std::string> {
+
+    t_ret cmd_detector_sync_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
