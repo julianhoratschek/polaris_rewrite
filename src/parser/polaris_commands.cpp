@@ -10,288 +10,290 @@
 #include <algorithm>
 
 namespace rewrite {
-    
-    // TODO: additional namespace
 
-    /**
-     *
-     */
-    auto read_nr_value(const std::string& str)
-	-> std::expected<std::vector<double>, std::string> {
+    namespace {
+	// TODO: additional namespace
 
-	std::vector<double>	result;
+	/**
+	 *
+	 */
+	auto read_nr_value(const std::string& str)
+	    -> std::expected<std::vector<double>, std::string> {
 
-	for (auto i = 0; i < str.length(); i++) try {
-	    std::size_t	read = 0;
-	    result.push_back(
-		std::stod(str.substr(i), &read));
-	    i += read + 1;
-	}
-	catch(...) {
-	    return std::unexpected{ "Could not read Number" };
-	}
+	    std::vector<double>	result;
 
-	return result;
-    }
-
-    /**
-     *
-     */
-	//    auto check_pixel(
-	// std::vector<double>& values,
-	// const std::vector<double>& nr_of_pixel,
-	// const bool nsides_as_pixel = false)
-	// -> std::expected<void, std::string> {
-	//
-	// if (nr_of_pixel.empty()
-	//     || nr_of_pixel.size() > 2
-	//     || std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
-	//     return std::unexpected { "Number could not be recognized!" }; 
-	//
-	// if(nsides_as_pixel) {
-	//     const auto n = static_cast<uint>(nr_of_pixel[0]);
-	//     if((n & (n - 1)) != 0) 
-	// 	return std::unexpected{ "Number of sides must be a power of two!" };
-	//
-	//     values.push_back(n);
-	//     values.push_back(n);
-	// }
-	//
-	// else {
-	//     const uint a = nr_of_pixel[0];
-	//     const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
-	//
-	//     values.push_back(a);
-	//     values.push_back(b);
-	// }
-	//
-	// return {};
-	//    }
-
-    /*
-     *
-     */
-	//    auto check_vel_channels(
-	// dlist& values,
-	// const dlist& nr_of_channels)
-	// -> std::expected<void, std::string> {
-	//
-	// if(nr_of_channels.size() != 1
-	//     || nr_of_channels[0] <= 0)
-	//     return std::unexpected {"Number of velocity channels for ray tracing detector could not be recognized!"  };
-	//
-	// values.push_back(uint(nr_of_channels[0]));
-	// return {};
-	//    }
-
-
-    /**
-     *
-     */
-    struct DetectorRegistration {
-	struct Flags {
-	    bool		is_healpix;
-	    bool		with_vel_channels;
-	    bool		check_wavelength;
-	} flags;
-
-	struct Param {
-	    size_t		min_cnt;
-	    size_t		fill_cnt;
-	    size_t		check_cnt;
-	    size_t		add_360_begin;
-	} param;
-
-	uint		det_type;
-
-	constexpr DetectorRegistration(Flags _flags, Param _param, uint _det)
-	    : flags(_flags), param(_param), det_type(_det) {}
-    };
-
-    /**
-     *
-     */
-    template<DetectorRegistration reg, size_t N>
-    auto register_detector(
-	ParsedLine& line,
-	std::array<double, N> defaults) -> std::expected<void, std::string> {
-	
-	if (line.num_params.size() < reg.param.min_cnt)
-	    return std::unexpected{ "Too few parameters" };
-	
-	if constexpr (reg.flags.check_wavelength) {
-	    if (line.num_params[2] < 1)
-		return std::unexpected { "Number of wavelengths needs to be at least 1!" };
-
-	    if (line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-		return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
-	}
-
-	const std::string pixel_name = reg.flags.is_healpix ?
-	    "nr_sides" : "nr_pixel";
-
-	if (!line.named_params.contains(pixel_name))
-	    return std::unexpected{
-		comp_error("Expected ", pixel_name, " named parameter") };
-	
-	std::vector<double>	nr_of_channels;
-	std::vector<double>	nr_of_pixel{
-	    read_nr_value(std::string{line.named_params[pixel_name]})
-		.value_or(std::vector<double>{})};
-
-	if (nr_of_pixel.empty()
-	    || nr_of_pixel.size() > 2
-	    || std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
-	    return std::unexpected {
-		comp_error(pixel_name, " could not be recognized!") }; 
-
-	if constexpr (reg.flags.is_healpix) {
-	    const auto n = static_cast<uint>(nr_of_pixel[0]);
-	    if((n & (n - 1)) != 0) 
-		return std::unexpected{ "Number of sides must be a power of two!" };
-	}
-
-	if constexpr (reg.flags.with_vel_channels) {
-	    if (!line.named_params.contains("vel_channels"))
-		return std::unexpected{ "Expected vel_channels named parameter" };
-
-	    nr_of_channels = read_nr_value(
-		std::string{line.named_params["vel_channels"]})
-		.value_or(std::vector<double>{});
-
-	    if(nr_of_channels.size() != 1
-		|| nr_of_channels[0] <= 0)
-		return std::unexpected {
-		    "Number of velocity channels could not be recognized!"  };
-	}
-
-	// TODO: rather not is_healpix?
-	if constexpr (reg.param.add_360_begin != 0) {
-	    constexpr auto a = reg.param.add_360_begin;
-	    constexpr auto b = a + 1;
-	    while(line.num_params[a] < 0)
-		line.num_params[a] += 360;
-	    while(line.num_params[b] < 0)
-		line.num_params[b] += 360;
-	}
-
-	const size_t 	sz = line.num_params.size();
-	line.num_params.resize(reg.param.fill_cnt, 0.0);
-	std::copy(
-	    defaults.begin() + sz - reg.param.min_cnt,
-	    defaults.end(),
-	    line.num_params.begin() + sz);
-
-	if (reg.det_type != DET_MC)
-	    line.num_params.push_back(reg.det_type);
-
-	if constexpr (reg.flags.is_healpix)  {
-	    const uint a = nr_of_pixel[0];
-	    line.num_params.push_back(a);
-	    line.num_params.push_back(a);
-	}
-
-	else {
-	    const uint a = nr_of_pixel[0];
-	    const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
-
-	    line.num_params.push_back(a);
-	    line.num_params.push_back(b);
-	}
-
-	if constexpr (reg.flags.with_vel_channels)
-	    line.num_params.push_back(static_cast<uint>(nr_of_channels[0]));
-
-        if(line.num_params.size() != reg.param.check_cnt) 
-	    return std::unexpected {
-		"Number of parameters could not be recognized!" };
-
-        return {};
-    }
-
-
-    /**
-     * Helper function to set one singular numerical parameter with a
-     * setter function of parameters
-     */
-    template<typename SetterFn>
-	requires std::is_invocable_v<SetterFn, parameters, double>
-    auto param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
-	-> std::expected<void, std::string> {
-
-	if (const auto e = line.get_num(0); !e)
-	    return std::unexpected{ e.error() };
-	else 
-	    std::invoke(setter, param, e.value());
-	return {};
-    }
-
-
-    /**
-     * Helper function to set sources
-     */
-    template<typename Fn>
-	requires std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>
-	      || std::is_invocable_v<Fn, parameters, std::vector<double>&>
-    auto add_source(
-	ParsedLine& line, parameters& param,
-	Fn add_function, const std::string& source_name, const size_t nr_of_sources)
-	-> std::expected<void, std::string> {
-
-	constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
-
-	if (!line.named_params.contains("nr_photons"))
-	    return std::unexpected{ "Expected parameter 'nr_photons'" };
-
-	const ullong nr_of_photons = std::stoull(
-	    std::string{line.named_params["nr_photons"]});
-
-	if (nr_of_photons <= 0)
-	    return std::unexpected{ 
-		comp_error("Number of ", source_name, " photons could not be recognized!") };
-
-	std::string ps_path;
-
-	// TODO: consteval?
-	if constexpr (with_path) {
-	    if (!line.str_params.empty()) {
-		ps_path = line.str_params[0];
-		if (line.num_params.size() != nr_of_sources - 5)
-		    return std::unexpected{
-			comp_error("False amount of parameters for source ", source_name) };
-		line.num_params.resize(nr_of_sources - 1, 0);
+	    for (auto i = 0; i < str.length(); i++) try {
+		std::size_t	read = 0;
+		result.push_back(
+		    std::stod(str.substr(i), &read));
+		i += read + 1;
 	    }
+	    catch(...) {
+		return std::unexpected{ "Could not read Number" };
+	    }
+
+	    return result;
 	}
 
-	if (line.num_params.size() == nr_of_sources - 3)
-	    line.num_params.resize(nr_of_sources - 1, 0);
+	/**
+	 *
+	 */
+	    //    auto check_pixel(
+	    // std::vector<double>& values,
+	    // const std::vector<double>& nr_of_pixel,
+	    // const bool nsides_as_pixel = false)
+	    // -> std::expected<void, std::string> {
+	    //
+	    // if (nr_of_pixel.empty()
+	    //     || nr_of_pixel.size() > 2
+	    //     || std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
+	    //     return std::unexpected { "Number could not be recognized!" }; 
+	    //
+	    // if(nsides_as_pixel) {
+	    //     const auto n = static_cast<uint>(nr_of_pixel[0]);
+	    //     if((n & (n - 1)) != 0) 
+	    // 	return std::unexpected{ "Number of sides must be a power of two!" };
+	    //
+	    //     values.push_back(n);
+	    //     values.push_back(n);
+	    // }
+	    //
+	    // else {
+	    //     const uint a = nr_of_pixel[0];
+	    //     const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
+	    //
+	    //     values.push_back(a);
+	    //     values.push_back(b);
+	    // }
+	    //
+	    // return {};
+	    //    }
 
-	if (line.num_params.size() != nr_of_sources - 1)
-	    return std::unexpected{
-		comp_error("False amount of parameters for source ", source_name)};
+	/*
+	 *
+	 */
+	    //    auto check_vel_channels(
+	    // dlist& values,
+	    // const dlist& nr_of_channels)
+	    // -> std::expected<void, std::string> {
+	    //
+	    // if(nr_of_channels.size() != 1
+	    //     || nr_of_channels[0] <= 0)
+	    //     return std::unexpected {"Number of velocity channels for ray tracing detector could not be recognized!"  };
+	    //
+	    // values.push_back(uint(nr_of_channels[0]));
+	    // return {};
+	    //    }
 
-	const auto	q = line.num_params[nr_of_sources - 3],
-			u = line.num_params[nr_of_sources - 2];
-        const auto 	P_l = sqrt(q * q + u * u);
 
-        if (P_l > 1.0)
-	    return std::unexpected { "Chosen polarization of source star is larger than 1!" };
-        else if (P_l < 0)
-	    return std::unexpected{ "Chosen polarization of source is smaller than 0!" };
+	/**
+	 *
+	 */
+	struct DetectorRegistration {
+	    struct Flags {
+		bool		is_healpix;
+		bool		with_vel_channels;
+		bool		check_wavelength;
+	    } flags;
 
-        line.num_params.push_back(static_cast<double>(nr_of_photons));
+	    struct Param {
+		size_t		min_cnt;
+		size_t		fill_cnt;
+		size_t		check_cnt;
+		size_t		add_360_begin;
+	    } param;
 
-	if constexpr (with_path)
-	    std::invoke(add_function, param, line.num_params, ps_path);
-	else
-	    std::invoke(add_function, param, line.num_params);
+	    uint		det_type;
 
-        return {};
+	    constexpr DetectorRegistration(Flags _flags, Param _param, uint _det)
+		: flags(_flags), param(_param), det_type(_det) {}
+	};
+
+	/**
+	 *
+	 */
+	template<DetectorRegistration reg, size_t N>
+	auto register_detector(
+	    ParsedLine& line,
+	    std::array<double, N> defaults) -> std::expected<void, std::string> {
+	    
+	    if (line.num_params.size() < reg.param.min_cnt)
+		return std::unexpected{ "Too few parameters" };
+	    
+	    if constexpr (reg.flags.check_wavelength) {
+		if (line.num_params[2] < 1)
+		    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+
+		if (line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
+		    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+	    }
+
+	    const std::string pixel_name = reg.flags.is_healpix ?
+		"nr_sides" : "nr_pixel";
+
+	    if (!line.named_params.contains(pixel_name))
+		return std::unexpected{
+		    comp_error("Expected ", pixel_name, " named parameter") };
+	    
+	    std::vector<double>	nr_of_channels;
+	    std::vector<double>	nr_of_pixel{
+		read_nr_value(std::string{line.named_params[pixel_name]})
+		    .value_or(std::vector<double>{})};
+
+	    if (nr_of_pixel.empty()
+		|| nr_of_pixel.size() > 2
+		|| std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
+		return std::unexpected {
+		    comp_error(pixel_name, " could not be recognized!") }; 
+
+	    if constexpr (reg.flags.is_healpix) {
+		const auto n = static_cast<uint>(nr_of_pixel[0]);
+		if((n & (n - 1)) != 0) 
+		    return std::unexpected{ "Number of sides must be a power of two!" };
+	    }
+
+	    if constexpr (reg.flags.with_vel_channels) {
+		if (!line.named_params.contains("vel_channels"))
+		    return std::unexpected{ "Expected vel_channels named parameter" };
+
+		nr_of_channels = read_nr_value(
+		    std::string{line.named_params["vel_channels"]})
+		    .value_or(std::vector<double>{});
+
+		if(nr_of_channels.size() != 1
+		    || nr_of_channels[0] <= 0)
+		    return std::unexpected {
+			"Number of velocity channels could not be recognized!"  };
+	    }
+
+	    // TODO: rather not is_healpix?
+	    if constexpr (reg.param.add_360_begin != 0) {
+		constexpr auto a = reg.param.add_360_begin;
+		constexpr auto b = a + 1;
+		while(line.num_params[a] < 0)
+		    line.num_params[a] += 360;
+		while(line.num_params[b] < 0)
+		    line.num_params[b] += 360;
+	    }
+
+	    const size_t 	sz = line.num_params.size();
+	    line.num_params.resize(reg.param.fill_cnt, 0.0);
+	    std::copy(
+		defaults.begin() + sz - reg.param.min_cnt,
+		defaults.end(),
+		line.num_params.begin() + sz);
+
+	    if (reg.det_type != DET_MC)
+		line.num_params.push_back(reg.det_type);
+
+	    if constexpr (reg.flags.is_healpix)  {
+		const uint a = nr_of_pixel[0];
+		line.num_params.push_back(a);
+		line.num_params.push_back(a);
+	    }
+
+	    else {
+		const uint a = nr_of_pixel[0];
+		const uint b = nr_of_pixel.size() == 2 ? nr_of_pixel[1] : a;
+
+		line.num_params.push_back(a);
+		line.num_params.push_back(b);
+	    }
+
+	    if constexpr (reg.flags.with_vel_channels)
+		line.num_params.push_back(static_cast<uint>(nr_of_channels[0]));
+
+	    if(line.num_params.size() != reg.param.check_cnt) 
+		return std::unexpected {
+		    "Number of parameters could not be recognized!" };
+
+	    return {};
+	}
+
+
+	/**
+	 * Helper function to set one singular numerical parameter with a
+	 * setter function of parameters
+	 */
+	template<typename SetterFn>
+	    requires std::is_invocable_v<SetterFn, parameters, double>
+	auto param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
+	    -> std::expected<void, std::string> {
+
+	    if (const auto e = line.get_num(0); !e)
+		return std::unexpected{ e.error() };
+	    else 
+		std::invoke(setter, param, e.value());
+	    return {};
+	}
+
+
+	/**
+	 * Helper function to set sources
+	 */
+	template<typename Fn>
+	    requires std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>
+		  || std::is_invocable_v<Fn, parameters, std::vector<double>&>
+	auto add_source(
+	    ParsedLine& line, parameters& param,
+	    Fn add_function, const std::string& source_name, const size_t nr_of_sources)
+	    -> std::expected<void, std::string> {
+
+	    constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
+
+	    if (!line.named_params.contains("nr_photons"))
+		return std::unexpected{ "Expected parameter 'nr_photons'" };
+
+	    const ullong nr_of_photons = std::stoull(
+		std::string{line.named_params["nr_photons"]});
+
+	    if (nr_of_photons <= 0)
+		return std::unexpected{ 
+		    comp_error("Number of ", source_name, " photons could not be recognized!") };
+
+	    std::string ps_path;
+
+	    // TODO: consteval?
+	    if constexpr (with_path) {
+		if (!line.str_params.empty()) {
+		    ps_path = line.str_params[0];
+		    if (line.num_params.size() != nr_of_sources - 5)
+			return std::unexpected{
+			    comp_error("False amount of parameters for source ", source_name) };
+		    line.num_params.resize(nr_of_sources - 1, 0);
+		}
+	    }
+
+	    if (line.num_params.size() == nr_of_sources - 3)
+		line.num_params.resize(nr_of_sources - 1, 0);
+
+	    if (line.num_params.size() != nr_of_sources - 1)
+		return std::unexpected{
+		    comp_error("False amount of parameters for source ", source_name)};
+
+	    const auto	q = line.num_params[nr_of_sources - 3],
+			    u = line.num_params[nr_of_sources - 2];
+	    const auto 	P_l = sqrt(q * q + u * u);
+
+	    if (P_l > 1.0)
+		return std::unexpected { "Chosen polarization of source star is larger than 1!" };
+	    else if (P_l < 0)
+		return std::unexpected{ "Chosen polarization of source is smaller than 0!" };
+
+	    line.num_params.push_back(static_cast<double>(nr_of_photons));
+
+	    if constexpr (with_path)
+		std::invoke(add_function, param, line.num_params, ps_path);
+	    else
+		std::invoke(add_function, param, line.num_params);
+
+	    return {};
+	}
     }
 
     //---------------------------------------------------------------------
 
-    auto cmd_cmd(ParsedLine& line, parameters& param)
+   auto cmd_cmd(ParsedLine& line, parameters& param)
 	-> std::expected<void, std::string> {
 
 	constexpr auto commands = std::array {
