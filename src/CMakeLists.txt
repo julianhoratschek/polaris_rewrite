@@ -57,6 +57,8 @@ TARGET_LINK_LIBRARIES (polaris PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CF
 TARGET_INCLUDE_DIRECTORIES (polaris PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR} ${CCFITS_INCLUDE_DIR})
 INSTALL (TARGETS polaris)
 
+ADD_EXECUTABLE (rewrite_test parser/test_main.cpp parser/command_parser.cpp parser/polaris_commands.cpp)
+
 INCLUDE (CTest)
 if(BUILD_TESTING)
     ADD_EXECUTABLE (tests tests.cpp DustComponent_t.cpp MathFunctions_t.cpp RandomGenerator_t.cpp ${SRC_FILES})

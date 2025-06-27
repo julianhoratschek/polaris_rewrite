@@ -1,7 +1,10 @@
+#ifndef RW_POLARIS_COMMANDS
+#define RW_POLARIS_COMMANDS
+
 #include "command_parser.hpp"
 #include "../Parameters.hpp"
 
-#include <array>
+#include <map>
 
 namespace rewrite {
 
@@ -202,6 +205,6 @@ namespace rewrite {
 	    { "mc_lvl_pop_seed", cmd_mc_lvl_pop_seed },
 	};
     }
-
-
 }
+
+#endif

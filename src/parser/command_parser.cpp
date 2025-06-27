@@ -32,7 +32,7 @@ namespace rewrite {
 
 
     auto CommandParser::get_command()
-	-> std::expected<bool, std::string> {
+	-> std::expected<void, std::string> {
 
 	if (expect_next<is_slash>()) {
 	    parsed_line.type = ParsedLine::Type::ClosingTag;
@@ -60,11 +60,11 @@ namespace rewrite {
 	    return std::unexpected{ "Expected '>' after command" };
 	++pos;
 
-	return true;
+	return {};
     }
 
     auto CommandParser::parse_line(const std::string& line)
-	-> std::expected<bool, std::string> {
+	-> std::expected<void, std::string> {
 
 	parsed_line.clear();
 
@@ -79,7 +79,7 @@ namespace rewrite {
 	    switch (c) {
 		case '#':
 		case '!':
-		    return true;
+		    return {};
 
 		case '"':
 		    parsed_line.push_param<ParsedLine::ParamType::String>(
@@ -120,6 +120,6 @@ namespace rewrite {
 	    }
 	}
 
-	return true;
+	return {};
     }
 }

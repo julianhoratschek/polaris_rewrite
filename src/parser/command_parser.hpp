@@ -77,6 +77,16 @@ namespace rewrite {
 
 	// TODO test with consteval
 	template<ParamType pt>
+	constexpr auto get_vector() {
+	    if constexpr (pt == ParamType::Number)
+		return &num_params;
+	    else if constexpr (pt == ParamType::Identifier)
+		return &id_params;
+	    else
+		return &str_params;
+	}
+
+	template<ParamType pt>
 	constexpr auto get_vector() const {
 	    if constexpr (pt == ParamType::Number)
 		return &num_params;
@@ -106,7 +116,7 @@ namespace rewrite {
 	    if (param.first != pt)
 		return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
 
-	    const auto pv = get_vector<pt>();
+	    auto pv = get_vector<pt>();
 	    return pv->at(param.second);
 	}
 
@@ -133,7 +143,7 @@ namespace rewrite {
     };
 
     std::ostream& operator<<(std::ostream& os, const ParsedLine& line) {
-	os << "Parsed Line\n\nCommand: " << line.command << "\nParameter Sequence:\n";
+	os << "Parsed Line (" << line.line_nr << ")\n\nCommand: " << line.command << "\nParameter Sequence:\n";
 	for (auto& v: line.sequence)
 	    os << v.second << " ";
 	os << "\nNamed Parameters:\n";
@@ -198,15 +208,19 @@ namespace rewrite {
 	     *
 	     */
 	    auto get_command()
-		-> std::expected<bool, std::string>;
+		-> std::expected<void, std::string>;
 
 	public:
-	    auto parse_line(const std::string& line)
-		-> std::expected<bool, std::string>;
+	    ParsedLine get_last_line() {
+		return parsed_line;
+	    }
 
-	    using ProcessFn = bool(*)(const ParsedLine&);
+	    auto parse_line(const std::string& line)
+		-> std::expected<void, std::string>;
+
+	    using ProcessFn = std::expected<void, std::string>(*)(const ParsedLine&);
 	    auto parse_file(const std::filesystem::path& path, ProcessFn proc)
-		-> std::expected<bool, std::string> {
+		-> std::expected<void, std::string> {
 
 		std::ifstream		file(path);
 		std::string		line;
@@ -216,10 +230,13 @@ namespace rewrite {
 			return std::unexpected { comp_error(
 			    "Parsing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]: ",
 			    res.error()) };
-		    proc(parsed_line);
+		    if (const auto res = proc(parsed_line); !res)
+			return std::unexpected { comp_error(
+			    "Processing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]:",
+			    res.error()) };
 		}
 
-		return true;
+		return {};
 	    }
     };
 }
