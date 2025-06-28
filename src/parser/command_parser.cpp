@@ -5,28 +5,31 @@
 namespace rewrite {
 
     namespace {
-	bool is_whitespace(const char c) {
+	/// Treat ;?* as whitespace for backwards-compatibility
+	inline bool is_whitespace(const char c) {
 	    return std::isspace(c) || c == ';' || c == '?' || c == '*'; }
 
-	bool is_number(const char c) {
+	inline bool is_number(const char c) {
 	    return std::isdigit(c) || c == '+' || c == '-' || c == ',' || c == '.' || c == 'e' || c == 'E'; }
 
-	bool is_identifier_start(const char c) {
+	/// Identifiers may not start with numbers
+	inline bool is_identifier_start(const char c) {
 	    return std::isalpha(c) || c == '_'; }
 
-	bool is_identifier(const char c) {
+	/// Identifiers may contain numbers in their name
+	inline bool is_identifier(const char c) {
 	    return std::isalpha(c) || c == '_' || std::isdigit(c); }
 
-	bool is_quote(const char c) {
+	inline bool is_quote(const char c) {
 	    return c == '"'; }
 
-	bool is_string(const char c) {
+	inline bool is_string(const char c) {
 	    return c != '"'; }
 
-	bool is_equals(const char c) {
+	inline bool is_equals(const char c) {
 	    return c == '='; }
 
-	bool is_slash(const char c) {
+	inline bool is_slash(const char c) {
 	    return c == '/'; }
     }
 
@@ -61,7 +64,7 @@ namespace rewrite {
 	    parsed_line.type = ParsedLine::Type::Command;
 
 	if (!is_identifier(*pos))
-	    return std::unexpected { "Expected Polaris command after '<'" };
+	    return std::unexpected { "Expected Polaris command after '<[/]'" };
 
 	parsed_line.command = read_while<is_identifier>();
 	--pos;
@@ -127,6 +130,8 @@ namespace rewrite {
 		    else if (is_number(c)) {
 			const auto	tmp_string = read_while<is_number>();
 
+			// TODO: rather have numbers converted in one go
+			//       after saving them as stringviews
 			try {
 			    double val = 0;
 			    std::from_chars(tmp_string.begin(), tmp_string.end(), val);

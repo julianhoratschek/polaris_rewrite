@@ -2,6 +2,11 @@
 
 #include <iostream>
 
+template<typename ...Args>
+std::string test_cmd(const std::string& command, Args... args) {
+    
+}
+
 int main() {
     using namespace std;
 

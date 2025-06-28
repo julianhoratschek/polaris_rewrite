@@ -82,14 +82,13 @@ namespace rewrite {
 	 * Convert ParamType to string for debugging and messages
 	 */
 	// TODO test with consteval
-	template<ParamType tp>
-	static constexpr std::string param_type() {
-	    if constexpr (tp == ParamType::Identifier)
+	static std::string param_type(ParamType pt) {
+	    if (pt == ParamType::Identifier)
 		return "Identifier";
-	    else if constexpr (tp == ParamType::Number)
-		return "String";
-	    else
+	    else if (pt == ParamType::Number)
 		return "Number";
+	    else
+		return "String";
 	}
 
 	/**
@@ -143,7 +142,7 @@ namespace rewrite {
 
 	    const auto param = sequence[idx];
 	    if (param.first != pt)
-		return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
+		return std::unexpected{ comp_error("Expected ", param_type(pt), " at position ", idx) };
 
 	    auto pv = get_vector<pt>();
 	    return pv->at(param.second);
