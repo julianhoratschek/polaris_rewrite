@@ -58,6 +58,7 @@ namespace rewrite {
 		    if (line.command == "task"sv) {
 			param_list.emplace_back();
 			param = &param_list.back();
+			*param = common_params;
 			break;
 		    }
 

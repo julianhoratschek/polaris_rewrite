@@ -1,9 +1,8 @@
 #include "command_parser.hpp"
 
-#include <fstream>
-
 namespace rewrite {
 
+    // Don't leak these functions outside translation unit
     namespace {
 	/// Treat ;?* as whitespace for backwards-compatibility
 	inline bool is_whitespace(const char c) {
@@ -66,6 +65,8 @@ namespace rewrite {
 	if (!is_identifier(*pos))
 	    return std::unexpected { "Expected Polaris command after '<[/]'" };
 
+	// --pos is needed between read_while and expect_next, to look at
+	// the current character
 	parsed_line.command = read_while<is_identifier>();
 	--pos;
 
@@ -102,10 +103,14 @@ namespace rewrite {
 	    const char c = *pos;
 
 	    switch (c) {
+
+		// Get Comments
 		case '#':
 		case '!':
 		    return {};
 
+
+		// Get Strings
 		case '"':
 		    parsed_line.push_param<ParsedLine::ParamType::String>(
 			unquote(read_while<is_string>()));
@@ -114,11 +119,15 @@ namespace rewrite {
 			return std::unexpected{ "Missing '\"'" };
 		    break;
 
+
+		// Get commands (tags)
 		case '<':
 		    if (const auto e = get_command();
 			not e) return std::unexpected{ e.error() };
 		    break;
 
+
+		// Get whitespace, numbers or identifiers
 		default:
 		    if (is_whitespace(c))
 			break;
@@ -148,32 +157,10 @@ namespace rewrite {
 			return std::unexpected{ comp_error( "Unknown Token '", c, "'" ) };
 	    }
 
+	    // Skip all whitespace until next character is found
 	    read_while<is_whitespace>();
 	}
 
 	return {};
     }
-
-
-	//    template<typename ProcessLineFn>
-	//    auto CommandParser::parse_file(const std::filesystem::path& path, ProcessLineFn proc)
-	// -> std::expected<void, std::string> {
-	//
-	// std::ifstream	file(path);
-	// std::string	line;
-	//
-	// while(std::getline(file, line)) {
-	//     if (const auto res = parse_line(line); not res)
-	// 	return std::unexpected { comp_error(
-	// 	    "Parsing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]: ",
-	// 	    res.error()) };
-	//
-	//     if (const auto res = proc(parsed_line); !res)
-	// 	return std::unexpected { comp_error(
-	// 	    "Processing Error [", parsed_line.line_nr, ":", std::distance(current_line.begin(), pos), "]:",
-	// 	    res.error()) };
-	// }
-	//
-	// return {};
-	//    }
 }

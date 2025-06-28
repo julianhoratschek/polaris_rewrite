@@ -1018,11 +1018,14 @@ namespace rewrite {
 
 
     t_ret cmd_acceptance_angle(ParsedLine& line, parameters& param) {
-	if (line.num_params.empty())
-	    return std::unexpected{ "Expected parameter" };
-	if (line.num_params[0] <= 0)
+	const auto e = line.get_num(0);
+	if (!e.has_value())
+	    return std::unexpected{ e.error() };
+
+	const auto i = e.value();
+	if (i <= 0)
 	    return std::unexpected{ "Acceptance angle must be greater than 0" };
-	param.setAcceptanceAngle(line.num_params[0]);
+	param.setAcceptanceAngle(i);
 	return {};
     }
 
