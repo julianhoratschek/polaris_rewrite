@@ -1,6 +1,8 @@
 #ifndef RW_PARSED_LINE
 #define RW_PARSED_LINE
 
+#include "util.hpp"
+
 #include <vector>
 #include <string>
 #include <string_view>
@@ -10,17 +12,6 @@
 #include <sstream>
 
 namespace rewrite {
-    /**
-     * Helper function to create error strings
-     * @tparam Args arguments to add to `msg`
-     * @param msg Start of the error message
-     * @param args... Arguments to add onto `msg`
-     * @returns `msg` and `args` as a continuous string
-     */
-    template<typename... Args>
-    std::string comp_error(const std::string& msg, Args... args) {
-	return (std::ostringstream(msg) << ... << args).str();
-    }
 
 
     /**

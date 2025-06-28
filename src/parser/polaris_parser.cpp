@@ -1,0 +1,115 @@
+#include "polaris_parser.hpp"
+
+#include <functional>
+
+namespace rewrite {
+    auto PolarisParser::process_polaris_cmd(ParsedLine& line)
+	-> std::expected<void, std::string> {
+
+	using namespace literals;
+
+	// Do not read lines of skipped block until it is closed
+	if (flag_isset(flags, PolarisParserFlags::Skipping)
+	    && line.type != ParsedLine::Type::ClosingTag)
+	    return {};
+
+
+	switch (line.type) {
+	    
+	    // Includes empty and comment lines
+	    case ParsedLine::Type::ValueLine:
+		if (!line.empty())
+		    return std::unexpected{ "Missing <cmd>" };
+		return {};
+
+
+	    case ParsedLine::Type::ClosingTag:
+		if (block_to_str(current_block) != line.command)
+		    return std::unexpected{ comp_error(
+			"Wrong closing tag, expected </", block_to_str(current_block), '>') };
+
+		current_block = BlockType::None;
+		flag_unset(flags, PolarisParserFlags::Skipping);
+		param = nullptr;
+		return {};
+
+
+	    case ParsedLine::Type::Command:
+
+		// Handle block commands
+
+		if (current_block == BlockType::None) {
+
+		    // Do we have a parameter to define skipping behaviour?
+		    if (const auto e = line.get_num(0);
+			e.has_value() && e.value() == 0) {
+			flags |= PolarisParserFlags::Skipping;
+		    }
+
+		    if (line.command == "common"sv) {
+			if (!flag_isset(flags, PolarisParserFlags::Skipping)
+			    && flag_isset(flags, PolarisParserFlags::CommonProcessed))
+			    return std::unexpected { "<common> Blocks MUST now precede <task> Blocks" };
+			param = &common_params;
+			flags |= PolarisParserFlags::CommonProcessed;
+			break;
+		    }
+
+		    if (line.command == "task"sv) {
+			param_list.emplace_back();
+			param = &param_list.back();
+			break;
+		    }
+
+		    return std::unexpected{ "Expected <common> or <task> Block" };
+		}
+
+		// Handle line commands inside blocks
+
+		try {
+		    if (const auto e = commands.at(line.command)(line, *param);
+			!e) return e;
+		}
+		catch(const std::out_of_range&) {
+		    return std::unexpected { comp_error(
+			"Unknown Command '", line.command, '\'') };
+		}
+
+		break;
+	}
+
+	return {};
+    }
+
+
+    auto PolarisParser::parse_polaris_cmd(std::filesystem::path &path)
+	-> std::expected<void, std::string> {
+	
+	CommandParser	parser;
+
+	auto		fn = std::bind(
+	    &PolarisParser::process_polaris_cmd,
+	    this, std::placeholders::_1);
+
+	if (const auto e = parser.parse_file(path, fn); !e)
+	    return e;
+
+	// TODO: would be easier to initialize param.start/stop to 0
+	for (auto& p: param_list) {
+	    const auto sz = p.getDetectorSize();
+	    auto	start = p.getStart();
+	    auto	stop = p.getStop();
+
+	    if (start >= sz)
+		start = 0;
+
+	    if (stop >= sz)
+		stop = sz > 0 ? sz - 1 : 0;
+
+	    p.setStart(start);
+	    p.setStop(stop);
+	}
+
+	return {};
+    }
+}

@@ -9,20 +9,33 @@
 #include <vector>
 #include <expected>
 #include <string>
-#include <functional>
 #include <string_view>
 #include <utility>
 
+
 namespace rewrite {
+
+
+    enum class PolarisParserFlags {
+	None = 0,
+	CommonProcessed = 0x1,
+	Skipping = 0x2
+    };
+
+    template<>
+    consteval bool enable_enum_flag<PolarisParserFlags>() { return true; }
+
 
     /**
      *
      */
     class PolarisParser {
+    private:
 
 	enum class BlockType: unsigned char {
 	    None, Common, Task
 	};
+
 
 	/**
 	 *
@@ -48,61 +61,15 @@ namespace rewrite {
 	/// Maps "command name" -> command_function
 	command_map			commands;
 
+	/// Control flow of parser
+	PolarisParserFlags		flags{ PolarisParserFlags::None };
+
 
 	/**
 	 *
 	 */
 	auto process_polaris_cmd(ParsedLine& line)
-	    -> std::expected<void, std::string> {
-
-	    using namespace literals;
-
-	    switch (line.type) {
-		case ParsedLine::Type::ValueLine:
-		    if (!line.empty())
-			return std::unexpected{ "Missing <cmd>" };
-		    return {};
-
-		case ParsedLine::Type::ClosingTag:
-		    if (block_to_str(current_block) != line.command)
-			return std::unexpected{
-			    comp_error(
-				"Wrong closing tag, expected </",
-				block_to_str(current_block), '>') };
-		    current_block = BlockType::None;
-		    param = nullptr;
-		    return {};
-
-		case ParsedLine::Type::Command:
-		    if (current_block == BlockType::None) {
-			if (line.command == "common"sv) {
-			    param = &common_params;
-			    break;
-			}
-
-			if (line.command == "task"sv) {
-			    param_list.emplace_back();
-			    param = &param_list.back();
-			    break;
-			}
-
-			return std::unexpected{ "Expected <common> or <task> Block" };
-		    }
-
-		    try {
-			if (const auto e = commands.at(line.command)(line, *param);
-			    !e) return e;
-		    }
-		    catch(const std::out_of_range&) {
-			return std::unexpected { comp_error(
-			    "Unknown Command '", line.command, '\'') };
-		    }
-
-		    break;
-	    }
-
-	    return {};
-	}
+	    -> std::expected<void, std::string>;
 
     public:
 
@@ -110,35 +77,9 @@ namespace rewrite {
 	 *
 	 */
 	auto parse_polaris_cmd(std::filesystem::path &path)
-	    -> std::expected<void, std::string> {
-	    
-	    CommandParser	parser;
-	    auto		fn = std::bind(
-		&PolarisParser::process_polaris_cmd,
-		this, std::placeholders::_1);
-
-	    if (const auto e = parser.parse_file(path, fn))
-		return e;
-
-	    // TODO: would be easier to initialize param.start/stop to 0
-	    for (auto& p: param_list) {
-		const auto sz = p.getDetectorSize();
-		auto	start = p.getStart();
-		auto	stop = p.getStop();
-
-		if (start >= sz)
-		    start = 0;
-
-		if (stop >= sz)
-		    stop = sz > 0 ? sz - 1 : 0;
-
-		p.setStart(start);
-		p.setStop(stop);
-	    }
-
-	    return {};
-	}
+	    -> std::expected<void, std::string>; 
     };
+
 }
 
 #endif
