@@ -9,6 +9,7 @@
 #include <fstream>
 
 #include <filesystem>
+#include <iostream>
 
 
 namespace rewrite {
@@ -94,6 +95,9 @@ namespace rewrite {
 
 	    std::ifstream	file(path);
 	    std::string		line;
+
+	    if (file.fail())
+		return std::unexpected{ "Could not open cmd file" };
 
 	    while (std::getline(file, line)) {
 		if (const auto res = parse_line(line); !res)

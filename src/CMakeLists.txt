@@ -81,13 +81,15 @@ if (TEST_REWRITE)
 	parser/command_parser.cpp
 	parser/polaris_commands.cpp
 	parser/parsed_line.cpp
+	parser/polaris_parser.cpp
+	parser/simple_test.cpp)
 
-	parser/test_parser.cpp)
+	# parser/test_parser.cpp)
 
     target_link_libraries (test_parser
-	OpenMP::OpenMP_CXX
-	GTest::gmock
-	GTest::gtest_main)
+	OpenMP::OpenMP_CXX)
+	# GTest::gmock
+	# GTest::gtest_main)
     # target_include_directories (test_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 endif()
 

@@ -3,7 +3,7 @@
 </common>
 
 <task>
-    <cmd> CMD_DUST
+    <cmd> CMD_TEMP
     <delta0> 10.5
     <larm_f> 394,2
     <plot_list> 3 34 5 2

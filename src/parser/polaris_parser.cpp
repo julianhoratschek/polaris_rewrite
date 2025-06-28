@@ -8,6 +8,10 @@ namespace rewrite {
 
 	using namespace literals;
 
+
+	std::cout << "\n-----------------------------------\n\n";
+	std::cout << line << std::endl;
+
 	// Do not read lines of skipped block until it is closed
 	if (flag_isset(flags, PolarisParserFlags::Skipping)
 	    && line.type != ParsedLine::Type::ClosingTag)
@@ -28,6 +32,7 @@ namespace rewrite {
 		    return std::unexpected{ comp_error(
 			"Wrong closing tag, expected </", block_to_str(current_block), '>') };
 
+		std::cout << "--- Closing Tag ---" << std::endl;
 		current_block = BlockType::None;
 		flag_unset(flags, PolarisParserFlags::Skipping);
 		param = nullptr;
@@ -40,6 +45,8 @@ namespace rewrite {
 
 		if (current_block == BlockType::None) {
 
+		    std::cout << "--- Open Tag ---" << std::endl;
+
 		    // Do we have a parameter to define skipping behaviour?
 		    if (const auto e = line.get_num(0);
 			e.has_value() && e.value() == 0) {
@@ -47,18 +54,22 @@ namespace rewrite {
 		    }
 
 		    if (line.command == "common"sv) {
+			std::cout << "common" << std::endl;
 			if (!flag_isset(flags, PolarisParserFlags::Skipping)
 			    && flag_isset(flags, PolarisParserFlags::CommonProcessed))
 			    return std::unexpected { "<common> Blocks MUST now precede <task> Blocks" };
 			param = &common_params;
 			flags |= PolarisParserFlags::CommonProcessed;
+			current_block = BlockType::Common;
 			break;
 		    }
 
 		    if (line.command == "task"sv) {
+			std::cout << "task" << std::endl;
 			param_list.emplace_back();
 			param = &param_list.back();
 			*param = common_params;
+			current_block = BlockType::Task;
 			break;
 		    }
 
@@ -66,6 +77,7 @@ namespace rewrite {
 		}
 
 		// Handle line commands inside blocks
+		std::cout << "command" << std::endl;
 
 		try {
 		    if (const auto e = commands.at(line.command)(line, *param);
@@ -83,7 +95,7 @@ namespace rewrite {
     }
 
 
-    auto PolarisParser::parse_polaris_cmd(std::filesystem::path &path)
+    auto PolarisParser::parse_polaris_cmd(std::filesystem::path path)
 	-> std::expected<void, std::string> {
 	
 	CommandParser	parser;

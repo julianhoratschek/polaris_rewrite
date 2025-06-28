@@ -18,11 +18,11 @@ namespace rewrite {
 
 	os << "\nID Parameters:\n";
 	for (auto& v: line.id_params)
-	    os << '\t' << v << '\n';
+	    os << "\t'" << v << "'\n";
 
 	os << "\nString Parameters:\n";
 	for (auto& v: line.str_params)
-	    os << '\t' << v << '\n';
+	    os << "\t'" << v << "'\n";
 
 	return os;
     }
