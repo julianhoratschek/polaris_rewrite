@@ -717,6 +717,15 @@ public:
 
     void addDiffuseSource(dlist & val, string path);
 
+    size_t getDetectorSize() const {
+	std::array<size_t, 10>	detectors{
+	    0, dust_ray_detectors.size(), 0,
+	    0, 0, 0, gas_species_abundance.size(),
+	    0, opiate_spec_ids.size(), sync_ray_detectors.size()};
+
+	return detectors[cmd];
+    }
+
     class plot_parameter
     {
     public:

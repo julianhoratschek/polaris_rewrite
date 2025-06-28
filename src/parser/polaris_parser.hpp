@@ -120,6 +120,22 @@ namespace rewrite {
 	    if (const auto e = parser.parse_file(path, fn))
 		return e;
 
+	    // TODO: would be easier to initialize param.start/stop to 0
+	    for (auto& p: param_list) {
+		const auto sz = p.getDetectorSize();
+		auto	start = p.getStart();
+		auto	stop = p.getStop();
+
+		if (start >= sz)
+		    start = 0;
+
+		if (stop >= sz)
+		    stop = sz > 0 ? sz - 1 : 0;
+
+		p.setStart(start);
+		p.setStop(stop);
+	    }
+
 	    return {};
 	}
     };
