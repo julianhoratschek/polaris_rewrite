@@ -133,9 +133,13 @@ namespace rewrite {
 	 * Get the parameter at index `idx`, returns an error if `pt` does not
 	 * designate the correct type of the parameter at position `idx`
 	 */
+	// TODO experiment with:
+	// decltype(std::declval<decltype(*get_vector<pt>())>().back())
 	template<ParsedLine::ParamType pt, typename T>
 	auto get_param(const size_t idx) const
 	    -> std::expected<T, std::string> {
+		//    -> std::expected<
+		// decltype(std::declval<decltype(*get_vector<pt>())>().back()), std::string> {
 
 	    if (idx >= sequence.size())
 		return std::unexpected{ "Too few parameters" };
@@ -161,6 +165,7 @@ namespace rewrite {
 	}
 
 	void clear();
+	bool empty() const;
     };
 
     /**

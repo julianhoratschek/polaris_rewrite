@@ -86,6 +86,7 @@ if (TEST_REWRITE)
 
     target_link_libraries (test_parser
 	OpenMP::OpenMP_CXX
+	GTest::gmock
 	GTest::gtest_main)
     # target_include_directories (test_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 endif()

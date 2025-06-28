@@ -778,11 +778,17 @@ namespace rewrite {
     }
 
     t_ret cmd_start(ParsedLine& line, parameters& param) {
-	return param_set_number(line, param, &parameters::setStart);
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setStart(e.value() - 1);
+	return {};
     }
 
     t_ret cmd_stop(ParsedLine& line, parameters& param) {
-	return param_set_number(line, param, &parameters::setStop);
+	if (const auto e = line.get_num(0); !e)
+	    return std::unexpected{ e.error() };
+	else param.setStop(e.value() - 1);
+	return {};
     }
 
     t_ret cmd_conv_dens(ParsedLine& line, parameters& param) {

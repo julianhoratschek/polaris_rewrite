@@ -73,10 +73,15 @@ namespace rewrite {
 
     void ParsedLine::clear() {
 	type = Type::ValueLine;
+	command = "";
 	sequence.clear();
 	num_params.clear();
 	str_params.clear();
 	id_params.clear();
 	named_params.clear();
+    }
+
+    bool ParsedLine::empty() const {
+	return command == "" && sequence.empty();
     }
 }
