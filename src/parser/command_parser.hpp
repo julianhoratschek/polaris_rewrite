@@ -48,6 +48,10 @@ namespace rewrite {
 	    return str.substr(1, str.size() - 1);
 	}
 
+	auto get_number()
+	    -> std::expected<double, Message>;
+
+
 	/**
 	 * Reads text while `check` returns true.
 	 * @tparam check Function returning true as long as reading should be

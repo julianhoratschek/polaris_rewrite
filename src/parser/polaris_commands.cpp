@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <functional>
 #include <algorithm>
 
@@ -60,6 +61,8 @@ namespace rewrite {
 	t_ret register_detector(
 	    ParsedLine& line,
 	    std::array<double, N> defaults) {
+
+	    using namespace std::literals;
 	    
 	    const size_t 	sz = line.num_params.size();
 	    if (sz < reg.param.min_cnt)
@@ -80,23 +83,21 @@ namespace rewrite {
 			Message { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1" } };
 	    }
 
-	    const std::string pixel_name = reg.flags.is_healpix ?
-		"nr_sides" : "nr_pixel";
+	    const std::string_view pixel_name = reg.flags.is_healpix ?
+		"nr_sides"sv : "nr_pixel"sv;
 
 	    if (!line.named_params.contains(pixel_name))
 		return std::unexpected{ Message {
 		    comp_error("Expected ", pixel_name, " named parameter") } };
 	    
 	    std::vector<double>	nr_of_channels;
-	    std::vector<double>	nr_of_pixel{
-		read_nr_value(std::string{line.named_params[pixel_name]})
-		    .value_or(std::vector<double>{})};
+	    std::vector<double>	nr_of_pixel = std::move(line.named_params[pixel_name]);
 
 	    if (nr_of_pixel.empty()
 		|| nr_of_pixel.size() > 2
 		|| std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
 		return std::unexpected { Message {
-		    comp_error(pixel_name, " could not be recognized") } };
+		    comp_error("Could not recognize ", pixel_name) } };
 
 	    // Test if nr_of_pixel is power of 2 for healpix detectors
 	    if constexpr (reg.flags.is_healpix) {
@@ -107,13 +108,11 @@ namespace rewrite {
 	    }
 
 	    if constexpr (reg.flags.with_vel_channels) {
-		if (!line.named_params.contains("vel_channels"))
+		if (!line.named_params.contains("vel_channels"sv))
 		    return std::unexpected{ Message {
 			"Expected vel_channels named parameter" } };
 
-		nr_of_channels = read_nr_value(
-		    std::string{line.named_params["vel_channels"]})
-		    .value_or(std::vector<double>{});
+		nr_of_channels = std::move(line.named_params["vel_channels"sv]);
 
 		if(nr_of_channels.size() != 1
 		    || nr_of_channels[0] <= 0)
@@ -189,21 +188,18 @@ namespace rewrite {
 	    ParsedLine& line, parameters& param,
 	    Fn add_function, const std::string& source_name, const size_t nr_of_sources) {
 
+	    using namespace std::literals;
+
 	    constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
 
-	    if (!line.named_params.contains("nr_photons"))
+	    if (!line.named_params.contains("nr_photons"sv))
 		return std::unexpected{ Message {
 		    "Expected parameter 'nr_photons'" } };
 
-	    ullong nr_of_photons;
+	    if (line.named_params["nr_photons"sv].empty())
+		return std::unexpected{ Message{ "Named parameter nr_photons not defined" } };
 
-	    try {
-		nr_of_photons = std::stod(std::string{line.named_params["nr_photons"]});
-	    }
-	    catch(...) {
-		return std::unexpected{ Message {
-		    "Could not read number in nr_photons" }};
-	    }
+	    const ullong nr_of_photons = line.named_params["nr_photons"sv].at(0);
 
 	    if (nr_of_photons <= 0)
 		return std::unexpected{ Message {
@@ -309,14 +305,11 @@ namespace rewrite {
 	constexpr auto phfn = std::array {
 	    "PH_ISO", "PH_HG", "PH_DHG", "PH_TTHG", "PH_MIE" };
 
+	using namespace std::literals;
+
         uint dust_component_choice = 0;
-	if (line.named_params.contains("id")) try {
-	    dust_component_choice = std::stoul(std::string{line.named_params["id"]});
-	}
-	catch(...) {
-	    return std::unexpected{ Message{
-		"ID parameter could not be converted to number" } };
-	}
+	if (line.named_params.contains("id"sv))
+	    dust_component_choice = line.named_params["id"sv].at(0);
 
 	if (dust_component_choice < 0)
 	    return std::unexpected{ Message {
@@ -416,10 +409,12 @@ namespace rewrite {
     // TODO very strange behavior: completely differs from other sources, params
     // seem in wrong order
     t_ret cmd_source_background(ParsedLine& line, parameters& param) {
+
+	using namespace std::literals;
 	
 	ullong	nr_of_photons = 0;
-	if (line.named_params.contains("nr_photons"))
-	    nr_of_photons = std::stoull(std::string{line.named_params["nr_photons"]});
+	if (line.named_params.contains("nr_photons"sv))
+	    nr_of_photons = line.named_params["nr_photons"sv].at(0);
 
 	if (nr_of_photons <= 0)
 	    return std::unexpected{ Message{
@@ -616,9 +611,10 @@ namespace rewrite {
     t_ret cmd_dust_component(ParsedLine& line, parameters& param) {
 	uint 		dust_component_choice = 0;
 
-	if (line.named_params.contains("id")) try {
-	    dust_component_choice = std::stoul(
-		std::string{line.named_params["id"]});
+	using namespace std::literals;
+
+	if (line.named_params.contains("id"sv)) try {
+	    dust_component_choice = line.named_params["id"sv].at(0);
 	}
 	catch(...) {
 	    return std::unexpected{ Message{ "Invalid dust component ID"} };
@@ -860,17 +856,18 @@ namespace rewrite {
     t_ret cmd_dust_offset(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
+	using namespace std::literals;
+
 	if (!e.has_value())
 	    return std::unexpected{ e.error() };
 
 	if (e.value() == 0)
 	    return {};
 
-	if (!line.named_params.contains("min_gas_density"))
+	if (!line.named_params.contains("min_gas_density"sv))
 	    param.setDustOffset(true);
 	else try {
-	    param.setDustOffset(
-		std::stod(std::string{line.named_params["min_gas_density"]}));
+	    param.setDustOffset(line.named_params["min_gas_density"sv].at(0));
 	}
 	catch(...) {
 	    return std::unexpected{ Message{ "Invalid number for min_gas_density" } };
@@ -882,6 +879,8 @@ namespace rewrite {
 
     t_ret cmd_dust_gas_coupling(ParsedLine& line, parameters& param) {
 
+	using namespace std::literals;
+
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -890,11 +889,10 @@ namespace rewrite {
 	if (e.value() == 0)
 	    return {};
 
-	if (!line.named_params.contains("min_gas_density"))
+	if (!line.named_params.contains("min_gas_density"sv))
 	    param.setDustGasCoupling(true);
 	else try {
-	    param.setDustGasCoupling(
-		std::stod(std::string{line.named_params["min_gas_density"]}));
+	    param.setDustGasCoupling(line.named_params["min_gas_density"sv].at(0));
 	}
 	catch(...) {
 	    return std::unexpected{ Message{ "Invalid number for min_gas_density" } };
@@ -940,9 +938,10 @@ namespace rewrite {
 
 
     t_ret cmd_source_dust(ParsedLine& line, parameters& param) {
-	if (line.named_params.contains("nr_photons")) try {
-	    param.setNrOfDustPhotons(std::stod(
-		std::string{line.named_params["nr_photons"]}));
+	using namespace std::literals;
+
+	if (line.named_params.contains("nr_photons"sv)) try {
+	    param.setNrOfDustPhotons(line.named_params["nr_photons"sv].at(0));
 	    return {};
 	}
 	catch(...) {
@@ -957,14 +956,14 @@ namespace rewrite {
 
     // TODO: this behaves differently to old method
     t_ret cmd_source_isrf(ParsedLine& line, parameters& param) {
+	using namespace std::literals;
 
-	if (!line.named_params.contains("nr_photons"))
+	if (!line.named_params.contains("nr_photons"sv))
 	    return std::unexpected{ Message {
 		"Parameter nr_photons required" } };
 
 	try {
-	    param.setNrOfISRFPhotons(std::stod(
-		std::string{line.named_params["nr_photons"]}));
+	    param.setNrOfISRFPhotons(line.named_params["nr_photons"sv].at(0));
 	}
 	catch(...) {
 	    return std::unexpected{ Message {

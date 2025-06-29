@@ -9,8 +9,12 @@ namespace rewrite {
 	    os << '\t' << ParsedLine::param_type(v.first) << " @ " << v.second << '\n';
 
 	os << "\nNamed Parameters:\n";
-	for (auto& v: line.named_params)
-	    os << '\t' << v.first << ": " << v.second << '\n';
+	for (auto& v: line.named_params) {
+	    os << '\t' << v.first << ": ";
+	    for(auto& i: v.second)
+		os << i << ", ";
+	    os << '\n';
+	}
 
 	os << "\nNumber Parameters:\n";
 	for (auto& v: line.num_params)

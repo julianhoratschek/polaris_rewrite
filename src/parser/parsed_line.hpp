@@ -93,7 +93,7 @@ namespace rewrite {
 	std::vector<std::string_view>			id_params;
 
 	/// All found named parameters <cmd named_param1 = "value">
-	std::map<std::string, std::string_view> 	named_params;
+	std::map<std::string_view, std::vector<double>>	named_params;
 
 	/// Saves sequence of found parameters with associated type
 	/// Holds the correct index for the corresponding vector

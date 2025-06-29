@@ -48,29 +48,31 @@ bool CPipeline::Init(int argc, char** argv) {
 			// because random values later on are also determined
 			// by id of the current thread.
     
-	//    cout <<
+	//    wcout <<
 	// "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-	// "┃                 POLARIS                 ┃\n"
-	//        "┃    ~ polarized radiation simulator ~    ┃\n"
 	//        "┃                                         ┃\n"
+	// "┃                 POLARIS                 ┃\n"
+	// "┃    ~ polarized radiation simulator ~    ┃\n"
+	// "┃                                         ┃\n"
 	//        "┃                 4.13.01                 ┃\n"
+	//        "┃                                         ┃\n"
 	//        "┃                                         ┃\n"
 	//        "┃                                         ┃\n"
 	//        "┃           © 2018 Stefan Reissl          ┃\n"
 	//        "┃                                         ┃\n"
 	// "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n" << endl;
-	//
-    cout << reinterpret_cast<const char*>(
+
+    cout << 
 	"\t+-----------------------------------------+\n"
 	"\t|                 POLARIS                 |\n"
-        "\t|    ~ polarized radiation simulator ~    |\n"
-        "\t|                                         |\n"
-        "\t|                 4.13.01                 |\n"
-        "\t|                                         |\n"
-        "\t|                                         |\n"
-        "\t|          (c)2018 Stefan Reissl          |\n"
-        "\t|                                         |\n"
-	"\t+-----------------------------------------+\n\n") << endl;
+	"\t|    ~ polarized radiation simulator ~    |\n"
+	"\t|                                         |\n"
+	"\t|                 4.13.01                 |\n"
+	"\t|                                         |\n"
+	"\t|                                         |\n"
+	"\t|          (c)2018 Stefan Reissl          |\n"
+	"\t|                                         |\n"
+	"\t+-----------------------------------------+\n\n" << endl;
 
     if(argc != 2) {
         cout << ERROR_LINE << "Wrong amount of arguments!\n";

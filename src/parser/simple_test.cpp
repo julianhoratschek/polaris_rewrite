@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <string_view>
 #include "polaris_commands.hpp"
 #include "polaris_parser.hpp"
@@ -18,17 +19,19 @@ bool error_msg(const rewrite::Message& msg) {
 
 
 int main() {
+    const string	filename{"./src/parser/small.cmd"};
+
     cout << "New Parser" << endl;
     rewrite::PolarisParser	parser;
 
     if (const auto e = parser.parse_polaris_cmd(
-	"./src/parser/test.cmd", error_msg); !e)
+	filename, error_msg); !e)
 	error_msg(e.error());
 
     cout << endl << "--------------------------------" << endl << endl;
 
     cout << "Old Parser" << endl;
-    CCommandParser		old_parser("./src/parser/test.cmd");
+    CCommandParser		old_parser(filename);
 
     if (!old_parser.parse())
 	cout << "Error parsing" << endl;

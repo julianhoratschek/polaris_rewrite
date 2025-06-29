@@ -1,4 +1,5 @@
 #include "command_parser.hpp"
+#include <string_view>
 
 namespace rewrite {
 
@@ -52,6 +53,28 @@ namespace rewrite {
     }
 
 
+    auto CommandParser::get_number()
+	-> std::expected<double, Message> {
+	// TODO: rather have numbers converted in one go
+	//       after saving them as stringviews
+	//
+	const auto	tmp_string = read_while<is_number>();
+	double val = 0;
+
+	try {
+	    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
+	}
+	catch (const std::out_of_range&) {
+	    return std::unexpected{ Message { "Number Parameter is too large" } };
+	}
+	catch (const std::invalid_argument&) {
+	    return std::unexpected{ Message { "Ill-formed Number" } };
+	}
+
+	return val;
+    }
+
+
     auto CommandParser::get_command()
 	-> std::expected<void, Message> {
 
@@ -70,8 +93,9 @@ namespace rewrite {
 	parsed_line.command = read_while<is_identifier>();
 	--pos;
 
+
 	while (expect_next<is_identifier>()) {
-	    const auto	param_name = read_while<is_identifier>();
+	    const auto param_name = read_while<is_identifier>();
 	    --pos;
 
 	    if (!expect_next<is_equals>())
@@ -80,7 +104,16 @@ namespace rewrite {
 	    if (!expect_next<is_quote>())
 		return std::unexpected { Message { "Expected String after named parameter" } };
 
-	    parsed_line.named_params[std::string{param_name}] = unquote(read_while<is_string>());
+	    std::vector<double>	named_params;
+	    while (expect_next<is_number>()) {
+		const auto num = get_number();
+		if (!num.has_value())
+		    return std::unexpected{ num.error() };
+		named_params.push_back(num.value());
+		--pos;
+	    }
+
+	    parsed_line.named_params[param_name] = std::move(named_params);
 	}
 
 	if (pos >= current_line.end() || *pos != '>')
@@ -137,22 +170,13 @@ namespace rewrite {
 			    read_while<is_identifier>());
 
 		    else if (is_number(c)) {
-			const auto	tmp_string = read_while<is_number>();
+			const auto num = get_number();
+			if (!num.has_value())
+			    return std::unexpected{ num.error() };
 
-			// TODO: rather have numbers converted in one go
-			//       after saving them as stringviews
-			try {
-			    double val = 0;
-			    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
-			    parsed_line.push_param<ParsedLine::ParamType::Number>(val);
-			}
-			catch ( std::out_of_range ) {
-			    return std::unexpected{ Message { "Number Parameter is too large" } };
-			}
-			catch ( std::invalid_argument ) {
-			    return std::unexpected{ Message { "Ill-formed Number" } };
-			}
+			parsed_line.push_param<ParsedLine::ParamType::Number>(num.value());
 		    }
+
 		    else
 			return std::unexpected{ Message { comp_error( "Unknown Token '", c, "'" ) } };
 	    }
