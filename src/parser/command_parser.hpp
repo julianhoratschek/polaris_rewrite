@@ -102,12 +102,12 @@ namespace rewrite {
 	    while (std::getline(file, line)) {
 		if (const auto res = parse_line(line); !res)
 		    return std::unexpected { comp_error(
-			"Parsing Error [", parsed_line.line_nr, ':', std::distance(current_line.begin(), pos), "]:",
+			"Parsing Error [", parsed_line.line_nr, ':', std::distance(current_line.begin(), pos), "]: ",
 			res.error()) };
 
 		if (const auto res = proc(parsed_line); !res)
 		    return std::unexpected { comp_error(
-			"Processing Error [", parsed_line.line_nr, ':', std::distance(current_line.begin(), pos), "]:",
+			"Processing Error [", parsed_line.line_nr, ':', std::distance(current_line.begin(), pos), "]: ",
 			res.error()) };
 	    }
 

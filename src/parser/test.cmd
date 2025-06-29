@@ -13,7 +13,7 @@
     <opiata_path_abs> "Opiate ID Abs"
     <gas_species> "path_to_species" POP_MC 3.5 "zeeman_path"
     <source_star nr_photons="1039948"> "Path_to_star_source" 4 6 5 
-    <source_starfield nr_photons="39084"> "Path" 35 6 3
+    <source_starfield nr_photons="39084"> "Path" 35 6 3 43
     <source_background nr_photons="4938"> "Path" 35 2 4
     <source_laser nr_photons="43094"> 23 4 53 6 5 7 3 4 2
     <axis1> 3 2 4
@@ -23,7 +23,7 @@
     <xy_min> 23
     <xy_max> 56
     <xy_steps> 2
-    <xy_bin> 5
+    <xy_bins> 5
     <xy_label> "The label"
     <healpix_orientation> HEALPIX_CENTER
     <path_grid> "Path to grid"
@@ -32,7 +32,7 @@
     <vel_maps> 59
     <max_subpixel_lvl> 98
     <path_input> "Input path"
-    <dust_component id="1"> "dust_path" "plaw-ed" 34 5 4 6
+    <dust_component id="1"> "dust_path" "plaw-ed" 34 5 4 6 43 2 5 3
     <path_out> "Output path"
     <nr_plot_points> 4
     <nr_plot_vectors> 2
@@ -69,10 +69,10 @@
     <nr_threads> 10
     <vel_is_speed_of_sound> 1
     <amira_inp_points> 34
-    <amita_out_points> 24
+    <amira_out_points> 24
     <plot_inp_midplanes> 43
     <plot_out_midplanes> 34
-    <write_3d_midplanes> 49 29 23
+    <write_3d_midplanes> 2 21 23 58
     <write_inp_midplanes> 1
     <write_out_midplanes> 0
     <write_radiation_field> 2

@@ -16,9 +16,10 @@ namespace rewrite {
      */
     template<typename... Args>
     std::string comp_error(const std::string& msg, Args... args) {
-	std::ostringstream os(msg);
+	std::ostringstream os;
+	os << msg;
 
-	(os << ... << args);
+	((os << args), ...);
 	return os.str();
     }
 

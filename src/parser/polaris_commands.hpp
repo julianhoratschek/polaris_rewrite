@@ -156,7 +156,7 @@ namespace rewrite {
 	    { "vel_maps"sv, cmd_vel_maps },
 	    { "max_subpixel_lvl"sv, cmd_max_subpixel_lvl },
 	    { "path_input"sv, cmd_path_input },
-	    { "dust_componenct"sv, cmd_dust_component },
+	    { "dust_component"sv, cmd_dust_component },
 	    { "path_out"sv, cmd_path_out },
 	    { "nr_plot_points"sv, cmd_nr_plot_points },
 	    { "nr_plot_vectors"sv, cmd_nr_plot_vectors },

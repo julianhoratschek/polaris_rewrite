@@ -252,7 +252,7 @@ namespace rewrite {
 		    ps_path = line.str_params[0];
 		    if (line.num_params.size() != nr_of_sources - 5)
 			return std::unexpected{
-			    comp_error("False amount of parameters for source ", source_name) };
+			    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 5, ')') };
 		    line.num_params.resize(nr_of_sources - 1, 0);
 		}
 	    }
@@ -262,7 +262,7 @@ namespace rewrite {
 
 	    if (line.num_params.size() != nr_of_sources - 1)
 		return std::unexpected{
-		    comp_error("False amount of parameters for source ", source_name)};
+		    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 3, " or ", nr_of_sources - 1, ')')};
 
 	    const auto	q = line.num_params[nr_of_sources - 3],
 			    u = line.num_params[nr_of_sources - 2];
@@ -669,7 +669,7 @@ namespace rewrite {
 	    size_keyword = sz_keyword_param.value();
 
 	    // TODO make this better
-	    if (size_keyword == "plaw") {
+	    if (size_keyword.contains("plaw")) {
 		++nr_size_parameter;
 		if (size_keyword.contains("-ed"))
 		    nr_size_parameter += 3;
@@ -683,6 +683,8 @@ namespace rewrite {
 	    else
 		return std::unexpected{ "Unknown size distribution keyword" };
 	}
+
+	std::cout << nr_size_parameter << std::endl;
 
 	std::vector<double>	size_parameter(NR_OF_SIZE_DIST_PARAM, 0);
 
@@ -720,7 +722,7 @@ namespace rewrite {
 	    return {};
 	}
 
-        return std::unexpected{ "Wrong number of size parameters" };
+        return std::unexpected{ comp_error("Wrong number of size parameters (expected ", nr_size_parameter, ')') };
     }
 
 
@@ -1004,6 +1006,8 @@ namespace rewrite {
 
 	std::copy(line.num_params.begin(), end, values.begin());
 	param.setForegroundExtinction(values[0], values[1], values[2]);
+
+	return {};
     }
 
 
@@ -1076,7 +1080,7 @@ namespace rewrite {
     t_ret cmd_write_3d_midplanes(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 4)
-	    return std::unexpected{ "Wrong number of parameters for 3D midplane files" };
+	    return std::unexpected{ "Wrong number of parameters for 3D midplane files (must be between 1 and 4 inclusively)" };
 
 	std::vector<double>	values{0, 0, 0, 0};
 	const auto		end = std::min(
@@ -1085,10 +1089,10 @@ namespace rewrite {
 	std::copy(line.num_params.begin(), end, values.begin());
 
 	if (values[2] > values[3])
-	    return std::unexpected{ "z_min is larger than z_max" };
+	    return std::unexpected{ "z_min (param 3) is larger than z_max (param 4)" };
 
 	if (values[0] < 1 || values[0] > 3) // PROJ_XY, PROJ_XZ, PROJ_YZ
-	    return std::unexpected{ "Wrong plane for 3D midplane files" };
+	    return std::unexpected{ "Param 1 must be larger than 1 and smaller than 3" };
 
 	param.set3dMidplane(values[0], values[1], values[2], values[3]);
         return {};
@@ -1304,6 +1308,8 @@ namespace rewrite {
         // Showing full sphere coverage
         param.updateDetectorAngles(-90, -180);
         param.updateDetectorAngles(90, 180);
+
+	return {};
 
 	// ---------------------------
 	// constexpr auto min_param_cnt = NR_OF_OPIATE_DET - 12;
