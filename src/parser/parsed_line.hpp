@@ -1,6 +1,8 @@
 #ifndef RW_PARSED_LINE
 #define RW_PARSED_LINE
 
+#include "util.hpp"
+
 #include <vector>
 #include <string>
 #include <string_view>
@@ -10,17 +12,6 @@
 #include <sstream>
 
 namespace rewrite {
-    /**
-     * Helper function to create error strings
-     * @tparam Args arguments to add to `msg`
-     * @param msg Start of the error message
-     * @param args... Arguments to add onto `msg`
-     * @returns `msg` and `args` as a continuous string
-     */
-    template<typename... Args>
-    std::string comp_error(const std::string& msg, Args... args) {
-	return (std::ostringstream(msg) << ... << args).str();
-    }
 
 
     /**
@@ -82,14 +73,13 @@ namespace rewrite {
 	 * Convert ParamType to string for debugging and messages
 	 */
 	// TODO test with consteval
-	template<ParamType tp>
-	static constexpr std::string param_type() {
-	    if constexpr (tp == ParamType::Identifier)
+	static std::string param_type(ParamType pt) {
+	    if (pt == ParamType::Identifier)
 		return "Identifier";
-	    else if constexpr (tp == ParamType::Number)
-		return "String";
-	    else
+	    else if (pt == ParamType::Number)
 		return "Number";
+	    else
+		return "String";
 	}
 
 	/**
@@ -134,16 +124,20 @@ namespace rewrite {
 	 * Get the parameter at index `idx`, returns an error if `pt` does not
 	 * designate the correct type of the parameter at position `idx`
 	 */
+	// TODO experiment with:
+	// decltype(std::declval<decltype(*get_vector<pt>())>().back())
 	template<ParsedLine::ParamType pt, typename T>
 	auto get_param(const size_t idx) const
 	    -> std::expected<T, std::string> {
+		//    -> std::expected<
+		// decltype(std::declval<decltype(*get_vector<pt>())>().back()), std::string> {
 
 	    if (idx >= sequence.size())
 		return std::unexpected{ "Too few parameters" };
 
 	    const auto param = sequence[idx];
 	    if (param.first != pt)
-		return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
+		return std::unexpected{ comp_error("Expected ", param_type(pt), " at position ", idx) };
 
 	    auto pv = get_vector<pt>();
 	    return pv->at(param.second);
@@ -162,6 +156,7 @@ namespace rewrite {
 	}
 
 	void clear();
+	bool empty() const;
     };
 
     /**

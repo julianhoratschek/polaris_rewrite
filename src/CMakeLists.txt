@@ -11,6 +11,7 @@ SET (CXX_STANDARD_REQUIRED ON)
 
 SET (PROJECT_PATH ${CMAKE_CURRENT_LIST_DIR}/../)
 SET (BUILD_TESTING OFF)
+SET (TEST_REWRITE ON)
 SET (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 SET (CMAKE_PREFIX_PATH "D:/projects/CPP/polaris_rewrite/bin/zlib;D:/projects/CPP/polaris_rewrite/bin/cfitsio;D:/projects/CPP/polaris_rewrite/bin/CCfits")
 
@@ -57,12 +58,43 @@ TARGET_LINK_LIBRARIES (polaris PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CF
 TARGET_INCLUDE_DIRECTORIES (polaris PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR} ${CCFITS_INCLUDE_DIR})
 INSTALL (TARGETS polaris)
 
-ADD_EXECUTABLE (rewrite_test ${SRC_FILES} parser/test_main.cpp parser/command_parser.cpp parser/polaris_commands.cpp parser/parsed_line.cpp)
-TARGET_LINK_LIBRARIES (rewrite_test PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CFITSIO_LIBRARY})
-TARGET_INCLUDE_DIRECTORIES (rewrite_test PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR} ${CCFITS_INCLUDE_DIR})
+if (TEST_REWRITE)
+    include(FetchContent)
+    FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 
-INCLUDE (CTest)
+    add_executable (test_parser
+	Parameters.cpp
+	CommandParser.cpp
+	Stokes.cpp
+	Vector3D.cpp
+	Matrix2D.cpp
+	MathProbList.cpp
+	MathFunctions.cpp
+	Faddeeva.cc
+
+	parser/command_parser.cpp
+	parser/polaris_commands.cpp
+	parser/parsed_line.cpp
+	parser/polaris_parser.cpp
+	parser/simple_test.cpp)
+
+	# parser/test_parser.cpp)
+
+    target_link_libraries (test_parser
+	OpenMP::OpenMP_CXX)
+	# GTest::gmock
+	# GTest::gtest_main)
+    # target_include_directories (test_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+endif()
+
 if(BUILD_TESTING)
+    INCLUDE (CTest)
     ADD_EXECUTABLE (tests tests.cpp DustComponent_t.cpp MathFunctions_t.cpp RandomGenerator_t.cpp ${SRC_FILES})
     TARGET_LINK_LIBRARIES (tests PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CFITSIO_LIBRARY})
     TARGET_INCLUDE_DIRECTORIES (tests PRIVATE ../ext ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR})
