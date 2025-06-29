@@ -163,6 +163,10 @@ public:
 
     void operator/=(uint v);
 
+    bool operator==(const Vector3D& other) const {
+	return x == other.x && y == other.y && z == other.z;
+    }
+
     friend const Vector3D operator*(double val, const Vector3D & rhs);
 
     friend Vector3D operator*(const Matrix2D & dM, const Vector3D & v);

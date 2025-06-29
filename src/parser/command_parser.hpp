@@ -9,7 +9,6 @@
 #include <fstream>
 
 #include <filesystem>
-#include <iostream>
 
 
 namespace rewrite {
@@ -69,6 +68,14 @@ namespace rewrite {
 	 */
 	auto get_command() -> std::expected<void, std::string>;
 
+	size_t error_distance() {
+	    return std::distance(current_line.begin(), pos) - 2;
+	}
+
+	std::string error_pointer() {
+	    return std::string(error_distance(), '~') + '^';
+	}
+
     public:
 	// using ProcessLineFn = std::expected<void, std::string>(*)(ParsedLine&);
 
@@ -83,6 +90,7 @@ namespace rewrite {
 	 */
 	auto parse_line(const std::string& line)
 	    -> std::expected<void, std::string>;
+
 
 	/**
 	 * Reads `path` line by line, on success calls `proc` with the read
@@ -102,13 +110,13 @@ namespace rewrite {
 	    while (std::getline(file, line)) {
 		if (const auto res = parse_line(line); !res)
 		    return std::unexpected { comp_error(
-			"Parsing Error [", parsed_line.line_nr, ':', std::distance(current_line.begin(), pos), "]: ",
-			res.error()) };
+			"Parsing Error [", parsed_line.line_nr, ':', error_distance(), "]: ",
+			res.error(), '\n',
+			current_line, '\n', error_pointer()) };
 
 		if (const auto res = proc(parsed_line); !res)
 		    return std::unexpected { comp_error(
-			"Processing Error [", parsed_line.line_nr, ':', std::distance(current_line.begin(), pos), "]: ",
-			res.error()) };
+			"Processing Error [", parsed_line.line_nr, "]: ", res.error()) };
 	    }
 
 	    return {};

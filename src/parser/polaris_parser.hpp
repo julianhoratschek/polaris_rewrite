@@ -76,11 +76,14 @@ namespace rewrite {
 
 	PolarisParser()
 	    : commands{make_cmd_map()} {}
+
 	/**
 	 *
 	 */
 	auto parse_polaris_cmd(std::filesystem::path path)
 	    -> std::expected<void, std::string>; 
+
+	auto& get_param_list() { return param_list; }
     };
 
 }

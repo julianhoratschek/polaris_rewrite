@@ -42,7 +42,7 @@ public:
     ~CCommandParser(void)
     {}
 
-    parameter_list getParameterList()
+    parameter_list& getParameterList()
     {
         return param_list;
     }
