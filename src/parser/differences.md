@@ -11,3 +11,6 @@
 - ISRF source method works slightly different
     - It now will always set a path, if defined.
     - Before, path was ignored - even when set - if 2 numerical parameters were given
+- Detectors are a bit less strict
+    - Missing values are mostly filled in wich 0.
+    - Before, only selected parameter-combinations were allowed

@@ -86,21 +86,50 @@
     <mc_lvl_pop_seed> 99483
 </task>
 
-# <common>
-# </common>
-
-# Comment line
-
 <task>
-    <cmd> CMD_SYNCHROTRON
-    <gas_species> "path_to_species.gas" 23.5 54.3
-    <source_star nr_photons="348933"> 4 5 3 6 2
-    # <source_background nr_photons="489"> 3 43 5 4 32
-    <dust_component> "dust_path2" 32 5 4 6
-    <dust_offset> 1
+    <detector_line nr_pixel = "245" vel_channels = "3"> 23 4 3 5 4 6
 </task>
 
 <task>
-    <cmd> CMD_RAT
-    <source_star nr_photons="493893"> 0.23 0.43 0.23 0.23 0.54 0.43 132e-7
+    <detector_line_healpix nr_sides = "4" vel_channels = "23"> 23 4 3 5 4 6 5
+</task>
+
+<task>
+    <detector_line_polar nr_pixel = "2342984294" vel_channels = "34"> 2 3 4 5 4 3
+</task>
+
+<task>
+    <detector_line_slice nr_pixel = "33242" vel_channels = "342"> 2 4 3 5 4 6
+</task>
+
+<task>
+    <detector_dust nr_pixel="23423"> 2 34 5 5 65 3
+</task>
+
+<task>
+    <detector_dust_healpix nr_sides="8"> 3 34 5 4 3 5 6
+</task>
+
+<task>
+    <detector_dust_polar nr_pixel="42544"> 3 4 5 3 4 5
+</task>
+
+<task>
+    <detector_dust_slice nr_pixel="345345"> 3 45 4 3 5 3
+</task>
+
+<task>
+    <detector_dust_mc nr_pixel="34234"> 3 4 5 4 3 5
+</task>
+
+<task>
+    <detector_sync nr_pixel="344234"> 3 5 4 6 5 7
+</task>
+
+<task>
+    <detector_sync_slice nr_pixel="534534"> 4 3 6 5 4 3
+</task>
+
+<task>
+    <detector_sync_healpix nr_sides="4"> 3 4 5 6 4 5 6
 </task>
