@@ -26,7 +26,7 @@ namespace rewrite {
 
     template<typename T>
     std::string msg_color(const Message::Type color, const T& msg) {
-	std::string_view	col;
+	std::string	col;
 
 	switch (color) {
 	    case Message::Type::Warning:
@@ -162,16 +162,17 @@ namespace rewrite {
 	// decltype(std::declval<decltype(*get_vector<pt>())>().back())
 	template<ParsedLine::ParamType pt, typename T>
 	auto get_param(const size_t idx) const
-	    -> std::expected<T, std::string> {
+	    -> std::expected<T, Message> {
 		//    -> std::expected<
 		// decltype(std::declval<decltype(*get_vector<pt>())>().back()), std::string> {
 
 	    if (idx >= sequence.size())
-		return std::unexpected{ "Too few parameters" };
+		return std::unexpected{ Message { "Too few parameters" } };
 
 	    const auto param = sequence[idx];
 	    if (param.first != pt)
-		return std::unexpected{ comp_error("Expected ", param_type(pt), " at position ", idx) };
+		return std::unexpected{ Message {
+		    comp_error("Expected ", param_type(pt), " at position ", idx) } };
 
 	    auto pv = get_vector<pt>();
 	    return pv->at(param.second);
@@ -183,7 +184,9 @@ namespace rewrite {
 	 * @param idx Index in (global) parameter position
 	 * @returns Parameter at position `idx` as a number or unexpected
 	 */
-	auto get_num(const size_t idx) const;
+	auto get_num(const size_t idx) const {
+	    return get_param<ParamType::Number, double>(idx);
+	}
 
 	/**
 	 * Get value at parameter position `idx` as an ID.
@@ -191,7 +194,9 @@ namespace rewrite {
 	 * @param idx Index in (global) parameter position
 	 * @returns Parameter at position `idx` as an IDo r unexpected
 	 */
-	auto get_id(const size_t idx) const;
+	auto get_id(const size_t idx) const {
+	    return get_param<ParamType::Identifier, std::string_view>(idx);
+	}
 
 	/**
 	 * Get value at parameter position `idx` as a string.
@@ -199,7 +204,9 @@ namespace rewrite {
 	 * @param idx Index in (global) parameter position
 	 * @returns Parameter at position `idx` as a string or unexpected
 	 */
-	auto get_str(const size_t idx) const;
+	auto get_str(const size_t idx) const {
+	    return get_param<ParamType::String, std::string_view>(idx);
+	}
 
 	/**
 	 * Completely empty line

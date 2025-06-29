@@ -15,13 +15,12 @@ namespace rewrite {
 
     template<typename Fn>
     concept IsProcessLineFn = requires (Fn fn, ParsedLine ln) {
-	{ fn(ln) } -> std::same_as<std::expected<void, std::string>>;
+	{ fn(ln) } -> std::same_as<std::expected<void, Message>>;
     };
 
     ///
     using CharCheckFn = bool(*)(const char);
-
-
+    using HandleErrorFn = bool(*)(const Message&);
 
     /**
      * This is a strict per-line parser. Parsed lines are invalidated as soon
@@ -68,7 +67,7 @@ namespace rewrite {
 	/**
 	 *
 	 */
-	auto get_command() -> std::expected<void, std::string>;
+	auto get_command() -> std::expected<void, Message>;
 
 	size_t error_distance() {
 	    return std::distance(current_line.begin(), pos) - 2;
@@ -91,7 +90,7 @@ namespace rewrite {
 	 * retrieved with `get_last_line()`.
 	 */
 	auto parse_line(const std::string& line)
-	    -> std::expected<void, std::string>;
+	    -> std::expected<void, Message>;
 
 
 	/**
@@ -100,25 +99,43 @@ namespace rewrite {
 	 */
 	template<typename ProcessLineFn>
 	    requires IsProcessLineFn<ProcessLineFn>
-	auto parse_file(const std::filesystem::path& path, ProcessLineFn proc)
-	    -> std::expected<void, std::string> {
+	auto parse_file(
+	    const std::filesystem::path& path,
+	    ProcessLineFn proc,
+	    HandleErrorFn err_fn = nullptr)
+	    -> std::expected<void, Message> {
 
 	    std::ifstream	file(path);
 	    std::string		line;
 
 	    if (file.fail())
-		return std::unexpected{ "Could not open cmd file" };
+		return std::unexpected{ Message{ "Could not open cmd file" } };
 
 	    while (std::getline(file, line)) {
-		if (const auto res = parse_line(line); !res)
-		    return std::unexpected { comp_error(
-			"Parsing Error [", parsed_line.line_nr, ':', error_distance(), "]: ",
-			res.error(), '\n',
-			current_line, '\n', error_pointer()) };
+		// Parse Line
+		auto line_result = parse_line(line);
 
-		if (const auto res = proc(parsed_line); !res)
-		    return std::unexpected { comp_error(
-			"Processing Error [", parsed_line.line_nr, "]: ", res.error()) };
+		// Process line on success
+		if (line_result.has_value())
+		    line_result = proc(parsed_line);
+
+		// Handle errors from parsing or processing
+		if (!line_result) {
+		    const auto err = line_result.error();
+		    const Message parser_error{ comp_error(
+			    "[", parsed_line.line_nr, ':', error_distance(), "]: ",
+			    err.message, '\n', current_line, '\n', error_pointer()),
+			    err.type
+			};
+
+		    // Abort on Error
+		    if (err.type == Message::Type::Error)
+			return std::unexpected { parser_error };
+
+		    // Otherwise call user function if defined
+		    if (err_fn)
+			err_fn(parser_error);
+		}
 	    }
 
 	    return {};

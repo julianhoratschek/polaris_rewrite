@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <vector>
 #include <expected>
-#include <string>
 #include <string_view>
 #include <utility>
 
@@ -69,7 +68,7 @@ namespace rewrite {
 	 *
 	 */
 	auto process_polaris_cmd(ParsedLine& line)
-	    -> std::expected<void, std::string>;
+	    -> std::expected<void, Message>;
 
     public:
 
@@ -80,8 +79,10 @@ namespace rewrite {
 	/**
 	 *
 	 */
-	auto parse_polaris_cmd(std::filesystem::path path)
-	    -> std::expected<void, std::string>; 
+	auto parse_polaris_cmd(
+	    std::filesystem::path path,
+	    HandleErrorFn err_fn = nullptr)
+	    -> std::expected<void, Message>; 
 
 	auto& get_param_list() { return param_list; }
     };

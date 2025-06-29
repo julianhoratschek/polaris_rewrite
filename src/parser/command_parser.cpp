@@ -53,7 +53,7 @@ namespace rewrite {
 
 
     auto CommandParser::get_command()
-	-> std::expected<void, std::string> {
+	-> std::expected<void, Message> {
 
 	if (expect_next<is_slash>()) {
 	    parsed_line.type = ParsedLine::Type::ClosingTag;
@@ -63,7 +63,7 @@ namespace rewrite {
 	    parsed_line.type = ParsedLine::Type::Command;
 
 	if (!is_identifier(*pos))
-	    return std::unexpected { "Expected Polaris command after '<[/]'" };
+	    return std::unexpected { Message { "Expected Polaris command after '<[/]'" } };
 
 	// --pos is needed between read_while and expect_next, to look at
 	// the current character
@@ -75,23 +75,23 @@ namespace rewrite {
 	    --pos;
 
 	    if (!expect_next<is_equals>())
-		return std::unexpected{ "Expected '=' after named parameter" };
+		return std::unexpected{ Message { "Expected '=' after named parameter" } };
 
 	    if (!expect_next<is_quote>())
-		return std::unexpected { "Expected String after named parameter" };
+		return std::unexpected { Message { "Expected String after named parameter" } };
 
 	    parsed_line.named_params[std::string{param_name}] = unquote(read_while<is_string>());
 	}
 
 	if (pos >= current_line.end() || *pos != '>')
-	    return std::unexpected{ "Expected '>' after command" };
+	    return std::unexpected{ Message { "Expected '>' after command" } };
 
 	return {};
     }
 
 
     auto CommandParser::parse_line(const std::string& line)
-	-> std::expected<void, std::string> {
+	-> std::expected<void, Message> {
 
 	parsed_line.clear();
 
@@ -116,7 +116,7 @@ namespace rewrite {
 			unquote(read_while<is_string>()));
 
 		    if (pos >= current_line.end())
-			return std::unexpected{ "Missing '\"'" };
+			return std::unexpected{ Message { "Missing '\"'" } };
 		    break;
 
 
@@ -147,14 +147,14 @@ namespace rewrite {
 			    parsed_line.push_param<ParsedLine::ParamType::Number>(val);
 			}
 			catch ( std::out_of_range ) {
-			    return std::unexpected{ "Number Parameter is too large" };
+			    return std::unexpected{ Message { "Number Parameter is too large" } };
 			}
 			catch ( std::invalid_argument ) {
-			    return std::unexpected{ "Ill-formed Number" };
+			    return std::unexpected{ Message { "Ill-formed Number" } };
 			}
 		    }
 		    else
-			return std::unexpected{ comp_error( "Unknown Token '", c, "'" ) };
+			return std::unexpected{ Message { comp_error( "Unknown Token '", c, "'" ) } };
 	    }
 
 	    // Skip all whitespace until next character is found

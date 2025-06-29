@@ -4,7 +4,7 @@
 
 namespace rewrite {
     auto PolarisParser::process_polaris_cmd(ParsedLine& line)
-	-> std::expected<void, std::string> {
+	-> std::expected<void, Message> {
 
 	using namespace literals;
 
@@ -19,14 +19,15 @@ namespace rewrite {
 	    // Includes empty and comment lines
 	    case ParsedLine::Type::ValueLine:
 		if (!line.empty())
-		    return std::unexpected{ "Missing <cmd>" };
+		    return std::unexpected{ Message{
+			"Missing <cmd>" } };
 		return {};
 
 
 	    case ParsedLine::Type::ClosingTag:
 		if (block_to_str(current_block) != line.command)
-		    return std::unexpected{ comp_error(
-			"Wrong closing tag, expected </", block_to_str(current_block), '>') };
+		    return std::unexpected{ Message{ comp_error(
+			"Wrong closing tag, expected </", block_to_str(current_block), '>') } };
 
 		current_block = BlockType::None;
 		flag_unset(flags, PolarisParserFlags::Skipping);
@@ -49,7 +50,8 @@ namespace rewrite {
 		    if (line.command == "common"sv) {
 			if (!flag_isset(flags, PolarisParserFlags::Skipping)
 			    && flag_isset(flags, PolarisParserFlags::CommonProcessed))
-			    return std::unexpected { "<common> Blocks MUST now precede <task> Blocks" };
+			    return std::unexpected { Message{
+				"<common> Blocks MUST now precede <task> Blocks" } };
 			
 			param = &common_params;
 			flags |= PolarisParserFlags::CommonProcessed;
@@ -66,7 +68,8 @@ namespace rewrite {
 			break;
 		    }
 
-		    return std::unexpected{ "Expected <common> or <task> Block" };
+		    return std::unexpected{ Message{
+			"Expected <common> or <task> Block" } };
 		}
 
 		// Handle line commands inside blocks
@@ -75,8 +78,8 @@ namespace rewrite {
 			!e) return e;
 		}
 		catch(const std::out_of_range&) {
-		    return std::unexpected { comp_error(
-			"Unknown Command '", line.command, '\'') };
+		    return std::unexpected { Message { comp_error(
+			"Unknown Command '", line.command, '\'') } };
 		}
 
 		break;
@@ -86,8 +89,10 @@ namespace rewrite {
     }
 
 
-    auto PolarisParser::parse_polaris_cmd(std::filesystem::path path)
-	-> std::expected<void, std::string> {
+    auto PolarisParser::parse_polaris_cmd(
+	std::filesystem::path path,
+	HandleErrorFn err_fn)
+	-> std::expected<void, Message> {
 	
 	CommandParser	parser;
 
@@ -95,7 +100,7 @@ namespace rewrite {
 	    &PolarisParser::process_polaris_cmd,
 	    this, std::placeholders::_1);
 
-	if (const auto e = parser.parse_file(path, fn); !e)
+	if (const auto e = parser.parse_file(path, fn, err_fn); !e)
 	    return e;
 
 	// TODO: would be easier to initialize param.start/stop to 0

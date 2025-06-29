@@ -27,22 +27,6 @@ namespace rewrite {
 	return os;
     }
 
-
-    auto ParsedLine::get_num(const size_t idx) const {
-	return get_param<ParamType::Number, double>(idx);
-    }
-
-
-    auto ParsedLine::get_id(const size_t idx) const {
-	return get_param<ParamType::Identifier, std::string_view>(idx);
-    }
-
-
-    auto ParsedLine::get_str(const size_t idx) const {
-	return get_param<ParamType::String, std::string_view>(idx);
-    }
-
-
     void ParsedLine::clear() {
 	type = Type::ValueLine;
 	command = "";

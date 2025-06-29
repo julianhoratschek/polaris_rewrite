@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string_view>
 #include "polaris_commands.hpp"
 #include "polaris_parser.hpp"
 
@@ -7,12 +8,22 @@
 using namespace std;
 
 
+bool error_msg(const rewrite::Message& msg) {
+    string_view	label = msg.type == rewrite::Message::Type::Warning ?
+	"WARNING " : "INFO ";
+
+    cout << rewrite::msg_color(msg.type, label) << msg.message << endl;
+    return true;
+}
+
+
 int main() {
     cout << "New Parser" << endl;
     rewrite::PolarisParser	parser;
 
-    if (const auto e = parser.parse_polaris_cmd("./src/parser/test.cmd"); !e)
-	cout << e.error() << endl;
+    if (const auto e = parser.parse_polaris_cmd(
+	"./src/parser/test.cmd", error_msg); !e)
+	error_msg(e.error());
 
     cout << endl << "--------------------------------" << endl << endl;
 

@@ -13,7 +13,7 @@ namespace rewrite {
 	 *
 	 */
 	auto read_nr_value(const std::string& str)
-	    -> std::expected<std::vector<double>, std::string> {
+	    -> std::expected<std::vector<double>, Message> {
 
 	    std::vector<double>	result;
 
@@ -24,7 +24,7 @@ namespace rewrite {
 		i += read + 1;
 	    }
 	    catch(...) {
-		return std::unexpected{ "Could not read Number" };
+		return std::unexpected{ Message { "Could not read number in named parameter" } };
 	    }
 
 	    return result;
@@ -63,25 +63,29 @@ namespace rewrite {
 	    
 	    const size_t 	sz = line.num_params.size();
 	    if (sz < reg.param.min_cnt)
-		return std::unexpected{ "Too few parameters" };
+		return std::unexpected{ Message { 
+		    comp_error("Too few parameters, expected at least ", reg.param.min_cnt) } };
 	    
 	    if constexpr (reg.flags.check_wavelength) {
 		if (sz < 4) [[unlikely]]
-		    return std::unexpected{ "Expected wavelength parameter at position 3" };
+		    return std::unexpected{
+			Message { "Expected wavelength parameter at position 3" } };
 
 		if (line.num_params[2] < 1)
-		    return std::unexpected { "Number of wavelengths needs to be at least 1!" };
+		    return std::unexpected {
+			Message { "Number of wavelengths needs to be at least 1" } };
 
 		if (line.num_params[2] > 1 && line.num_params[0] == line.num_params[1])
-		    return std::unexpected { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1!" };
+		    return std::unexpected {
+			Message { "Minimum and maximum wavelength cannot be the same if the number of wavelengths is larger than 1" } };
 	    }
 
 	    const std::string pixel_name = reg.flags.is_healpix ?
 		"nr_sides" : "nr_pixel";
 
 	    if (!line.named_params.contains(pixel_name))
-		return std::unexpected{
-		    comp_error("Expected ", pixel_name, " named parameter") };
+		return std::unexpected{ Message {
+		    comp_error("Expected ", pixel_name, " named parameter") } };
 	    
 	    std::vector<double>	nr_of_channels;
 	    std::vector<double>	nr_of_pixel{
@@ -91,19 +95,21 @@ namespace rewrite {
 	    if (nr_of_pixel.empty()
 		|| nr_of_pixel.size() > 2
 		|| std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
-		return std::unexpected {
-		    comp_error(pixel_name, " could not be recognized!") }; 
+		return std::unexpected { Message {
+		    comp_error(pixel_name, " could not be recognized") } };
 
 	    // Test if nr_of_pixel is power of 2 for healpix detectors
 	    if constexpr (reg.flags.is_healpix) {
 		const auto n = static_cast<uint>(nr_of_pixel[0]);
 		if((n & (n - 1)) != 0) 
-		    return std::unexpected{ "Number of sides must be a power of two!" };
+		    return std::unexpected{ Message {
+			"Number of sides must be a power of two" } };
 	    }
 
 	    if constexpr (reg.flags.with_vel_channels) {
 		if (!line.named_params.contains("vel_channels"))
-		    return std::unexpected{ "Expected vel_channels named parameter" };
+		    return std::unexpected{ Message {
+			"Expected vel_channels named parameter" } };
 
 		nr_of_channels = read_nr_value(
 		    std::string{line.named_params["vel_channels"]})
@@ -111,8 +117,8 @@ namespace rewrite {
 
 		if(nr_of_channels.size() != 1
 		    || nr_of_channels[0] <= 0)
-		    return std::unexpected {
-			"Number of velocity channels could not be recognized!" };
+		    return std::unexpected { Message {
+			"Number of velocity channels could not be recognized!" } };
 	    }
 
 	    // TODO: rather not is_healpix?
@@ -152,8 +158,8 @@ namespace rewrite {
 		line.num_params.push_back(static_cast<uint>(nr_of_channels[0]));
 
 	    if(line.num_params.size() != reg.param.check_cnt) 
-		return std::unexpected {
-		    "Number of parameters could not be recognized!" };
+		return std::unexpected { Message {
+		    "Number of parameters could not be recognized" } };
 
 	    return {};
 	}
@@ -166,11 +172,9 @@ namespace rewrite {
 	template<typename SetterFn>
 	    requires std::is_invocable_v<SetterFn, parameters, double>
 	t_ret param_set_number(ParsedLine& line, parameters& param, SetterFn setter) {
-
 	    if (const auto e = line.get_num(0); !e)
 		return std::unexpected{ e.error() };
-	    else 
-		std::invoke(setter, param, e.value());
+	    else std::invoke(setter, param, e.value());
 	    return {};
 	}
 
@@ -188,14 +192,15 @@ namespace rewrite {
 	    constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
 
 	    if (!line.named_params.contains("nr_photons"))
-		return std::unexpected{ "Expected parameter 'nr_photons'" };
+		return std::unexpected{ Message {
+		    "Expected parameter 'nr_photons'" } };
 
 	    const ullong nr_of_photons = std::stoull(
 		std::string{line.named_params["nr_photons"]});
 
 	    if (nr_of_photons <= 0)
-		return std::unexpected{ 
-		    comp_error("Number of ", source_name, " photons could not be recognized!") };
+		return std::unexpected{ Message {
+		    comp_error("Number of ", source_name, " photons could not be recognized!") } };
 
 	    std::string ps_path;
 
@@ -204,8 +209,8 @@ namespace rewrite {
 		if (!line.str_params.empty()) {
 		    ps_path = line.str_params[0];
 		    if (line.num_params.size() != nr_of_sources - 5)
-			return std::unexpected{
-			    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 5, ')') };
+			return std::unexpected{ Message {
+			    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 5, ')') } };
 		    line.num_params.resize(nr_of_sources - 1, 0);
 		}
 	    }
@@ -214,17 +219,19 @@ namespace rewrite {
 		line.num_params.resize(nr_of_sources - 1, 0);
 
 	    if (line.num_params.size() != nr_of_sources - 1)
-		return std::unexpected{
-		    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 3, " or ", nr_of_sources - 1, ')')};
+		return std::unexpected{ Message {
+		    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 3, " or ", nr_of_sources - 1, ')')} };
 
 	    const auto	q = line.num_params[nr_of_sources - 3],
 			    u = line.num_params[nr_of_sources - 2];
 	    const auto 	P_l = sqrt(q * q + u * u);
 
 	    if (P_l > 1.0)
-		return std::unexpected { "Chosen polarization of source star is larger than 1!" };
+		return std::unexpected { Message {
+		    "Chosen polarization of source star is larger than 1!" } };
 	    else if (P_l < 0)
-		return std::unexpected { "Chosen polarization of source is smaller than 0!" };
+		return std::unexpected { Message {
+		    "Chosen polarization of source is smaller than 0!" } };
 
 	    line.num_params.push_back(static_cast<double>(nr_of_photons));
 
@@ -255,7 +262,7 @@ namespace rewrite {
 
 	auto res = std::ranges::find(commands, e.value());
 	if (res == commands.end())
-	    return std::unexpected{"Command cannot be recognized!"};
+	    return std::unexpected{ Message { "Command cannot be recognized!" } };
 
 	param.setCommand(std::distance(commands.begin(), res));
 
@@ -276,13 +283,14 @@ namespace rewrite {
     t_ret cmd_plot_list(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.empty())
-	    return std::unexpected( "List of plot IDs is empty!\nOnly integer values are allowed");
+	    return std::unexpected{ Message{
+		"List of plot IDs is empty!\nOnly integer values are allowed"} };
 
 	for (const auto& id: line.num_params) {
 	    if (id < minGRID || id > maxGRID)
-		return std::unexpected{
+		return std::unexpected{ Message{
 		    comp_error( "Unknown grid ID!\n",
-			"A plot ID of ", id, " is not a valid POLARIS grid ID (see manual, Table 3.3)!\n")};
+			"A plot ID of ", id, " is not a valid POLARIS grid ID (see manual, Table 3.3)!\n") } };
 	    param.addToPlotList(id);
 	}
 
@@ -291,7 +299,6 @@ namespace rewrite {
 
 
     t_ret cmd_phase_function(ParsedLine& line, parameters& param) {
-
 	constexpr auto phfn = std::array {
 	    "PH_ISO", "PH_HG", "PH_DHG", "PH_TTHG", "PH_MIE" };
 
@@ -300,11 +307,13 @@ namespace rewrite {
 	    dust_component_choice = std::stoul(std::string{line.named_params["id"]});
 	}
 	catch(...) {
-	    return std::unexpected{ "ID parameter could not be converted to number" };
+	    return std::unexpected{ Message{
+		"ID parameter could not be converted to number" } };
 	}
 
 	if (dust_component_choice < 0)
-	    return std::unexpected{ comp_error( "ID ", dust_component_choice, " is not valid!") };
+	    return std::unexpected{ Message {
+		comp_error( "ID ", dust_component_choice, " is not valid!") } };
 
 	const auto e = line.get_id(0);
 	if (!e.has_value())
@@ -312,7 +321,8 @@ namespace rewrite {
 
 	const auto res = std::ranges::find(phfn, e.value());
 	if (res == phfn.end())
-	    return std::unexpected { "Phase function name could not be recognized!" };
+	    return std::unexpected { Message {
+		"Phase function name could not be recognized!" } };
 
 	param.setPhaseFunctionID(std::distance(phfn.begin(), res), dust_component_choice);
 	return {};
@@ -320,7 +330,6 @@ namespace rewrite {
 
 
     t_ret cmd_star_mass(ParsedLine& line, parameters& param) {
-
 	for(const auto& mass: line.num_params)
 	    param.addStarMass(mass * M_sun);
 	return {};
@@ -362,7 +371,9 @@ namespace rewrite {
 	if (p1.has_value()) {
 	    const auto res_pop = std::ranges::find(pop, p1.value());
 	    if (res_pop == pop.end())
-		return std::unexpected{ "Unrecognised POP index" };
+		return std::unexpected{ Message{
+		    "Unrecognised POP index" } };
+
 	    line.num_params.insert(
 		line.num_params.begin(),
 		std::distance(pop.begin(), res_pop));
@@ -375,7 +386,8 @@ namespace rewrite {
 	    zeeman_path = std::string{p3.value()};
 
 	if (line.num_params.size() != 2)
-	    return std::unexpected{ "False amount of parameters for gas species line transfer!" };
+	    return std::unexpected{ Message{
+		"False amount of parameters for gas species line transfer (expected 2)" } };
 
 	param.addGasSpecies(gas_species_path, zeeman_path, line.num_params);
         return {};
@@ -403,7 +415,8 @@ namespace rewrite {
 	    nr_of_photons = std::stoull(std::string{line.named_params["nr_photons"]});
 
 	if (nr_of_photons <= 0)
-	    return std::unexpected{ "Number of background source photons could not be recognized!" };
+	    return std::unexpected{ Message{
+		"Number of background source photons could not be recognized!" } };
 
 	std::string ps_path;
 	const bool has_path = !line.str_params.empty();
@@ -414,7 +427,8 @@ namespace rewrite {
 	    else if (line.num_params.size() < NR_OF_BG_SOURCES - 5)
 		param.addBackgroundSource(ps_path);
 	    else
-		return std::unexpected{ "Wrong number of parameters for background source!" };
+		return std::unexpected{ Message {
+		    "Wrong number of parameters for background source!" } };
 	    return {};
 	}
 
@@ -426,7 +440,8 @@ namespace rewrite {
 	    line.num_params.resize(NR_OF_BG_SOURCES, 0);
 
 	if (line.num_params.size() != NR_OF_BG_SOURCES)
-	    return std::unexpected{ "Wrong number of parameters for background source!" };
+	    return std::unexpected{ Message {
+		"Wrong number of parameters for background source!" } };
 
 	param.addBackgroundSource(line.num_params);
 	return {};
@@ -441,7 +456,8 @@ namespace rewrite {
 
     t_ret cmd_axis1(ParsedLine& line, parameters& param) {
 	if (line.num_params.size() != 3)
-	    return std::unexpected{ "Values for first axis are not a vector" };
+	    return std::unexpected{ Message {
+		"Values for first axis are not a vector" } };
 	param.setAxis1(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return {};
     }
@@ -449,14 +465,14 @@ namespace rewrite {
 
     t_ret cmd_axis2(ParsedLine& line, parameters& param) {
 	if (line.num_params.size() != 3)
-	    return std::unexpected{ "Values for second axis are not a vector" };
+	    return std::unexpected{ Message {
+		"Values for second axis are not a vector" } };
 	param.setAxis2(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return {};
     }
 
 
     t_ret cmd_align(ParsedLine& line, parameters& param) {
-	
 	constexpr auto alignments = std::array{
 	    "ALIG_INTERNAL", "ALIG_PA", "ALIG_IDG", "ALIG_RAT",
 	    "ALIG_GOLD", "ALIG_KRAT", "ALIG_NONPA"
@@ -468,7 +484,7 @@ namespace rewrite {
 
 	const auto res = std::ranges::find(alignments, e.value());
 	if (res == alignments.end())
-	    return std::unexpected{ "Unknown alignment" };
+	    return std::unexpected{ Message { "Unknown alignment" } };
 
 	param.addAlignmentMechanism(1 << std::distance(alignments.begin(), res));
 	return {};
@@ -538,7 +554,8 @@ namespace rewrite {
 	    return std::unexpected{ e.error() };
 	const auto res = std::ranges::find(healpix, e.value());
 	if (res == healpix.end())
-	    return std::unexpected{ "Unknown healpix orientation" };
+	    return std::unexpected{ Message {
+		"Unknown healpix orientation" } };
 	param.setHealpixOrientation(std::distance(healpix.begin(), res));
 	return {};
     }
@@ -597,13 +614,14 @@ namespace rewrite {
 		std::string{line.named_params["id"]});
 	}
 	catch(...) {
-	    return std::unexpected{ "Invalid dust component ID"};
+	    return std::unexpected{ Message{ "Invalid dust component ID"} };
 	}
 
 	const auto 	path_param = line.get_str(0);
 
 	if (!path_param.has_value())
-	    return std::unexpected{ "Expected path as first parameter" };
+	    return std::unexpected{ Message{ 
+		"Expected path as first parameter" } };
 
 	const std::string 	path{ path_param.value() };
 	const auto 		sz_keyword_param = line.get_str(1);
@@ -630,7 +648,8 @@ namespace rewrite {
 	    else if (size_keyword == "zda")
 		nr_size_parameter += 14;
 	    else
-		return std::unexpected{ "Unknown size distribution keyword" };
+		return std::unexpected{ Message{
+		    "Unknown size distribution keyword" } };
 	}
 
 	std::vector<double>	size_parameter(NR_OF_SIZE_DIST_PARAM, 0);
@@ -669,14 +688,16 @@ namespace rewrite {
 		    break;
 
 		default:
-		    return std::unexpected{ "Wrong number of parameters" };
+		    return std::unexpected{ Message{
+			"Wrong number of parameters" } };
 	    }
 
 	    param.addDustComponent(path, size_keyword, fr, 0, a_min, a_max, size_parameter);
 	    return {};
 	}
 
-        return std::unexpected{ comp_error("Wrong number of size parameters (expected ", nr_size_parameter, ')') };
+        return std::unexpected{ Message{
+	    comp_error("Wrong number of size parameters (expected ", nr_size_parameter, ')') } };
     }
 
 
@@ -753,12 +774,12 @@ namespace rewrite {
 	if (!e.has_value())
 	    return std::unexpected{ e.error() };
 
-	auto value = e.value();
+	const auto value = e.value();
 	if (value < 0) {
-	    // TODO we don't like this
-	    std::cout << WARNING_LINE << "Negative conversion factors are no longer supported!\n"
-	    << "\tGrid must always contain number densities" << endl;
-	    value = -value;
+	    param.updateSIConvDH(-value);
+	    return std::unexpected { Message{
+		"Negative conversion factors are no longer supported!\n\tGrid must always contain number densities",
+		Message::Type::Warning } };
 	}
 	param.updateSIConvDH(value);
 
@@ -783,11 +804,12 @@ namespace rewrite {
 	if (!e.has_value())
 	    return std::unexpected{ e.error() };
 
-	double conv = e.value();
+	const double conv = e.value();
 	if (conv < 0) {
-            cout << WARNING_LINE << "Negative conversion factor are no longer allowed!\n"
-		<< "\tThe grid can only contain number densities.\n\n";
-	    conv = std::abs(conv);
+	    param.updateSIConvVField(std::abs(conv));
+            return std::unexpected{ Message{
+		"Negative conversion factor are no longer allowed!\n\tThe grid can only contain number densities.",
+		Message::Type::Warning } };
 	}
 
         param.updateSIConvVField(conv);
@@ -816,15 +838,15 @@ namespace rewrite {
 
     t_ret cmd_mrw(ParsedLine& line, parameters& param) {
 	const auto res = param_set_number(line, param, &parameters::setMRW);
-	std::cout << WARNING_LINE << "MRW currently unavailable!\n";
-	return res;
+	return std::unexpected{ Message{
+	    "MRW currently unavailable", Message::Type::Warning } };
     }
 
 
     t_ret cmd_pda(ParsedLine& line, parameters& param) {
 	const auto res = param_set_number(line, param, &parameters::setPDA);
-	std::cout << WARNING_LINE << "PDA currently unavailable!\n";
-	return res;
+	return std::unexpected{ Message{
+	    "PDA currently unavailable", Message::Type::Warning } };
     }
 
 
@@ -844,7 +866,7 @@ namespace rewrite {
 		std::stod(std::string{line.named_params["min_gas_density"]}));
 	}
 	catch(...) {
-	    return std::unexpected{ "Invalid number for min_gas_density" };
+	    return std::unexpected{ Message{ "Invalid number for min_gas_density" } };
 	}
 
 	return {};
@@ -868,7 +890,7 @@ namespace rewrite {
 		std::stod(std::string{line.named_params["min_gas_density"]}));
 	}
 	catch(...) {
-	    return std::unexpected{ "Invalid number for min_gas_density" };
+	    return std::unexpected{ Message{ "Invalid number for min_gas_density" } };
 	}
 
 	return {};
@@ -902,7 +924,8 @@ namespace rewrite {
 
 	const auto i = e.value();
 	if (i < 0)
-            return std::unexpected { "For stochastic heating, a non-negative dust grain size limit needs to be chosen!" };
+            return std::unexpected { Message{
+		"For stochastic heating, a non-negative dust grain size limit needs to be chosen!" } };
 
 	param.setStochasticHeatingMaxSize(i);
 	return {};
@@ -916,10 +939,12 @@ namespace rewrite {
 	    return {};
 	}
 	catch(...) {
-	    return std::unexpected{ "Ill formed number of photons" };
+	    return std::unexpected{ Message {
+		"Ill formed number of photons" } };
 	}
 
-	return std::unexpected{ "Number of photons could not be recognized!" };
+	return std::unexpected{ Message{
+	    "Number of photons could not be recognized!" } };
     }
 
 
@@ -927,14 +952,16 @@ namespace rewrite {
     t_ret cmd_source_isrf(ParsedLine& line, parameters& param) {
 
 	if (!line.named_params.contains("nr_photons"))
-	    return std::unexpected{ "Parameter nr_photons required" };
+	    return std::unexpected{ Message {
+		"Parameter nr_photons required" } };
 
 	try {
 	    param.setNrOfISRFPhotons(std::stod(
 		std::string{line.named_params["nr_photons"]}));
 	}
 	catch(...) {
-	    return std::unexpected{ "Invalid number for nr_photons" };
+	    return std::unexpected{ Message {
+		"Invalid number for nr_photons" } };
 	}
 	
 	const std::string	path{line.get_str(0).value_or("")};
@@ -951,7 +978,8 @@ namespace rewrite {
 	}
 
 	if (values[0] < 0 || values[1] < 1)
-	    return std::unexpected{ "ISRF parameters could not be recognized" };
+	    return std::unexpected{ Message {
+		"ISRF parameters could not be recognized" } };
 
 	param.setISRF(path, values[0], values[1]);
 	return {};
@@ -961,7 +989,8 @@ namespace rewrite {
     t_ret cmd_foreground_extinction(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 3)
-	    return std::unexpected{ "Wrong number of parameters (expected between 1 and 3)" };
+	    return std::unexpected{ Message {
+		"Wrong number of parameters (expected between 1 and 3)" } };
 
 	std::vector<double>	values{0, 0.55e-6, MAX_UINT};
 	std::copy(
@@ -994,7 +1023,8 @@ namespace rewrite {
 
 	const auto i = e.value();
 	if (i <= 0)
-	    return std::unexpected{ "Acceptance angle must be greater than 0" };
+	    return std::unexpected{ Message{
+		"Acceptance angle must be greater than 0" } };
 	param.setAcceptanceAngle(i);
 	return {};
     }
@@ -1004,7 +1034,7 @@ namespace rewrite {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
-	    return std::unexpected{ "Expected parameter" };
+	    return std::unexpected{ Message{ "Expected parameter" } };
 
         const int max_t = omp_get_max_threads();
 	int tr = e.value();
@@ -1013,13 +1043,17 @@ namespace rewrite {
             tr = max_t;
 
         if(tr > max_t) {
-            tr = max_t;
-	    std::cout << WARNING_LINE << "Max. nr. of threads is:  " << max_t;
+	    param.setNrOfThreads(max_t);
+	    return std::unexpected{ Message {
+		comp_error("Max. nr. of threads is:  ", max_t),
+		Message::Type::Warning } };
         }
 
         if(tr <= 0) {
-            tr = 1;
-	    std::cout << WARNING_LINE << "Max. nr. of threads is set to: 1";
+	    param.setNrOfThreads(1);
+	    return std::unexpected{ Message {
+		"Max. nr. of threads is: 1",
+		Message::Type::Warning } };
         }
 
         param.setNrOfThreads(tr);
@@ -1055,7 +1089,8 @@ namespace rewrite {
     t_ret cmd_write_3d_midplanes(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 4)
-	    return std::unexpected{ "Wrong number of parameters for 3D midplane files (must be between 1 and 4)" };
+	    return std::unexpected{ Message{
+		"Wrong number of parameters for 3D midplane files (must be between 1 and 4)" } };
 
 	// values{plane, nr_of_slices, z_min, z_max}
 	std::vector<double>	values{0, 0, 0, 0};
@@ -1067,10 +1102,12 @@ namespace rewrite {
 	    values.begin());
 
 	if (values[0] < 1 || values[0] > 3) // PROJ_XY, PROJ_XZ, PROJ_YZ
-	    return std::unexpected{ "Param 1 must be larger than 1 and smaller than 3" };
+	    return std::unexpected{ Message{
+		"Param 1 must be larger than 1 and smaller than 3" } };
 
 	if (values[2] > values[3])
-	    return std::unexpected{ "z_min (param 3) is larger than z_max (param 4)" };
+	    return std::unexpected{ Message{
+		"z_min (param 3) is larger than z_max (param 4)" } };
 
 	param.set3dMidplane(values[0], values[1], values[2], values[3]);
         return {};
@@ -1093,21 +1130,22 @@ namespace rewrite {
 	if (!e.has_value())
 	    return std::unexpected{ e.error() };
 
-	auto val = e.value();
+	const auto val = e.value();
         if(val > 3) {
-            cout << WARNING_LINE << "Command \"<write_radiation_field>\" accepts only parameters between 0 to 3!" << endl;
-	    val = 0;
+	    param.setWriteRadiationField(0);
+            return std::unexpected{ Message{
+		"Command \"<write_radiation_field>\" accepts only parameters between 0 to 3!" } };
 	}
 
 	param.setWriteRadiationField(val);
-
         return {};
     }
 
 
     t_ret cmd_write_full_radiation_field(ParsedLine& line, parameters& param) {
-        cout << WARNING_LINE << "Command <write_full_radiation_field> is no longer available!" << endl;
-        return {};
+        return std::unexpected{ Message{
+	    "Command <write_full_radiation_field> is no longer available!",
+	    Message::Type::Warning } };
     }
 
 
@@ -1167,7 +1205,8 @@ namespace rewrite {
 	};
 
 	if (line.str_params.empty())
-	    return std::unexpected{ "String ID needed" };
+	    return std::unexpected{ Message{
+		"String ID needed" } };
 	const std::string str_id{line.str_params[0]};
 
 	if (const auto e = register_detector<reg, 3>(line, {1.0, -1.0, -1.0});
@@ -1209,7 +1248,8 @@ namespace rewrite {
 	};
 
 	if (line.str_params.empty())
-	    return std::unexpected{ "String ID needed" };
+	    return std::unexpected{ Message{
+		"String ID needed" } };
 	const std::string str_id{line.str_params[0]};
 
 	if (const auto e = register_detector<reg, 4>(line, {-180.0, 180.0, -90.0, 90.0});
