@@ -3,6 +3,7 @@
 #include <functional>
 
 namespace rewrite {
+
     auto PolarisParser::process_polaris_cmd(ParsedLine& line)
 	-> std::expected<void, Message> {
 
