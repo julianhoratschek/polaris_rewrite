@@ -16,6 +16,7 @@ default_cc: str = "gcc"
 default_c_flags: str = "-w -O3"
 default_cxx: str = "g++"
 default_cxx_flags: str = "-w -O3"
+#TODO win/linux
 default_cmake_generator: str = "MinGW Makefiles"
 
 
@@ -189,11 +190,11 @@ if __name__ == "__main__":
 
     match args.compiler:
         case "icc":
-            # TODO: incomplete
+            # TODO: Hosts
             profiles = {
                 "debug": "-O1 -g3 -debug inline-debug-info",
                 "fast-debug": "-O3 -parallel -ip -ipo -g3 -debug inline-debug-info",
-                "release": "-O3 -parallel -ip -ipo -g"
+                "release": "-O3 -parallel -ip -ipo -g" # + hosts
             }
 
         case "gcc" | "g++" | "c++" | "gnu" | "cpp" | "gpp":
@@ -226,7 +227,7 @@ if __name__ == "__main__":
     cfitsio_path = clone_repository("HEASARC/cfitsio", default_lib_dir / "cfitsio")
     ccfits_path = download_ccfits(default_lib_dir)
 
-    if zlib_path is None or cfitsio_path is None or ccfits_path is None:
+    if not zlib_path or not cfitsio_path or not ccfits_path:
         print("[!] Could not prepare all files")
         exit(1)
 

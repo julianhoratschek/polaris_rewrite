@@ -21,6 +21,8 @@ namespace rewrite {
     ///
     using CharCheckFn = bool(*)(const char);
 
+
+
     /**
      * This is a strict per-line parser. Parsed lines are invalidated as soon
      * as the next line is read. Processing should be done by passing a

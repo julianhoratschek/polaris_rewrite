@@ -9,19 +9,50 @@
 #include <map>
 #include <expected>
 
-#include <sstream>
-
 namespace rewrite {
+
+    struct Message {
+	enum class Type: unsigned char {
+	    Error, Warning, Info
+	};
+
+	std::string		message;
+	Type			type{ Type::Error };
+    };
+
+    inline std::ostream& operator<<(std::ostream& os, const Message& msg) {
+	return os << msg.message;
+    }
+
+    template<typename T>
+    std::string msg_color(const Message::Type color, const T& msg) {
+	std::string_view	col;
+
+	switch (color) {
+	    case Message::Type::Warning:
+		col = "\033[1m\033[33m";
+		break;
+
+	    case Message::Type::Error:
+		col = "\033[1m\033[31m";
+		break;
+
+	    case Message::Type::Info:
+		col = "\033[1m\033[32m";
+		break;
+	}
+	return comp_error(col, msg, "\033[0m");
+    }
 
 
     /**
      * Chose multiple vector layout because of multiple conversions during cmd
-     * file processing. Memory fragmentation is preferable to multiple
-     * loops through the same arrays.
+     * file processing. Minor memory fragmentation is preferable to multiple
+     * loops with conversions through the same arrays.
      */
     struct ParsedLine {
 
-	enum class Type {
+	enum class Type: unsigned char {
 	    /// Only values were read (default)
 	    ValueLine,
 
@@ -32,7 +63,7 @@ namespace rewrite {
 	    ClosingTag
 	};
 
-	enum class ParamType {
+	enum class ParamType: unsigned char {
 	    /// Query Identifier parameters
 	    Identifier,
 
@@ -96,6 +127,9 @@ namespace rewrite {
 		return &str_params;
 	}
 
+	/**
+	 * const variant of get_vector()
+	 */
 	template<ParsedLine::ParamType pt>
 	constexpr auto get_vector() const {
 	    if constexpr (pt == ParamType::Number)
@@ -143,24 +177,45 @@ namespace rewrite {
 	    return pv->at(param.second);
 	}
 
-	auto get_num(const size_t idx) const {
-	    return get_param<ParamType::Number, double>(idx);
-	}
+	/**
+	 * Get value at parameter position `idx` as a number.
+	 * Returns unexpected with error-string if type differs.
+	 * @param idx Index in (global) parameter position
+	 * @returns Parameter at position `idx` as a number or unexpected
+	 */
+	auto get_num(const size_t idx) const;
 
-	auto get_id(const size_t idx) const {
-	    return get_param<ParamType::Identifier, std::string_view>(idx);
-	}
+	/**
+	 * Get value at parameter position `idx` as an ID.
+	 * Returns unexpected with error-string if type differs.
+	 * @param idx Index in (global) parameter position
+	 * @returns Parameter at position `idx` as an IDo r unexpected
+	 */
+	auto get_id(const size_t idx) const;
 
-	auto get_str(const size_t idx) const {
-	    return get_param<ParamType::String, std::string_view>(idx);
-	}
+	/**
+	 * Get value at parameter position `idx` as a string.
+	 * Returns unexpected with error-string if type differs.
+	 * @param idx Index in (global) parameter position
+	 * @returns Parameter at position `idx` as a string or unexpected
+	 */
+	auto get_str(const size_t idx) const;
 
+	/**
+	 * Completely empty line
+	 */
 	void clear();
+
+	/*
+	 * Returns true if nothing was written in this line (also true for pure
+	 * comment lines)
+	 */
 	bool empty() const;
     };
 
+
     /**
-     *
+     * Output stream operator for ParsedLine, mainly for debugging
      */
     std::ostream& operator<<(std::ostream& os, const ParsedLine& line);
 }

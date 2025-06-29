@@ -27,49 +27,21 @@ namespace rewrite {
 	return os;
     }
 
-	//    template<ParsedLine::ParamType pt>
-	//    constexpr auto ParsedLine::get_vector() {
-	// if constexpr (pt == ParamType::Number)
-	//     return &num_params;
-	// else if constexpr (pt == ParamType::Identifier)
-	//     return &id_params;
-	// else
-	//     return &str_params;
-	//    }
-	//
-	//    template<ParsedLine::ParamType pt>
-	//    constexpr auto ParsedLine::get_vector() const {
-	// if constexpr (pt == ParamType::Number)
-	//     return &num_params;
-	// else if constexpr (pt == ParamType::Identifier)
-	//     return &id_params;
-	// else
-	//     return &str_params;
-	//    }
 
-	//    template<ParsedLine::ParamType pt, typename T>
-	//    void ParsedLine::push_param(T val) {
-	// auto	pv = get_vector<pt>();
-	// const auto idx = pv->size();
-	//
-	// sequence.emplace_back(pt, idx);
-	// pv->push_back(val);
-	//    }
+    auto ParsedLine::get_num(const size_t idx) const {
+	return get_param<ParamType::Number, double>(idx);
+    }
 
-	//    template<ParsedLine::ParamType pt, typename T>
-	//    auto ParsedLine::get_param(const size_t idx) const
-	// -> std::expected<T, std::string> {
-	//
-	// if (idx >= sequence.size())
-	//     return std::unexpected{ "Too few parameters" };
-	//
-	// const auto param = sequence[idx];
-	// if (param.first != pt)
-	//     return std::unexpected{ comp_error("Expected ", param_type<pt>(), " at position ", idx) };
-	//
-	// auto pv = get_vector<pt>();
-	// return pv->at(param.second);
-	//    }
+
+    auto ParsedLine::get_id(const size_t idx) const {
+	return get_param<ParamType::Identifier, std::string_view>(idx);
+    }
+
+
+    auto ParsedLine::get_str(const size_t idx) const {
+	return get_param<ParamType::String, std::string_view>(idx);
+    }
+
 
     void ParsedLine::clear() {
 	type = Type::ValueLine;
@@ -80,6 +52,7 @@ namespace rewrite {
 	id_params.clear();
 	named_params.clear();
     }
+
 
     bool ParsedLine::empty() const {
 	return command == "" && sequence.empty();
