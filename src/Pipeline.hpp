@@ -67,6 +67,7 @@ public:
     void printParameters(parameters & param, uint max_id);
 
     bool Init(int argc, char ** argv);
+    bool Init_old(int argc, char ** argv);
 
     void Finish();
 

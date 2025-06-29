@@ -26,8 +26,78 @@
 #include "MathFunctions.hpp"
 
 #include <filesystem>
+#include <string>
 
-bool CPipeline::Init(int argc, char ** argv)
+#include "parser/parsed_line.hpp"
+#include "parser/polaris_parser.hpp"
+
+bool error_handler(const rewrite::Message& msg) {
+    constexpr auto	labels = std::array{
+	"ERROR ", "WARNING ", "INFO " };
+    const std::string	label = labels[std::to_underlying(msg.type)];
+
+    cout << rewrite::msg_color(msg.type, label) << msg.message << endl;
+    return true;
+}
+
+
+bool CPipeline::Init(int argc, char** argv) {
+    end = 0, len = 0;
+    begin = omp_get_wtime();
+    srand(0);		// TODO: WHY? THis does not seem to have any real effects,
+			// because random values later on are also determined
+			// by id of the current thread.
+    
+	//    cout <<
+	// "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+	// "┃                 POLARIS                 ┃\n"
+	//        "┃    ~ polarized radiation simulator ~    ┃\n"
+	//        "┃                                         ┃\n"
+	//        "┃                 4.13.01                 ┃\n"
+	//        "┃                                         ┃\n"
+	//        "┃                                         ┃\n"
+	//        "┃           © 2018 Stefan Reissl          ┃\n"
+	//        "┃                                         ┃\n"
+	// "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n" << endl;
+	//
+    cout << reinterpret_cast<const char*>(
+	"\t+-----------------------------------------+\n"
+	"\t|                 POLARIS                 |\n"
+        "\t|    ~ polarized radiation simulator ~    |\n"
+        "\t|                                         |\n"
+        "\t|                 4.13.01                 |\n"
+        "\t|                                         |\n"
+        "\t|                                         |\n"
+        "\t|          (c)2018 Stefan Reissl          |\n"
+        "\t|                                         |\n"
+	"\t+-----------------------------------------+\n\n") << endl;
+
+    if(argc != 2) {
+        cout << ERROR_LINE << "Wrong amount of arguments!\n";
+        cout << "\tPOLARIS requires only the path of a command file!\n";
+        return false;
+    }
+
+    rewrite::PolarisParser	parser;
+
+    if (const auto res = parser.parse_polaris_cmd(argv[1], error_handler);
+	!res.has_value()) {
+	error_handler(res.error());
+	return false;
+    }
+
+    param_list = std::move(parser.get_param_list());
+
+    if(param_list.empty()) {
+        cout << ERROR_LINE << "No tasks defined!" << endl;
+        return false;
+    }
+
+    return true;
+}
+
+
+bool CPipeline::Init_old(int argc, char ** argv)
 {
     end = 0, len = 0;
     begin = omp_get_wtime();

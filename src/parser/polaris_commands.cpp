@@ -17,11 +17,11 @@ namespace rewrite {
 
 	    std::vector<double>	result;
 
-	    for (auto i = 0; i < str.length(); i++) try {
+	    for (size_t i = 0; i < str.length(); i++) try {
 		std::size_t	read = 0;
 		result.push_back(
 		    std::stod(str.substr(i), &read));
-		i += read + 1;
+		i += read;
 	    }
 	    catch(...) {
 		return std::unexpected{ Message { "Could not read number in named parameter" } };
@@ -195,8 +195,15 @@ namespace rewrite {
 		return std::unexpected{ Message {
 		    "Expected parameter 'nr_photons'" } };
 
-	    const ullong nr_of_photons = std::stoull(
-		std::string{line.named_params["nr_photons"]});
+	    ullong nr_of_photons;
+
+	    try {
+		nr_of_photons = std::stod(std::string{line.named_params["nr_photons"]});
+	    }
+	    catch(...) {
+		return std::unexpected{ Message {
+		    "Could not read number in nr_photons" }};
+	    }
 
 	    if (nr_of_photons <= 0)
 		return std::unexpected{ Message {

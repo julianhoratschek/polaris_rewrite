@@ -51,6 +51,11 @@ SET (SRC_FILES
     Stokes.cpp
     Synchrotron.cpp SyncParameters.cpp
     Vector3D.cpp
+
+    parser/command_parser.cpp
+    parser/polaris_commands.cpp
+    parser/parsed_line.cpp
+    parser/polaris_parser.cpp
 )
 
 ADD_EXECUTABLE (polaris main.cpp ${SRC_FILES})
