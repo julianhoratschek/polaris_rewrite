@@ -6,6 +6,9 @@
 #include "MathFunctions.hpp"
 #include "Faddeeva.hh"
 
+#include <thread>
+#include <chrono>
+
 bool CMathFunctions::isPowerOfTwo(int num)
 {
     return ((num & (num - 1)) == 0);
@@ -537,14 +540,8 @@ double CMathFunctions::getErfi(double x)
     return res;
 }
 
-void CMathFunctions::sleep(int milliseconds)
-{
-#ifdef WINDOWS
-    Sleep(milliseconds);
-#else
-
-    usleep(milliseconds * 1000);
-#endif
+void CMathFunctions::sleep(int milliseconds) {
+    std::this_thread::sleep_for(std::chrono::milliseconds{milliseconds});
 }
 
 double CMathFunctions::integ(const double * x, const double * y, uint xlow, uint xup)

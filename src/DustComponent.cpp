@@ -1677,19 +1677,9 @@ bool CDustComponent::readScatteringMatrices(string path,
         if(error)
             continue;
 
-        // Init characters to create the filename for each wavelength
-        char str_ID_tmp[32];
-        char str_ID_end[32];
-        float tmp_val = 0;
+	const auto str_ID_end = std::format("wID{:03}.sca", w + 1);
 
-        // Set the characters with the current indizes
-        #ifdef WINDOWS
-            strcpy_s(str_ID_tmp, "wID%03d.sca");
-            sprintf_s(str_ID_end, str_ID_tmp, w + 1);
-        #else
-            strcpy(str_ID_tmp, "wID%03d.sca");
-            sprintf(str_ID_end, str_ID_tmp, w + 1);
-        #endif
+        float tmp_val = 0;
 
         // Create the filename
         string bin_filename = path;
@@ -1991,37 +1981,12 @@ bool CDustComponent::writeComponentData(string path_data)
     if(nr_of_wavelength == 0)
         return true;
 
-    // Init character variables to store filenames
-    char str_comp_ID_tmp[1024];
-    char str_comp_ID_end[1024];
-    char str_mix_ID_tmp[1024];
-    char str_mix_ID_end[1024];
-    char str_frac_tmp[1024];
-    char str_frac_end[1024];
+    const auto str_comp_ID_end = std::format("{:03d}", i_component + 1);
+    const auto str_mix_ID_end = std::format("{:03d}", i_mixture + 1);
+    const auto str_frac_end = std::format("{:.05f}", fraction);
 
     // Init strings for various filenames/titles
     string str_title, plot_title;
-
-    // Set the characters with the current indizes
-#ifdef WINDOWS
-    strcpy_s(str_comp_ID_tmp, "%03d");
-    sprintf_s(str_comp_ID_end, str_comp_ID_tmp, i_component + 1);
-
-    strcpy_s(str_mix_ID_tmp, "%03d");
-    sprintf_s(str_mix_ID_end, str_mix_ID_tmp, i_mixture + 1);
-
-    strcpy_s(str_frac_tmp, "%.05f");
-    sprintf_s(str_frac_end, str_frac_tmp, fraction);
-#else
-    strcpy(str_comp_ID_tmp, "%03d");
-    sprintf(str_comp_ID_end, str_comp_ID_tmp, i_component + 1);
-
-    strcpy(str_mix_ID_tmp, "%03d");
-    sprintf(str_mix_ID_end, str_mix_ID_tmp, i_mixture + 1);
-
-    strcpy(str_frac_tmp, "%.05f");
-    sprintf(str_frac_end, str_frac_tmp, fraction);
-#endif
 
     if(is_mixture)
     {
@@ -2167,13 +2132,9 @@ bool CDustComponent::writeComponentPlot(string path_plot)
     if(nr_of_wavelength == 0)
         return true;
 
-    // Init character variables to store filenames
-    char str_comp_ID_tmp[1024];
-    char str_comp_ID_end[1024];
-    char str_mix_ID_tmp[1024];
-    char str_mix_ID_end[1024];
-    char str_frac_tmp[1024];
-    char str_frac_end[1024];
+    const auto str_comp_ID_end = std::format("{:03d}", i_component + 1);
+    const auto str_mix_ID_end = std::format("{:03d}", i_mixture + 1);
+    const auto str_frac_end = std::format("{:.05f}", fraction);
 
     // Init strings for various filenames/titles
     string path_cross, path_eff, path_kappa, path_diff, path_g;
@@ -2183,27 +2144,6 @@ bool CDustComponent::writeComponentPlot(string path_plot)
     // Check if enough points to draw lines
     if(nr_of_wavelength > 1)
         plot_sign = "lines";
-
-        // Set the characters with the current indizes
-#ifdef WINDOWS
-    strcpy_s(str_comp_ID_tmp, "%03d");
-    sprintf_s(str_comp_ID_end, str_comp_ID_tmp, i_component + 1);
-
-    strcpy_s(str_mix_ID_tmp, "%03d");
-    sprintf_s(str_mix_ID_end, str_mix_ID_tmp, i_mixture + 1);
-
-    strcpy_s(str_frac_tmp, "%.05f");
-    sprintf_s(str_frac_end, str_frac_tmp, fraction);
-#else
-    strcpy(str_comp_ID_tmp, "%03d");
-    sprintf(str_comp_ID_end, str_comp_ID_tmp, i_component + 1);
-
-    strcpy(str_mix_ID_tmp, "%03d");
-    sprintf(str_mix_ID_end, str_mix_ID_tmp, i_mixture + 1);
-
-    strcpy(str_frac_tmp, "%.05f");
-    sprintf(str_frac_end, str_frac_tmp, fraction);
-#endif
 
     if(is_mixture)
     {
@@ -7415,21 +7355,7 @@ void CDustComponent::createStringID(CDustComponent * comp)
         fraction_string = "dust-to-gas mass ratio";
     }
 
-    // Fill the string with various parameters and format it
-    char tmp_str[1024];
-#ifdef WINDOWS
-    sprintf_s(tmp_str,
-                "- %s\n    %s: %g, size distr. : \"%s\" (%s), size: %g [m] - %g [m]\n",
-                comp->getStringID().c_str(),
-                fraction_string.c_str(),
-                fraction,
-                comp->getDustSizeKeyword().c_str(),
-                comp->getDustSizeParameterString().c_str(),
-                comp->getSizeMin(),
-                comp->getSizeMax());
-#else
-    sprintf(tmp_str,
-            "- %s\n    %s: %g, size distr. : \"%s\" (%s), size: %g [m] - %g [m]\n",
+    const auto tmp_str = std::format("- {}\n    {}: {:g}, size distr. : \"{}\" ({}), size: {:g} [m] - {:g} [m]\n",
             comp->getStringID().c_str(),
             fraction_string.c_str(),
             fraction,
@@ -7437,7 +7363,6 @@ void CDustComponent::createStringID(CDustComponent * comp)
             comp->getDustSizeParameterString().c_str(),
             comp->getSizeMin(),
             comp->getSizeMax());
-#endif
 
     // Add formatted string to stream
     str_stream << tmp_str;

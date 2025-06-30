@@ -14,6 +14,8 @@
 #include "OPIATE.hpp"
 #include <CCfits/CCfits>
 
+#include <filesystem>
+
 class CDetector
 {
 public:

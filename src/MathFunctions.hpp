@@ -104,7 +104,7 @@ public:
 
     static double getErfi(double x);
 
-    void sleep(int milliseconds);
+    [[maybe_unused]] void sleep(int milliseconds);
 
     static double integ(const double * x, const double * y, uint xlow, uint xup);
 

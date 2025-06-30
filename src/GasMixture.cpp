@@ -661,18 +661,7 @@ void CGasMixture::printParameters(parameters & param, CGridBasic * grid)
                         // Calculate the quantum number of the lower energy level
                         float sublvl_l = -getMaxMLower(i_species, i_trans) + i_sublvl_l;
 
-                        char LineStrengthTmp[16];
-#ifdef WINDOWS
-                        _snprintf_s(LineStrengthTmp,
-                                    sizeof(LineStrengthTmp),
-                                    "%.3f",
-                                    getLineStrength(i_species, i_trans, i_sublvl_u, i_sublvl_l));
-#else
-                        snprintf(LineStrengthTmp,
-                                 sizeof(LineStrengthTmp),
-                                 "%.3f",
-                                 getLineStrength(i_species, i_trans, i_sublvl_u, i_sublvl_l));
-#endif
+			const auto LineStrengthTmp = std::format("{:.3f}", getLineStrength(i_species, i_trans, i_sublvl_u, i_sublvl_l));
 
                         // Use the correct propagation matrix and relative line strength that
                         // depends on the current type of Zeeman transition (pi, sigma_-, sigma_+)

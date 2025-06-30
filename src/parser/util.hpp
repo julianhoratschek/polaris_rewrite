@@ -6,6 +6,7 @@
 
 
 namespace rewrite {
+
     /**
      * Helper function to create error strings
      * @tparam Args arguments to add to `msg`

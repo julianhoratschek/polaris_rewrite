@@ -714,9 +714,7 @@ public:
     bool writeAMIRAFiles(string path, parameters & param, uint bins);
     bool writeMidplaneFits(string data_path, parameters & param, uint bins, bool all = false);
 
-    void updateMidplaneString(char * str_1, char * str_2, uint counter);
-
-    string getDensityString(string quantity, uint counter);
+    void updateMidplaneString(std::string& str_1, std::string& str_2, uint counter);
 
     virtual bool saveBinaryGridFile(string filename) = 0;
 

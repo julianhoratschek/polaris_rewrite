@@ -5,6 +5,12 @@
 
 #include "Detector.hpp"
 
+
+constexpr auto stokes_label = std::array{
+    "I_STOKES ", "Q_STOKES ", "U_STOKES ", "V_STOKES "
+};
+
+
 // Dust scattering detector
 void CDetector::init(string _path,
                      uint _bins_x,
@@ -507,25 +513,16 @@ bool CDetector::writeMap(uint nr, uint results_type)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
         nr++;
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "polaris_detector_nr%04d");
-        sprintf_s(str_end, str_tmp, nr);
-#else
-        strcpy(str_tmp, "polaris_detector_nr%04d");
-        sprintf(str_end, str_tmp, nr);
-#endif
-
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	const auto path_out = std::filesystem::path{path}
+	    / std::format("polaris_detector_nr{:04}{}", nr, FITS_COMPRESS_EXT);
+	std::filesystem::remove(path_out);
 
         long naxis = 4;
         long naxes[4] = { bins_x, bins_y, nr_spectral_bins, 6 * nr_extra };
 
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -708,15 +705,8 @@ bool CDetector::writeMap(uint nr, uint results_type)
     {
         for(uint i_spectral = 0; i_spectral < nr_spectral_bins; i_spectral++)
         {
-            char str_1[1024];
-            char str_2[1024];
-#ifdef WINDOWS
-            sprintf_s(str_1, "WAVELENGTH%i", i_spectral + 1);
-            sprintf_s(str_2, "value of %i. wavelength", i_spectral + 1);
-#else
-            sprintf(str_1, "WAVELENGTH%i", i_spectral + 1);
-            sprintf(str_2, "value of %i. wavelength", i_spectral + 1);
-#endif
+	    const auto str_1 = std::format("WAVELENGTH{}", i_spectral + 1);
+	    const auto str_2 = std::format("value of {}. wavelength", i_spectral + 1);
             pFits->pHDU().addKey(str_1, wavelength_list_det[i_spectral], str_2);
         }
     }
@@ -747,25 +737,16 @@ bool CDetector::writeMapStats(uint nr, uint results_type)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
         nr++;
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "polaris_detector_nr%04d_stats");
-        sprintf_s(str_end, str_tmp, nr);
-#else
-        strcpy(str_tmp, "polaris_detector_nr%04d_stats");
-        sprintf(str_end, str_tmp, nr);
-#endif
-
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	const auto path_out = std::filesystem::path{path}
+	    / std::format("polaris_detector_nr{:04}_stats{}", nr, FITS_COMPRESS_EXT);
+	std::filesystem::remove(path_out);
 
         long naxis = 4;
         long naxes[4] = { bins_x, bins_y, nr_spectral_bins, 11 * nr_extra };
 
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -942,15 +923,8 @@ bool CDetector::writeMapStats(uint nr, uint results_type)
     {
         for(uint i_spectral = 0; i_spectral < nr_spectral_bins; i_spectral++)
         {
-            char str_1[1024];
-            char str_2[1024];
-#ifdef WINDOWS
-            sprintf_s(str_1, "WAVELENGTH%i", i_spectral + 1);
-            sprintf_s(str_2, "value of %i. wavelength", i_spectral + 1);
-#else
-            sprintf(str_1, "WAVELENGTH%i", i_spectral + 1);
-            sprintf(str_2, "value of %i. wavelength", i_spectral + 1);
-#endif
+	    const auto str_1 = std::format("WAVELENGTH{}", i_spectral + 1);
+	    const auto str_2 = std::format("value of {}. wavelength", i_spectral + 1);
             pFits->pHDU().addKey(str_1, wavelength_list_det[i_spectral], str_2);
         }
     }
@@ -981,24 +955,17 @@ bool CDetector::writeSed(uint nr, uint results_type)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
         nr++;
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "polaris_detector_nr%04d_sed");
-        sprintf_s(str_end, str_tmp, nr);
-#else
-        strcpy(str_tmp, "polaris_detector_nr%04d_sed");
-        sprintf(str_end, str_tmp, nr);
-#endif
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("polaris_detector_nr{:04}_sed{}", nr, FITS_COMPRESS_EXT);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	std::filesystem::remove(path_out, ec);
 
         long naxis = 3;
         long naxes[3] = { nr_spectral_bins, nr_extra, 5 };
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -1079,15 +1046,8 @@ bool CDetector::writeSed(uint nr, uint results_type)
     {
         for(uint i_spectral = 0; i_spectral < nr_spectral_bins; i_spectral++)
         {
-            char str_1[1024];
-            char str_2[1024];
-#ifdef WINDOWS
-            sprintf_s(str_1, "WAVELENGTH%i", i_spectral + 1);
-            sprintf_s(str_2, "value of %i. wavelength", i_spectral + 1);
-#else
-            sprintf(str_1, "WAVELENGTH%i", i_spectral + 1);
-            sprintf(str_2, "value of %i. wavelength", i_spectral + 1);
-#endif
+	    const auto str_1 = std::format("WAVELENGTH{}", i_spectral + 1);
+	    const auto str_2 = std::format("value of {}. wavelength", i_spectral + 1);
             pFits->pHDU().addKey(str_1, wavelength_list_det[i_spectral], str_2);
         }
     }
@@ -1135,24 +1095,17 @@ bool CDetector::writeHealMaps(uint nr, uint results_type)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
         nr++;
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "polaris_detector_nr%04d");
-        sprintf_s(str_end, str_tmp, nr);
-#else
-        strcpy(str_tmp, "polaris_detector_nr%04d");
-        sprintf(str_end, str_tmp, nr);
-#endif
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("polaris_detector_nr{:04}{}", nr, FITS_COMPRESS_EXT);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	std::filesystem::remove(path_out, ec);
 
         long naxis = 1;
         long naxes[1] = { 0 };
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -1175,37 +1128,10 @@ bool CDetector::writeHealMaps(uint nr, uint results_type)
 
     for(uint i_spectral = 0; i_spectral < nr_spectral_bins; i_spectral++)
     {
-        char str_1[1024];
-#ifdef WINDOWS
-        sprintf_s(str_1, "I_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#else
-        sprintf(str_1, "I_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#endif
-        colName[nr_of_quantities * i_spectral + 0] = str_1;
-#ifdef WINDOWS
-        sprintf_s(str_1, "Q_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#else
-        sprintf(str_1, "Q_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#endif
-        colName[nr_of_quantities * i_spectral + 1] = str_1;
-#ifdef WINDOWS
-        sprintf_s(str_1, "U_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#else
-        sprintf(str_1, "U_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#endif
-        colName[nr_of_quantities * i_spectral + 2] = str_1;
-#ifdef WINDOWS
-        sprintf_s(str_1, "V_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#else
-        sprintf(str_1, "V_STOKES (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#endif
-        colName[nr_of_quantities * i_spectral + 3] = str_1;
-#ifdef WINDOWS
-        sprintf_s(str_1, "OPTICAL_DEPTH (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#else
-        sprintf(str_1, "OPTICAL_DEPTH (WAVELENGTH = %e [m])", wavelength_list_det[i_spectral]);
-#endif
-        colName[nr_of_quantities * i_spectral + 4] = str_1;
+	const auto wl_str = std::format("(WAVELENGTH = {:e} [m])", wavelength_list_det[i_spectral]);
+	for (size_t i = 0; i < stokes_label.size(); i++)
+	    colName[nr_of_quantities * i_spectral + i] = stokes_label[i] + wl_str;
+	colName[nr_of_quantities * i_spectral + stokes_label.size()] = string{"OPTICAL_DEPTH "} + wl_str;
 
         colForm[nr_of_quantities * i_spectral + 0] = "D";
         colForm[nr_of_quantities * i_spectral + 1] = "D";
@@ -1310,24 +1236,17 @@ bool CDetector::writeSyncMap(uint nr)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
         nr++;
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "polaris_detector_nr%04d");
-        sprintf_s(str_end, str_tmp, nr);
-#else
-        strcpy(str_tmp, "polaris_detector_nr%04d");
-        sprintf(str_end, str_tmp, nr);
-#endif
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("polaris_detector_nr{:04}{}", nr, FITS_COMPRESS_EXT);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	std::filesystem::remove(path_out, ec);
 
         long naxis = 4;
         long naxes[4] = { bins_x, bins_y, nr_spectral_bins, 6 * nr_extra };
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -1484,15 +1403,8 @@ bool CDetector::writeSyncMap(uint nr)
 
     for(uint i_spectral = 0; i_spectral < nr_spectral_bins; i_spectral++)
     {
-        char str_1[1024];
-        char str_2[1024];
-#ifdef WINDOWS
-        sprintf_s(str_1, "WAVELENGTH%i", i_spectral + 1);
-        sprintf_s(str_2, "value of %i. wavelength", i_spectral + 1);
-#else
-        sprintf(str_1, "WAVELENGTH%i", i_spectral + 1);
-        sprintf(str_2, "value of %i. wavelength", i_spectral + 1);
-#endif
+	const auto str_1 = std::format("WAVELENGTH{}", i_spectral + 1);
+	const auto str_2 = std::format("value of {}. wavelength", i_spectral + 1);
         pFits->pHDU().addKey(str_1, wavelength_list_det[i_spectral], str_2);
     }
     pFits->pHDU().addKey("DISTANCE", distance, "distance to object");
@@ -1518,24 +1430,17 @@ bool CDetector::writeSyncHealMap(uint nr)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
         nr++;
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "polaris_detector_nr%04d");
-        sprintf_s(str_end, str_tmp, nr);
-#else
-        strcpy(str_tmp, "polaris_detector_nr%04d");
-        sprintf(str_end, str_tmp, nr);
-#endif
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("polaris_detector_nr{:04}{}", nr, FITS_COMPRESS_EXT);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	std::filesystem::remove(path_out, ec);
 
         long naxis = 1;
         long naxes[1] = { 0 };
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -1564,68 +1469,13 @@ bool CDetector::writeSyncHealMap(uint nr)
     {
         for(uint i_spectral = 0; i_spectral < nr_spectral_bins; i_spectral++)
         {
-            uint id = i_electrons * nr_of_quantities * nr_spectral_bins + nr_of_quantities * i_spectral;
-            char str_1[1024];
-#ifdef WINDOWS
-            sprintf_s(str_1,
-                        "I_STOKES (WAVELENGTH = %e [m], %s)",
-                        wavelength_list_det[i_spectral],
-                        e_description[i_electrons].c_str());
-#else
-            sprintf(str_1,
-                    "I_STOKES (WAVELENGTH = %e [m], %s)",
-                    wavelength_list_det[i_spectral],
-                    e_description[i_electrons].c_str());
-#endif
-            colName[id + 0] = str_1;
-#ifdef WINDOWS
-            sprintf_s(str_1,
-                        "Q_STOKES (WAVELENGTH = %e [m], %s)",
-                        wavelength_list_det[i_spectral],
-                        e_description[i_electrons].c_str());
-#else
-            sprintf(str_1,
-                    "Q_STOKES (WAVELENGTH = %e [m], %s)",
-                    wavelength_list_det[i_spectral],
-                    e_description[i_electrons].c_str());
-#endif
-            colName[id + 1] = str_1;
-#ifdef WINDOWS
-            sprintf_s(str_1,
-                        "U_STOKES (WAVELENGTH = %e [m], %s)",
-                        wavelength_list_det[i_spectral],
-                        e_description[i_electrons].c_str());
-#else
-            sprintf(str_1,
-                    "U_STOKES (WAVELENGTH = %e [m], %s)",
-                    wavelength_list_det[i_spectral],
-                    e_description[i_electrons].c_str());
-#endif
-            colName[id + 2] = str_1;
-#ifdef WINDOWS
-            sprintf_s(str_1,
-                        "V_STOKES (WAVELENGTH = %e [m], %s)",
-                        wavelength_list_det[i_spectral],
-                        e_description[i_electrons].c_str());
-#else
-            sprintf(str_1,
-                    "V_STOKES (WAVELENGTH = %e [m], %s)",
-                    wavelength_list_det[i_spectral],
-                    e_description[i_electrons].c_str());
-#endif
-            colName[id + 3] = str_1;
-#ifdef WINDOWS
-            sprintf_s(str_1,
-                        "FARADY ROTATION (WAVELENGTH = %e [m], %s)",
-                        wavelength_list_det[i_spectral],
-                        e_description[i_electrons].c_str());
-#else
-            sprintf(str_1,
-                    "WAVELENGTH^2*FARADY_ROTATION (WAVELENGTH = %e [m], %s)",
-                    wavelength_list_det[i_spectral],
-                    e_description[i_electrons].c_str());
-#endif
-            colName[id + 4] = str_1;
+	    const auto wl_str = std::format("(WAVELENGTH = {:e} [m], {})", wavelength_list_det[i_spectral], e_description[i_electrons]);
+            const uint id = i_electrons * nr_of_quantities * nr_spectral_bins + nr_of_quantities * i_spectral;
+
+	    for (size_t i = 0; i < stokes_label.size(); i++)
+		colName[id + i] = stokes_label[i] + wl_str;
+
+	    colName[id + stokes_label.size()] = string{"WAVELENGTH^2*FARADY_ROTATION "} + wl_str;
 
             colForm[id + 0] = "D";
             colForm[id + 1] = "D";
@@ -1639,13 +1489,8 @@ bool CDetector::writeSyncHealMap(uint nr)
             colUnit[id + 3] = "Jy/px";
             colUnit[id + 4] = "rad";
         }
-        char str_1[1024];
-#ifdef WINDOWS
-        sprintf_s(str_1, "COLUMN_DENSITY (%s)", e_description[i_electrons].c_str());
-#else
-        sprintf(str_1, "COLUMN_DENSITY (%s)", e_description[i_electrons].c_str());
-#endif
-        colName[2 * nr_of_quantities * nr_spectral_bins + i_electrons] = str_1;
+
+        colName[2 * nr_of_quantities * nr_spectral_bins + i_electrons] = std::format("COLUMN_DENSITY ({})", e_description[i_electrons]);
         colForm[2 * nr_of_quantities * nr_spectral_bins + i_electrons] = "D";
         colUnit[2 * nr_of_quantities * nr_spectral_bins + i_electrons] = "m^-2";
     }
@@ -1731,23 +1576,15 @@ bool CDetector::writeLineSpectrum(CGasMixture * gas, uint i_species, uint i_line
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("line_spectrum_species_{:04}_line_{:04}{}", i_species + 1, i_line + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "line_spectrum_species_%04d_line_%04d");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "line_spectrum_species_%04d_line_%04d");
-        sprintf(str_end, str_tmp, i_species + 1, i_line + 1);
-#endif
-
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	std::filesystem::remove(path_out, ec);
 
         long naxis = 3;
         long naxes[3] = { nr_spectral_bins, 1, 5 };
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -1838,23 +1675,15 @@ bool CDetector::writeOPIATESpectrum(COpiateDataBase *op, uint det_id)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("opiate_spectrum{:04}{}", det_id + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "line_spectrum_species_%04d_line_%04d");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "opiate_spectrum_%04d");
-        sprintf(str_end, str_tmp, det_id+1);
-#endif
-
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
+	std::filesystem::remove(path_out, ec);
 
         long naxis = 3;
         long naxes[3] = { nr_spectral_bins, 1, 5 };
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -1940,20 +1769,13 @@ bool CDetector::writeOPIATEVelChannelMaps(COpiateDataBase * op, uint det_id)
 
         try
         {
-            char str_tmp[1024];
-            char str_end[1024];
+	    std::error_code 	ec;
+	    const auto 		path_out = std::filesystem::path{path} /
+		std::format("opiate_channel_map_{:04}_vel_{:04}{}", det_id + 1, i_spectral + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-            strcpy(str_tmp, "opiate_channel_map_%04d");
-            sprintf(str_end, str_tmp, det_id);
-#else
-            strcpy(str_tmp, "opiate_channel_map_%04d_vel_%04d");
-            sprintf(str_end, str_tmp, det_id+1, i_spectral+1);
-#endif
+	    std::filesystem::remove(path_out, ec);
 
-            string path_out = path + str_end + FITS_COMPRESS_EXT;
-            remove(path_out.c_str());
-            pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+            pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
         }
         catch(CCfits::FITS::CantCreate)
         {
@@ -2116,20 +1938,13 @@ bool CDetector::writeOPIATEVelChannelMaps(COpiateDataBase * op, uint det_id)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("opiate_channel_map{:04}_extra{}", det_id + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_extra");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "opiate_channel_map_%04d_extra");
-        sprintf(str_end, str_tmp, det_id+1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -2319,20 +2134,13 @@ bool CDetector::writeOPIATEIntChannelMaps(COpiateDataBase * op, uint det_id)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("opiate_int_map__{:04}{}", det_id + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "int_channel_map_species_%04d_line_%04d");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "opiate_int_map__%04d");
-        sprintf(str_end, str_tmp, det_id+1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -2514,20 +2322,13 @@ bool CDetector::writeVelChannelMaps(CGasMixture * gas, uint i_species, uint i_li
 
         try
         {
-            char str_tmp[1024];
-            char str_end[1024];
+	    std::error_code 	ec;
+	    const auto 		path_out = std::filesystem::path{path} /
+		std::format("vel_channel_maps_species_{:04}_line_{:04}_vel_{:04}{}", i_species + 1, i_line + 1, i_spectral + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-            strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_vel_%04d");
-            sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1, i_spectral + 1);
-#else
-            strcpy(str_tmp, "vel_channel_maps_species_%04d_line_%04d_vel_%04d");
-            sprintf(str_end, str_tmp, i_species + 1, i_line + 1, i_spectral + 1);
-#endif
+	    std::filesystem::remove(path_out, ec);
 
-            string path_out = path + str_end + FITS_COMPRESS_EXT;
-            remove(path_out.c_str());
-            pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+            pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
         }
         catch(CCfits::FITS::CantCreate)
         {
@@ -2705,20 +2506,13 @@ bool CDetector::writeVelChannelMaps(CGasMixture * gas, uint i_species, uint i_li
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("vel_channel_maps_species_{:04}_line_{:04}_extra{}", i_species + 1, i_line + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_extra");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "vel_channel_maps_species_%04d_line_%04d_extra");
-        sprintf(str_end, str_tmp, i_species + 1, i_line + 1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -2928,20 +2722,13 @@ bool CDetector::writeIntChannelMaps(CGasMixture * gas, uint i_species, uint i_li
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("int_channel_map_species_{:04}_line_{:04}{}", i_species + 1, i_line + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "int_channel_map_species_%04d_line_%04d");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "int_channel_map_species_%04d_line_%04d");
-        sprintf(str_end, str_tmp, i_species + 1, i_line + 1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -3224,20 +3011,13 @@ bool CDetector::writeOPIATEVelChannelHealMaps(COpiateDataBase * op, uint det_id)
 
         try
         {
-            char str_tmp[1024];
-            char str_end[1024];
+	    std::error_code 	ec;
+	    const auto 		path_out = std::filesystem::path{path} /
+		std::format("opiate_channel_map{:04}_vel_{:04}{}", det_id + 1, i_spectral + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-            strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_vel_%04d");
-            sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1, i_spectral + 1);
-#else
-            strcpy(str_tmp, "opiate_channel_map_%04d_vel_%04d");
-            sprintf(str_end, str_tmp, det_id+1, i_spectral+1);
-#endif
+	    std::filesystem::remove(path_out, ec);
 
-            string path_out = path + str_end + FITS_COMPRESS_EXT;
-            remove(path_out.c_str());
-            pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+            pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
         }
         catch(CCfits::FITS::CantCreate)
         {
@@ -3340,20 +3120,13 @@ bool CDetector::writeOPIATEVelChannelHealMaps(COpiateDataBase * op, uint det_id)
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("opiate_map_{:04}_extra{}", det_id, FITS_COMPRESS_EXT); // Not det_id + 1?
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_extra");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "opiate_map_%04d_extra");
-        sprintf(str_end, str_tmp, det_id);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
 
     catch(CCfits::FITS::CantCreate)
@@ -3478,20 +3251,13 @@ bool CDetector::writeVelChannelHealMaps(CGasMixture * gas, uint i_species, uint 
 
         try
         {
-            char str_tmp[1024];
-            char str_end[1024];
+	    std::error_code 	ec;
+	    const auto 		path_out = std::filesystem::path{path} /
+		std::format("vel_channel_maps_species_{:04}_line_{:04}_vel{:04}{}", i_species + 1, i_line + 1, i_spectral + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-            strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_vel_%04d");
-            sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1, i_spectral + 1);
-#else
-            strcpy(str_tmp, "vel_channel_maps_species_%04d_line_%04d_vel_%04d");
-            sprintf(str_end, str_tmp, i_species + 1, i_line + 1, i_spectral + 1);
-#endif
+	    std::filesystem::remove(path_out, ec);
 
-            string path_out = path + str_end + FITS_COMPRESS_EXT;
-            remove(path_out.c_str());
-            pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+            pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
         }
         catch(CCfits::FITS::CantCreate)
         {
@@ -3606,20 +3372,13 @@ bool CDetector::writeVelChannelHealMaps(CGasMixture * gas, uint i_species, uint 
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("vel_channel_maps_species_{:04}_line_{:04}_extra{}", i_species + 1, i_line + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "vel_channel_maps_species_%04d_line_%04d_extra");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "vel_channel_maps_species_%04d_line_%04d_extra");
-        sprintf(str_end, str_tmp, i_species + 1, i_line + 1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
 
     catch(CCfits::FITS::CantCreate)
@@ -3774,20 +3533,13 @@ bool CDetector::writeOPIATEIntVelChannelHealMaps(COpiateDataBase * op, uint det_
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("opiate_int_map__{:04}{}", det_id + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "int_channel_map_species_%04d_line_%04d");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "opiate_int_map__%04d");
-        sprintf(str_end, str_tmp, det_id+1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {
@@ -3911,20 +3663,13 @@ bool CDetector::writeIntVelChannelHealMaps(CGasMixture * gas, uint i_species, ui
 
     try
     {
-        char str_tmp[1024];
-        char str_end[1024];
+	std::error_code 	ec;
+	const auto 		path_out = std::filesystem::path{path} /
+	    std::format("int_channel_map_species_{:04}_line_{:04}{}", i_species + 1, i_line + 1, FITS_COMPRESS_EXT);
 
-#ifdef WINDOWS
-        strcpy_s(str_tmp, "int_channel_map_species_%04d_line_%04d");
-        sprintf_s(str_end, str_tmp, i_species + 1, i_line + 1);
-#else
-        strcpy(str_tmp, "int_channel_map_species_%04d_line_%04d");
-        sprintf(str_end, str_tmp, i_species + 1, i_line + 1);
-#endif
+	std::filesystem::remove(path_out, ec);
 
-        string path_out = path + str_end + FITS_COMPRESS_EXT;
-        remove(path_out.c_str());
-        pFits.reset(new CCfits::FITS(path_out, DOUBLE_IMG, naxis, naxes));
+        pFits.reset(new CCfits::FITS(path_out.string(), DOUBLE_IMG, naxis, naxes));
     }
     catch(CCfits::FITS::CantCreate)
     {

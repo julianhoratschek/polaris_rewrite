@@ -369,26 +369,26 @@ using namespace std;
     "   \r"
 #define TAB "\t"
 
-#ifdef WINDOWS
-#include <direct.h>
-#include <io.h>
-#include <string>
-#include <windows.h>
-#define SEP "\\"
-#define LINE_DELAY 5
-#pragma warning(disable : 4566)
-#else
-#include <cmath>
-#include <stdlib.h>
-#include <string.h>
-//	#include <asm/io.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+// #ifdef WINDOWS
+// #include <direct.h>
+// #include <io.h>
+// #include <string>
+// #include <windows.h>
+// #define SEP "\\"
+// #define LINE_DELAY 5
+// #pragma warning(disable : 4566)
+// #else
+// #include <cmath>
+// #include <stdlib.h>
+// #include <string.h>
+// //	#include <asm/io.h>
+// #include <stdio.h>
+// #include <sys/stat.h>
+// #include <sys/types.h>
+// #include <unistd.h>
 #define SEP "/"
 #define LINE_DELAY 5
-#endif
+// #endif
 
 // the following are terminal color codes for Unix systems
 #define RESET   "\033[0m"

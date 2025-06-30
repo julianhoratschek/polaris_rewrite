@@ -11,6 +11,9 @@
 
 namespace rewrite {
 
+    /**
+     * Return-value for parsers containing a message and a thread-level
+     */
     struct Message {
 	enum class Type: unsigned char {
 	    Error, Warning, Info
@@ -20,10 +23,18 @@ namespace rewrite {
 	Type			type{ Type::Error };
     };
 
+
+    /**
+     * Simple output operator for `Message`
+     */
     inline std::ostream& operator<<(std::ostream& os, const Message& msg) {
 	return os << msg.message;
     }
 
+
+    /**
+     * Return Escape coded coloured text depending on `color` value.
+     */
     template<typename T>
     std::string msg_color(const Message::Type color, const T& msg) {
 	std::string	col;

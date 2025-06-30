@@ -3,6 +3,7 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
+#include <string>
 #include <valarray>
 #include "CCfits/FITS.h"
 #include "CCfits/FITSUtilT.h"
@@ -2434,8 +2435,8 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
     }
 
     uint counter = 0;
-    char str_1[1024];
-    char str_2[1024];
+    std::string		str_1, str_2;
+
     if(plt_gas_dens)
     {
         counter++;
@@ -2452,9 +2453,9 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
                 updateMidplaneString(str_1, str_2, counter);
                 string str_3;
                 if(gas_is_mass_density)
-                    str_3 = getDensityString("gas_mass_density_%i [kg/m^3]", i_density);
+                    str_3 = std::format("gas_mass_density_{} [kg/m^3]", i_density);
                 else
-                    str_3 = getDensityString("gas_number_density_%i [m^-3]", i_density);
+                    str_3 = std::format("gas_number_density_{} [m^-3]", i_density);
                 pFits->pHDU().addKey(str_1, str_3, str_2);
             }
         }
@@ -2476,9 +2477,9 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
             updateMidplaneString(str_1, str_2, counter);
             string str_3;
             if(gas_is_mass_density)
-                str_3 = getDensityString("mol_mass_density_%i [kg/m^3]", i_density);
+                str_3 = std::format("mol_mass_density_{} [kg/m^3]", i_density);
             else
-                str_3 = getDensityString("mol_number_density_%i [m^-3]", i_density);
+                str_3 = std::format("mol_number_density_{} [m^-3]", i_density);
             pFits->pHDU().addKey(str_1, str_3, str_2);
         }
     }
@@ -2498,9 +2499,9 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
                 updateMidplaneString(str_1, str_2, counter);
                 string str_3;
                 if(dust_is_mass_density)
-                    str_3 = getDensityString("dust_mass_density_%i [kg/m^3]", i_density);
+                    str_3 = std::format("dust_mass_density_{} [kg/m^3]", i_density);
                 else
-                    str_3 = getDensityString("dust_number_density_%i [m^-3]", i_density);
+                    str_3 = std::format("dust_number_density_{} [m^-3]", i_density);
                 pFits->pHDU().addKey(str_1, str_3, str_2);
             }
         }
@@ -2529,7 +2530,7 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
             {
                 counter++;
                 updateMidplaneString(str_1, str_2, counter);
-                string str_3 = getDensityString("dust_temperature_%i [K]", i_density);
+                string str_3 = std::format("dust_temperature_{} [K]", i_density);
                 pFits->pHDU().addKey(str_1, str_3, str_2);
             }
         }
@@ -2543,7 +2544,7 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
             {
                 counter++;
                 updateMidplaneString(str_1, str_2, counter);
-                string str_3 = getDensityString("rat_aalig_%i [m]", i_density);
+                string str_3 = std::format("rat_aalig_{} [m]", i_density);
                 pFits->pHDU().addKey(str_1, str_3, str_2);
             }
         else
@@ -2631,44 +2632,16 @@ bool CGridBasic::writeMidplaneFits(string data_path, parameters & param, uint bi
         {
             for(uint wID = 0; wID < WL_STEPS; wID++)
             {
+		constexpr auto dimension = std::array{
+		    "", "_x", "_y", "_z"
+		};
+
                 counter++;
                 updateMidplaneString(str_1, str_2, counter);
-                char str_3[1024];
-                switch(i_comp)
-                {
-                    default:
-#ifdef WINDOWS
-                        sprintf_s(str_3, "rad_field [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#else
-                        sprintf(str_3, "rad_field [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#endif
-                        break;
 
-                    case 1:
-#ifdef WINDOWS
-                        sprintf_s(str_3, "rad_field_x [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#else
-                        sprintf(str_3, "rad_field_x [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#endif
-                        break;
-
-                    case 2:
-#ifdef WINDOWS
-                        sprintf_s(str_3, "rad_field_y [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#else
-                        sprintf(str_3, "rad_field_y [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#endif
-                        break;
-
-                    case 3:
-#ifdef WINDOWS
-                        sprintf_s(str_3, "rad_field_z [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#else
-                        sprintf(str_3, "rad_field_z [W/m/m^2] (%.3e [m])", wl_list[wID]);
-#endif
-                        break;
-                }
-                pFits->pHDU().addKey(str_1, string(str_3), str_2);
+		const auto str_3 = std::format("rad_field{} [W/m/m^2] ({:.3e} [m])",
+		    i_comp < 4 ? dimension[i_comp] : "", wl_list[wID]);
+                pFits->pHDU().addKey(str_1, str_3, str_2);
             }
         }
     }
@@ -4423,27 +4396,9 @@ void CGridBasic::fillMidplaneBuffer(double tx, double ty, double tz, uint i_cell
     }
 }
 
-void CGridBasic::updateMidplaneString(char * str_1, char * str_2, uint counter)
-{
-#ifdef WINDOWS
-    sprintf_s(str_1, "MIDPLANE%i", counter);
-    sprintf_s(str_2, "quantity of %i. image", counter);
-#else
-    sprintf(str_1, "MIDPLANE%i", counter);
-    sprintf(str_2, "quantity of %i. image", counter);
-#endif
-}
-
-string CGridBasic::getDensityString(string quantity, uint counter)
-{
-    char str_char[256];
-#ifdef WINDOWS
-    sprintf_s(str_char, quantity.c_str(), counter);
-#else
-    sprintf(str_char, quantity.c_str(), counter);
-#endif
-    string tmp_str(str_char);
-    return tmp_str;
+void CGridBasic::updateMidplaneString(std::string& str_1, std::string& str_2, const uint counter) {
+    str_1 = std::format("MIDPLANE{}", counter);
+    str_2 = std::format("quantity of {}. image", counter);
 }
 
 double CGridBasic::getVolume(const photon_package & pp) const
