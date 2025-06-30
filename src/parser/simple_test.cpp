@@ -19,28 +19,36 @@ bool error_msg(const rewrite::Message& msg) {
 
 
 int main() {
-    const string	filename{"./src/parser/small.cmd"};
+    const filesystem::path 		path{"./src/parser/cmd/"};
 
-    cout << "New Parser" << endl;
-    rewrite::PolarisParser	parser;
+    for(const auto& filename: filesystem::directory_iterator(path)) {
+	cout << endl << endl << "----------------------------------" << endl << endl;
+	cout << "Current Test: " << filename.path() << endl << endl;
 
-    if (const auto e = parser.parse_polaris_cmd(
-	filename, error_msg); !e)
-	error_msg(e.error());
+	cout << "New Parser" << endl;
+	rewrite::PolarisParser	parser;
 
-    cout << endl << "--------------------------------" << endl << endl;
+	if (const auto e = parser.parse_polaris_cmd(
+	    filename.path().string(), error_msg); !e)
+	    error_msg(e.error());
 
-    cout << "Old Parser" << endl;
-    CCommandParser		old_parser(filename);
+	cout << endl << "--------------------------------" << endl << endl;
 
-    if (!old_parser.parse())
-	cout << "Error parsing" << endl;
+	cout << "Old Parser" << endl;
+	CCommandParser		old_parser(filename.path().string());
 
-    auto	new_list = parser.get_param_list(),
-		old_list = old_parser.getParameterList();
+	if (!old_parser.parse())
+	    cout << "Error parsing" << endl;
 
-    for(int i=0;i<new_list.size();i++)
-	cout << '[' << i << "]: " << new_list[i].compare(old_list[i]) << endl;
+	auto	new_list = parser.get_param_list(),
+		    old_list = old_parser.getParameterList();
+
+	for(int i=0;i<new_list.size();i++) {
+	    cout << "Start: " << new_list[i].getStart() << " " << old_list[i].getStart() << endl;
+	    cout << "Stop: " << new_list[i].getStop() << " " << old_list[i].getStop() << endl;
+	    cout << '[' << i << "]: " << new_list[i].compare(old_list[i]) << endl;
+	}
+    }
 
     return 0;
 }

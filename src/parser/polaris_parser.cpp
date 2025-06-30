@@ -114,7 +114,7 @@ namespace rewrite {
 		start = 0;
 
 	    if (stop >= sz)
-		stop = sz > 0 ? sz - 1 : 0;
+		stop = sz == 0 ? 0 : sz - 1;
 
 	    p.setStart(start);
 	    p.setStop(stop);

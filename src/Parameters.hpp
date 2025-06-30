@@ -719,9 +719,9 @@ public:
 
     size_t getDetectorSize() const {
 	std::array<size_t, 10>	detectors{
-	    0, dust_ray_detectors.size(), 0,
+	    0, dust_ray_detectors.size() / NR_OF_RAY_DET, 0,
 	    0, 0, 0, gas_species_abundance.size(),
-	    0, opiate_spec_ids.size(), sync_ray_detectors.size()};
+	    0, opiate_spec_ids.size(), sync_ray_detectors.size() / NR_OF_RAY_DET};
 
 	return detectors[cmd];
     }
@@ -892,9 +892,6 @@ public:
 	if (!(opiata_path_emi == other.opiata_path_emi)) return "opiata_path_emi";
 	if (!(opiata_path_abs == other.opiata_path_abs)) return "opiata_path_abs";
 
-	if (!(start == other.start)) return "start: " + to_string(start) + " " + to_string(other.start);
-	if (!(stop == other.stop)) return "stop: " + to_string(stop) + " " + to_string(other.stop);
-
 	return "equal";
     }
 
@@ -1030,9 +1027,6 @@ public:
 
 	if (!(axis1 == other.axis1)) return false;
 	if (!(axis2 == other.axis2)) return false;
-
-	if (!(start == other.start)) return false;
-	if (!(stop == other.stop)) return false;
 
 	if (!(f_highJ == other.f_highJ)) return false;
 	if (!(f_cor == other.f_cor)) return false;
