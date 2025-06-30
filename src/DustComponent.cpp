@@ -6,11 +6,13 @@
 #include <string.h>
 #include <cmath>
 #include "DustComponent.hpp"
-#include "CommandParser.hpp"
+// #include "CommandParser.hpp"
 #include "GridBasic.hpp"
 #include "MathFunctions.hpp"
 #include "Typedefs.hpp"
 #include "Parameters.hpp"
+
+#include "parser/command_parser.hpp"
 
 void CDustComponent::initDustProperties()
 {

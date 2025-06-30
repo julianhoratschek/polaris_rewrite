@@ -82,18 +82,30 @@ namespace rewrite {
 	}
 
     public:
-	// using ProcessLineFn = std::expected<void, std::string>(*)(ParsedLine&);
-
 	/**
-	 *
+	 * Will return the current ParsedLine object. Should only be called
+	 * after successful call of `parse_line()`. On Failure, the content
+	 * of the ParsedLine-object returned by this method is undefined.
 	 */
 	ParsedLine get_last_line() { return parsed_line; }
+
+	static auto skip_indents(const std::string& line);
+
+
+	/**
+	 * Clears the last parsed line and sets `line` as new line
+	 * for parsing. Returns `std::string::iterator` pointing at
+	 * first non-whitespace character, or `line.end()` if line
+	 * is empty.
+	 */
+	auto set_line(const std::string& line)
+	    -> std::string::iterator;
 
 	/**
 	 * Parses one singular line. On Success the parsed line object can be
 	 * retrieved with `get_last_line()`.
 	 */
-	auto parse_line(const std::string& line)
+	auto parse_line()
 	    -> std::expected<void, Message>;
 
 
@@ -103,18 +115,19 @@ namespace rewrite {
 	 */
 	template<typename ProcessLineFn>
 	    requires IsProcessLineFn<ProcessLineFn>
-	auto parse_file(const std::filesystem::path& path, ProcessLineFn proc,
+	auto parse_file(std::ifstream& file, ProcessLineFn proc,
 	    HandleErrorFn err_fn = nullptr) -> std::expected<void, Message> {
 
-	    std::ifstream	file(path);
+	    if (file.fail())
+		return std::unexpected{ Message{ "Not a valid file" } };
+
 	    std::string		line;
 
-	    if (file.fail())
-		return std::unexpected{ Message{ "Could not open cmd file" } };
-
 	    while (std::getline(file, line)) {
+		set_line(line);
+
 		// Parse Line
-		auto line_result = parse_line(line);
+		const auto line_result = parse_line();
 
 		// Process line on success
 		if (line_result.has_value())
@@ -129,13 +142,9 @@ namespace rewrite {
 			    err.type
 			};
 
-		    // Abort on Error
-		    if (err.type == Message::Type::Error)
-			return std::unexpected { parser_error };
-
 		    // Otherwise call user function if defined
-		    if (err_fn)
-			err_fn(parser_error);
+		    if (err_fn && !err_fn(parser_error))
+			return std::unexpected{ parser_error };
 		}
 	    }
 

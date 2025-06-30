@@ -1,5 +1,6 @@
 #include "polaris_parser.hpp"
 
+#include <fstream>
 #include <functional>
 
 namespace rewrite {
@@ -90,21 +91,19 @@ namespace rewrite {
     }
 
 
-    auto PolarisParser::parse_polaris_cmd(
-	std::filesystem::path path,
-	HandleErrorFn err_fn)
-	-> std::expected<void, Message> {
+    auto PolarisParser::parse_polaris_cmd(const std::filesystem::path& path,
+	HandleErrorFn err_fn) -> std::expected<void, Message> {
 	
+	std::ifstream	file(path);
 	CommandParser	parser;
+	auto		fn =
+	    std::bind(&PolarisParser::process_polaris_cmd, this, std::placeholders::_1);
 
-	auto		fn = std::bind(
-	    &PolarisParser::process_polaris_cmd,
-	    this, std::placeholders::_1);
-
-	if (const auto e = parser.parse_file(path, fn, err_fn); !e)
+	if (const auto e = parser.parse_file(file, fn, err_fn); !e)
 	    return e;
 
-	// TODO: would be easier to initialize param.start/stop to 0
+	// Slightly different from original:
+	// Sets start/stop to 0 if not used, not to UINT_MAX
 	for (auto& p: param_list) {
 	    const auto sz = p.getDetectorSize();
 	    auto	start = p.getStart();

@@ -7,6 +7,47 @@
 #include <map>
 #include <string_view>
 
+/**
+ * HOW-TO...
+ * ...add a new POLARIS-Command?
+ *   - Define a new function in "polaris_commands.hpp" with the signature
+ *
+ *   	  t_ret cmd_<your_command>(ParsedLine& line, parameters& param)
+ *
+ *   - Add a pair to `command_map` at the bottom of "polaris_commands.hpp"
+ *     with the structure:
+ *
+ *	  { "<your_command>"sv, cmd_<your_command> }
+ *
+ *   - Implement `cmd_<your_command>` in "polaris_commands.cpp"
+ *	- `line` is the currently parsed line, all found values
+ *	  are conveniently split. Look at the documentation of `ParsedLine`
+ *	  for more information
+ *	- `param` are the currently processed parameters (one instance per
+ *	  <task> or in the <common> block)
+ *
+ *   - Return-value for `cmd_<your_command>` on succes should be
+ *
+ *        return {}
+ *
+ *     On failure you can abort processing entirely by returning
+ *
+ *        return Message { "Error message" }
+ *
+ *     Information or Warnings (without aborting processing) can be returned
+ *     using
+ *
+ *        return Message { "Info-Message", Message::Type::Info };
+ *
+ *     More complex Messages can be generated using `comp_error`:
+ *
+ *        return Message { comp_error("Expected ", n_params, " parameters") };
+ *
+ *
+ * ...register a new Detector?
+ *  TODO: docuementation. For now look at examples.
+ */
+
 namespace rewrite {
 
     using t_ret = std::expected<void, Message>;

@@ -31,16 +31,26 @@
 #include "parser/parsed_line.hpp"
 #include "parser/polaris_parser.hpp"
 
+
+/**
+ * TODO: Long term goal: have as much output as possible disappear from
+ * the "deeper functions". Handle as much as possible here.
+ */
 bool error_handler(const rewrite::Message& msg) {
     constexpr auto	labels = std::array{
 	"ERROR ", "WARNING ", "INFO " };
-    const std::string	label = labels[std::to_underlying(msg.type)];
+    const auto 		label = labels[std::to_underlying(msg.type)];
 
     cout << rewrite::msg_color(msg.type, label) << msg.message << endl;
-    return true;
+
+    // Abort processing if message type was an error
+    return msg.type != rewrite::Message::Type::Error;
 }
 
 
+/**
+ *
+ */
 bool CPipeline::Init(int argc, char** argv) {
     end = 0, len = 0;
     begin = omp_get_wtime();
@@ -77,26 +87,23 @@ bool CPipeline::Init(int argc, char** argv) {
 #endif
 
 
-    if(argc != 2) {
-        cout << ERROR_LINE << "Wrong amount of arguments!\n";
-        cout << "\tPOLARIS requires only the path of a command file!\n";
-        return false;
-    }
+    if(argc != 2) 
+	return error_handler( rewrite::Message {
+	    "Wrong amount of arguments!\n"
+	    "\tPOLARIS requires only the path of a command file!\n"
+	});
 
     rewrite::PolarisParser	parser;
 
     if (const auto res = parser.parse_polaris_cmd(argv[1], error_handler);
-	!res.has_value()) {
-	error_handler(res.error());
-	return false;
-    }
+	!res.has_value())
+	return error_handler(res.error());
 
     param_list = std::move(parser.get_param_list());
 
-    if(param_list.empty()) {
-        cout << ERROR_LINE << "No tasks defined!" << endl;
-        return false;
-    }
+    if(param_list.empty())
+	return error_handler(rewrite::Message {
+	    "No tasks defined"});
 
     return true;
 }

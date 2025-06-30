@@ -13,27 +13,6 @@ namespace rewrite {
 	/**
 	 *
 	 */
-	auto read_nr_value(const std::string& str)
-	    -> std::expected<std::vector<double>, Message> {
-
-	    std::vector<double>	result;
-
-	    for (size_t i = 0; i < str.length(); i++) try {
-		std::size_t	read = 0;
-		result.push_back(
-		    std::stod(str.substr(i), &read));
-		i += read;
-	    }
-	    catch(...) {
-		return std::unexpected{ Message { "Could not read number in named parameter" } };
-	    }
-
-	    return result;
-	}
-
-	/**
-	 *
-	 */
 	struct DetectorRegistration {
 	    struct Flags {
 		bool		is_healpix;

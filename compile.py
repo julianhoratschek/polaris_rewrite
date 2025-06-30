@@ -125,12 +125,8 @@ def download_ccfits(dest: Path, version: str = "2.7") -> bool:
     return extract_ccfits(tar_file, dest)
 
 
-def run_cmake(
-        src_dir: Path,
-        build_dir: Path,
-        install_path: Path,
-        prefix_path: list[Path],
-        cmake_options: list[str]) -> bool:
+def run_cmake( src_dir: Path, build_dir: Path, install_path: Path,
+        prefix_path: list[Path], cmake_options: list[str]) -> bool:
 
     if (sp.run([
         "cmake", f"-S {src_dir.relative_to(root_path)}", f"-B {build_dir.relative_to(root_path)}",

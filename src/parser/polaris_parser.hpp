@@ -93,10 +93,8 @@ namespace rewrite {
 	 * @param err_fn optional function to handle non-fatal error messages
 	 * @returns on failure Message with fatal error message
 	 */
-	auto parse_polaris_cmd(
-	    std::filesystem::path path,
-	    HandleErrorFn err_fn = nullptr)
-	    -> std::expected<void, Message>; 
+	auto parse_polaris_cmd(const std::filesystem::path& path,
+	    HandleErrorFn err_fn = nullptr) -> std::expected<void, Message>; 
 
 	/**
 	 * Returns complete parameters-list. Should be called after

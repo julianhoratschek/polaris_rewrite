@@ -123,14 +123,21 @@ namespace rewrite {
     }
 
 
-    auto CommandParser::parse_line(const std::string& line)
-	-> std::expected<void, Message> {
-
+    auto CommandParser::set_line(const std::string& line)
+	-> std::string::iterator {
 	parsed_line.clear();
 
 	current_line = line;
 	++parsed_line.line_nr;
 	pos = current_line.begin();
+	read_while<is_whitespace>();
+
+	return pos;
+    }
+
+
+    auto CommandParser::parse_line()
+	-> std::expected<void, Message> {
 
 	while (pos < current_line.end()) {
 	    const char c = *pos;
