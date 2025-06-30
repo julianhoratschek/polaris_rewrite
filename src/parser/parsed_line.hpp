@@ -2,6 +2,7 @@
 #define RW_PARSED_LINE
 
 #include "util.hpp"
+#include "message.hpp"
 
 #include <vector>
 #include <string>
@@ -10,51 +11,6 @@
 #include <expected>
 
 namespace rewrite {
-
-    /**
-     * Return-value for parsers containing a message and a thread-level
-     */
-    struct Message {
-	enum class Type: unsigned char {
-	    Error, Warning, Info
-	};
-
-	std::string		message;
-	Type			type{ Type::Error };
-    };
-
-
-    /**
-     * Simple output operator for `Message`
-     */
-    inline std::ostream& operator<<(std::ostream& os, const Message& msg) {
-	return os << msg.message;
-    }
-
-
-    /**
-     * Return Escape coded coloured text depending on `color` value.
-     */
-    template<typename T>
-    std::string msg_color(const Message::Type color, const T& msg) {
-	std::string	col;
-
-	switch (color) {
-	    case Message::Type::Warning:
-		col = "\033[1m\033[33m";
-		break;
-
-	    case Message::Type::Error:
-		col = "\033[1m\033[31m";
-		break;
-
-	    case Message::Type::Info:
-		col = "\033[1m\033[32m";
-		break;
-	}
-	return comp_error(col, msg, "\033[0m");
-    }
-
 
     /**
      * Chose multiple vector layout because of multiple conversions during cmd
@@ -87,6 +43,9 @@ namespace rewrite {
 
 	/// Command (if found)
 	std::string_view				command;
+
+	/// Original line
+	std::string_view				line;
 
 	/// Type of this line
 	Type						type{Type::ValueLine};

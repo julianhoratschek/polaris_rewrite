@@ -34,6 +34,7 @@ namespace rewrite {
     void ParsedLine::clear() {
 	type = Type::ValueLine;
 	command = "";
+	line = "";
 	sequence.clear();
 	num_params.clear();
 	str_params.clear();

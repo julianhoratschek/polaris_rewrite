@@ -8,8 +8,6 @@
 #include <expected>
 #include <fstream>
 
-#include <filesystem>
-
 
 namespace rewrite {
 
@@ -18,9 +16,12 @@ namespace rewrite {
 	{ fn(ln) } -> std::same_as<std::expected<void, Message>>;
     };
 
-    ///
+    template<typename Fn>
+    concept IsErrorHandlerFn = requires (Fn fn, const Message msg) {
+	{ fn(msg) } -> std::same_as<bool>;
+    };
+    
     using CharCheckFn = bool(*)(const char);
-    using HandleErrorFn = bool(*)(const Message&);
 
     /**
      * This is a strict per-line parser. Parsed lines are invalidated as soon
@@ -36,8 +37,6 @@ namespace rewrite {
 	/// Current position in current_line
 	std::string::iterator			pos;
 
-	/// Result of currently parsed line (invalidated when a new line is read)
-	ParsedLine				parsed_line;
 
 	/**
 	 * Removes beginning quote from read strings
@@ -81,16 +80,21 @@ namespace rewrite {
 	    return std::string(error_distance(), '~') + '^';
 	}
 
+
+    protected:
+
+	/// Result of currently parsed line (invalidated when a new line is read)
+	ParsedLine				parsed_line;
+
+
     public:
+
 	/**
 	 * Will return the current ParsedLine object. Should only be called
 	 * after successful call of `parse_line()`. On Failure, the content
 	 * of the ParsedLine-object returned by this method is undefined.
 	 */
 	ParsedLine get_last_line() { return parsed_line; }
-
-	static auto skip_indents(const std::string& line);
-
 
 	/**
 	 * Clears the last parsed line and sets `line` as new line
@@ -113,13 +117,18 @@ namespace rewrite {
 	 * Reads `path` line by line, on success calls `proc` with the read
 	 * ParsedLine object.
 	 */
-	template<typename ProcessLineFn>
+	template<typename ProcessLineFn, typename ErrorFn>
 	    requires IsProcessLineFn<ProcessLineFn>
+	          && IsErrorHandlerFn<ErrorFn>
 	auto parse_file(std::ifstream& file, ProcessLineFn proc,
-	    HandleErrorFn err_fn = nullptr) -> std::expected<void, Message> {
+	    ErrorFn err_fn = nullptr) -> std::expected<void, Message> {
 
 	    if (file.fail())
-		return std::unexpected{ Message{ "Not a valid file" } };
+		return std::unexpected{ Message{
+		    "Not a valid file",
+		    Message::Type::Error,
+		    Message::Sender::Parser
+		} };
 
 	    std::string		line;
 
@@ -127,23 +136,41 @@ namespace rewrite {
 		set_line(line);
 
 		// Parse Line
-		const auto line_result = parse_line();
+		auto line_result = parse_line();
 
-		// Process line on success
-		if (line_result.has_value())
-		    line_result = proc(parsed_line);
+		// Having 2 if-branches is more verbose, but lets differ
+		// between parser- and processor-errors
 
-		// Handle errors from parsing or processing
+		// Handle errors from parsing
+		// Here, Parser errors are marked as "sender: Parser"
 		if (!line_result) {
 		    const auto err = line_result.error();
-		    const Message parser_error{ comp_error(
-			    "[", parsed_line.line_nr, ':', error_distance(), "]: ",
-			    err.message, '\n', current_line, '\n', error_pointer()),
-			    err.type
-			};
+		    const Message parser_error {
+			std::format("[{:04}:{}]: {}\n{}\n{}",
+			    parsed_line.line_nr, error_distance(), err.message,
+			    current_line, error_pointer()),
+			err.type,
+			Message::Sender::Parser
+		    };
 
-		    // Otherwise call user function if defined
-		    if (err_fn && !err_fn(parser_error))
+		    if (!err_fn || !err_fn(parser_error))
+			return std::unexpected{ parser_error };
+		}
+
+		// Process line on success
+		line_result = proc(parsed_line);
+
+		// Handle errors from processing
+		if (!line_result) {
+		    const auto err = line_result.error();
+		    const Message parser_error {
+			std::format("[{:04}]: {}\n",
+			    parsed_line.line_nr, err.message),
+			err.type,
+			Message::Sender::Processor
+		    };
+
+		    if (!err_fn || !err_fn(parser_error))
 			return std::unexpected{ parser_error };
 		}
 	    }

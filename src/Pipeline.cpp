@@ -28,23 +28,13 @@
 #include <filesystem>
 #include <string>
 
+#include "parser/message.hpp"
 #include "parser/parsed_line.hpp"
 #include "parser/polaris_parser.hpp"
 
 
-/**
- * TODO: Long term goal: have as much output as possible disappear from
- * the "deeper functions". Handle as much as possible here.
- */
 bool error_handler(const rewrite::Message& msg) {
-    constexpr auto	labels = std::array{
-	"ERROR ", "WARNING ", "INFO " };
-    const auto 		label = labels[std::to_underlying(msg.type)];
-
-    cout << rewrite::msg_color(msg.type, label) << msg.message << endl;
-
-    // Abort processing if message type was an error
-    return msg.type != rewrite::Message::Type::Error;
+    return rewrite::default_error_handler(msg);
 }
 
 
@@ -95,9 +85,8 @@ bool CPipeline::Init(int argc, char** argv) {
 
     rewrite::PolarisParser	parser;
 
-    if (const auto res = parser.parse_polaris_cmd(argv[1], error_handler);
-	!res.has_value())
-	return error_handler(res.error());
+    if (const auto res = parser.parse_file(argv[1], error_handler);
+	not res) return error_handler(res.error());
 
     param_list = std::move(parser.get_param_list());
 

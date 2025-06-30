@@ -65,16 +65,17 @@ namespace rewrite {
 	    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
 	}
 	catch (const std::out_of_range&) {
-	    return std::unexpected{ Message { "Number Parameter is too large" } };
+	    return std::unexpected{ Message { "Number Parameter is too large", } };
 	}
 	catch (const std::invalid_argument&) {
-	    return std::unexpected{ Message { "Ill-formed Number" } };
+	    return std::unexpected{ Message { "Ill-formed Number", } };
 	}
 
 	return val;
     }
 
 
+    // TODO: Message global switch or constructor
     auto CommandParser::get_command()
 	-> std::expected<void, Message> {
 
@@ -86,23 +87,22 @@ namespace rewrite {
 	    parsed_line.type = ParsedLine::Type::Command;
 
 	if (!is_identifier(*pos))
-	    return std::unexpected { Message { "Expected Polaris command after '<[/]'" } };
+	    return std::unexpected { Message { "Expected Polaris command after '<[/]'", } };
 
 	// --pos is needed between read_while and expect_next, to look at
 	// the current character
 	parsed_line.command = read_while<is_identifier>();
 	--pos;
 
-
 	while (expect_next<is_identifier>()) {
 	    const auto param_name = read_while<is_identifier>();
 	    --pos;
 
 	    if (!expect_next<is_equals>())
-		return std::unexpected{ Message { "Expected '=' after named parameter" } };
+		return std::unexpected{ Message { "Expected '=' after named parameter", } };
 
 	    if (!expect_next<is_quote>())
-		return std::unexpected { Message { "Expected String after named parameter" } };
+		return std::unexpected { Message { "Expected String after named parameter", } };
 
 	    std::vector<double>	named_params;
 	    while (expect_next<is_number>()) {
@@ -117,7 +117,7 @@ namespace rewrite {
 	}
 
 	if (pos >= current_line.end() || *pos != '>')
-	    return std::unexpected{ Message { "Expected '>' after command" } };
+	    return std::unexpected{ Message { "Expected '>' after command", } };
 
 	return {};
     }
@@ -128,8 +128,11 @@ namespace rewrite {
 	parsed_line.clear();
 
 	current_line = line;
-	++parsed_line.line_nr;
 	pos = current_line.begin();
+
+	++parsed_line.line_nr;
+	parsed_line.line = current_line;
+
 	read_while<is_whitespace>();
 
 	return pos;
@@ -143,12 +146,10 @@ namespace rewrite {
 	    const char c = *pos;
 
 	    switch (c) {
-
 		// Get Comments
 		case '#':
 		case '!':
 		    return {};
-
 
 		// Get Strings
 		case '"':
@@ -159,13 +160,11 @@ namespace rewrite {
 			return std::unexpected{ Message { "Missing '\"'" } };
 		    break;
 
-
 		// Get commands (tags)
 		case '<':
 		    if (const auto e = get_command();
 			not e) return std::unexpected{ e.error() };
 		    break;
-
 
 		// Get whitespace, numbers or identifiers
 		default:
@@ -185,7 +184,7 @@ namespace rewrite {
 		    }
 
 		    else
-			return std::unexpected{ Message { comp_error( "Unknown Token '", c, "'" ) } };
+			return std::unexpected{ Message { std::format("Unknown Token '{}'", c), } };
 	    }
 
 	    // Skip all whitespace until next character is found

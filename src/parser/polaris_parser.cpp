@@ -1,7 +1,5 @@
 #include "polaris_parser.hpp"
-
-#include <fstream>
-#include <functional>
+#include "parser/command_parser.hpp"
 
 namespace rewrite {
 
@@ -85,38 +83,6 @@ namespace rewrite {
 		}
 
 		break;
-	}
-
-	return {};
-    }
-
-
-    auto PolarisParser::parse_polaris_cmd(const std::filesystem::path& path,
-	HandleErrorFn err_fn) -> std::expected<void, Message> {
-	
-	std::ifstream	file(path);
-	CommandParser	parser;
-	auto		fn =
-	    std::bind(&PolarisParser::process_polaris_cmd, this, std::placeholders::_1);
-
-	if (const auto e = parser.parse_file(file, fn, err_fn); !e)
-	    return e;
-
-	// Slightly different from original:
-	// Sets start/stop to 0 if not used, not to UINT_MAX
-	for (auto& p: param_list) {
-	    const auto sz = p.getDetectorSize();
-	    auto	start = p.getStart();
-	    auto	stop = p.getStop();
-
-	    if (start >= sz)
-		start = 0;
-
-	    if (stop >= sz)
-		stop = sz == 0 ? 0 : sz - 1;
-
-	    p.setStart(start);
-	    p.setStop(stop);
 	}
 
 	return {};

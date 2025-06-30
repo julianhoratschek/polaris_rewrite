@@ -10,6 +10,8 @@
 #include <expected>
 #include <string_view>
 #include <utility>
+#include <functional>
+#include <fstream>
 
 
 namespace rewrite {
@@ -93,8 +95,39 @@ namespace rewrite {
 	 * @param err_fn optional function to handle non-fatal error messages
 	 * @returns on failure Message with fatal error message
 	 */
-	auto parse_polaris_cmd(const std::filesystem::path& path,
-	    HandleErrorFn err_fn = nullptr) -> std::expected<void, Message>; 
+	template<typename ErrorFn>
+	    requires IsErrorHandlerFn<ErrorFn>
+	auto parse_file(const std::filesystem::path& path,
+		ErrorFn err_fn) -> std::expected<void, Message> {
+	    
+	    const auto		fn =
+		std::bind(&PolarisParser::process_polaris_cmd, this, std::placeholders::_1);
+
+	    std::ifstream	file(path);
+	    CommandParser	parser;
+
+	    if (const auto res = parser.parse_file(file, fn, err_fn);
+		not res) return res;
+
+	    // Slightly different from original:
+	    // Sets start/stop to 0 if not used, not to UINT_MAX
+	    for (auto& p: param_list) {
+		const auto sz = p.getDetectorSize();
+		auto	start = p.getStart();
+		auto	stop = p.getStop();
+
+		if (start >= sz)
+		    start = 0;
+
+		if (stop >= sz)
+		    stop = sz == 0 ? 0 : sz - 1;
+
+		p.setStart(start);
+		p.setStop(stop);
+	    }
+
+	    return {};
+	}
 
 	/**
 	 * Returns complete parameters-list. Should be called after
