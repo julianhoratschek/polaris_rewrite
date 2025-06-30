@@ -103,11 +103,8 @@ namespace rewrite {
 	 */
 	template<typename ProcessLineFn>
 	    requires IsProcessLineFn<ProcessLineFn>
-	auto parse_file(
-	    const std::filesystem::path& path,
-	    ProcessLineFn proc,
-	    HandleErrorFn err_fn = nullptr)
-	    -> std::expected<void, Message> {
+	auto parse_file(const std::filesystem::path& path, ProcessLineFn proc,
+	    HandleErrorFn err_fn = nullptr) -> std::expected<void, Message> {
 
 	    std::ifstream	file(path);
 	    std::string		line;
