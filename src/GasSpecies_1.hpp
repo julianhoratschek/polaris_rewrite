@@ -15,13 +15,12 @@
 #include "Photon.hpp"
 #include "Vector3D.hpp"
 
-#include "parser/data_parser.hpp"
-
 #define TRANS_SIGMA_P +1
 #define TRANS_PI 0
 #define TRANS_SIGMA_M -1
 
-class CGasSpecies: public rewrite::DataParser<CGasSpecies> {
+class CGasSpecies
+{
 public:
 
     //uint tmp_counter;
@@ -405,9 +404,6 @@ public:
     double getColPartnerDensity(CGridBasic * grid, cell_basic * cell, uint i_col_partner);
     dlist calcCollisionRate(uint i_col_partner, uint i_col_transition, uint hi_i, double temp_gas);
 
-    rewrite::t_ret ps_string_id(rewrite::ParsedLine& line);
-    rewrite::t_ret ps_molecular_weight(rewrite::ParsedLine& line);
-    rewrite::t_ret ps_nr_energy_level(rewrite::ParsedLine& line);
     bool readGasParamaterFile(string filename, uint id, uint max);
     bool readZeemanParamaterFile(string filename);
 

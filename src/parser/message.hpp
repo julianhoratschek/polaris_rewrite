@@ -1,6 +1,7 @@
 #ifndef RW_MESSAGE
 #define RW_MESSAGE
 
+#include <expected>
 #include <string>
 #include <array>
 #include <utility>
@@ -35,6 +36,8 @@ namespace rewrite {
 	    : message{msg}, sender{ snd } {}
     };
 
+
+    using t_ret = std::expected<void, Message>;
 
     /**
      * Simple output operator for `Message`

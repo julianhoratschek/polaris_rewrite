@@ -50,7 +50,6 @@
 
 namespace rewrite {
 
-    using t_ret = std::expected<void, Message>;
     using CommandProcessFn = t_ret (*)(ParsedLine&, parameters&);
     using command_map = std::map<std::string_view, CommandProcessFn>;
 

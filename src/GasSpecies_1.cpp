@@ -5,7 +5,6 @@
 
 #include "GasSpecies.hpp"
 #include "CommandParser.hpp"
-#include "parser/message.hpp"
 
 // This function is based on
 // Mol3d: 3D line and dust continuum radiative transfer code
@@ -1153,35 +1152,6 @@ void CGasSpecies::calcEmissivityZeeman(CGridBasic * grid,
     delete tmp_matrix;
 }
 
-
-rewrite::t_ret CGasSpecies::ps_string_id(rewrite::ParsedLine& line) {
-    stringID = line.line;
-    return {};
-}
-
-rewrite::t_ret CGasSpecies::ps_molecular_weight(rewrite::ParsedLine& line) {
-    if(line.num_params.size() != 1)
-	return std::unexpected { rewrite::Message { "Wrong amount of numbers (gas species file)!" } };
-    molecular_weight = line.num_params[0];
-    return {};
-}
-
-rewrite::t_ret CGasSpecies::ps_nr_energy_level(rewrite::ParsedLine& line) {
-    if (line.num_params.size() != 1)
-	return std::unexpected { rewrite::Message { "Wrong amount of numbers (gas species file)!" } };
-
-    nr_of_energy_level = uint(line.num_params[0]);
-
-    // Init pointer array
-    energy_level = new double[nr_of_energy_level];
-    g_level = new double[nr_of_energy_level];
-    quantum_numbers = new double[nr_of_energy_level];
-
-    // Set number of sublevel to one and increase it in case of Zeeman
-    nr_of_sublevel = new int[nr_of_energy_level]{1};
-    return {};
-}
-
 bool CGasSpecies::readGasParamaterFile(string _filename, uint id, uint max)
 {
     uint line_counter, cmd_counter;
@@ -1236,41 +1206,41 @@ bool CGasSpecies::readGasParamaterFile(string _filename, uint id, uint max)
 
         cmd_counter++;
 
-        // if(cmd_counter == 1)
-        //     stringID = line;
-        // else if(cmd_counter == 2)
-        // {
-        //     if(values.size() != 1)
-        //     {
-        //         cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-        //              << endl;
-        //         return false;
-        //     }
-        //     molecular_weight = values[0];
-        // }
-        // else if(cmd_counter == 3)
-        // {
-        //     if(values.size() != 1)
-        //     {
-        //         cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-        //              << endl;
-        //         return false;
-        //     }
-        //     nr_of_energy_level = uint(values[0]);
-        //
-        //     // Init pointer array
-        //     energy_level = new double[nr_of_energy_level];
-        //     g_level = new double[nr_of_energy_level];
-        //     quantum_numbers = new double[nr_of_energy_level];
-        //
-        //     // Set number of sublevel to one and increase it in case of Zeeman
-        //     nr_of_sublevel = new int[nr_of_energy_level];
-        //     for(uint i_lvl = 0; i_lvl < nr_of_energy_level; i_lvl++)
-        //     {
-        //         nr_of_sublevel[i_lvl] = 1;
-        //     }
-        // }
-        if(cmd_counter < 4 + nr_of_energy_level && cmd_counter > 3)
+        if(cmd_counter == 1)
+            stringID = line;
+        else if(cmd_counter == 2)
+        {
+            if(values.size() != 1)
+            {
+                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
+                     << endl;
+                return false;
+            }
+            molecular_weight = values[0];
+        }
+        else if(cmd_counter == 3)
+        {
+            if(values.size() != 1)
+            {
+                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
+                     << endl;
+                return false;
+            }
+            nr_of_energy_level = uint(values[0]);
+
+            // Init pointer array
+            energy_level = new double[nr_of_energy_level];
+            g_level = new double[nr_of_energy_level];
+            quantum_numbers = new double[nr_of_energy_level];
+
+            // Set number of sublevel to one and increase it in case of Zeeman
+            nr_of_sublevel = new int[nr_of_energy_level];
+            for(uint i_lvl = 0; i_lvl < nr_of_energy_level; i_lvl++)
+            {
+                nr_of_sublevel[i_lvl] = 1;
+            }
+        }
+        else if(cmd_counter < 4 + nr_of_energy_level && cmd_counter > 3)
         {
             if(values.size() < 4)
             {
