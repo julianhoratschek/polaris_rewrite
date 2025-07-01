@@ -29,7 +29,6 @@
 #include <string>
 
 #include "parser/message.hpp"
-#include "parser/parsed_line.hpp"
 #include "parser/polaris_parser.hpp"
 
 
@@ -51,10 +50,12 @@ bool CPipeline::Init(int argc, char** argv) {
 #ifdef _WIN32
     cout << "\n\n"
 	"\t+-----------------------------------------+\n"
+	"\t|                                         |\n"
 	"\t|                 POLARIS                 |\n"
 	"\t|    ~ polarized radiation simulator ~    |\n"
 	"\t|                                         |\n"
 	"\t|                 4.13.01                 |\n"
+	"\t|                                         |\n"
 	"\t|                                         |\n"
 	"\t|                                         |\n"
 	"\t|          (c)2018 Stefan Reissl          |\n"

@@ -23,9 +23,6 @@ namespace rewrite {
 
 	std::string		message;
 	Type			type;
-
-	/// Default is Processor, as most messages will be sent from
-	/// parsing POLARIS CMD files
 	Sender			sender;
 
 
@@ -37,16 +34,8 @@ namespace rewrite {
     };
 
 
+    /// Return value for most POLARIS cmd methods
     using t_ret = std::expected<void, Message>;
-
-    /**
-     * Simple output operator for `Message`
-     * TODO: use format
-     */
-    inline std::ostream& operator<<(std::ostream& os, const Message& msg) {
-	return os << msg.message;
-    }
-
 
     /**
      * Return Escape coded coloured text depending on `color` value.
@@ -73,7 +62,7 @@ namespace rewrite {
     }
 
 
-    bool default_error_handler(const Message& msg) {
+    inline bool default_error_handler(const Message& msg) {
 	constexpr auto	senders = std::array{ "", "Parser", "Processor" };
 	const auto		sender = senders[std::to_underlying(msg.sender)];
 

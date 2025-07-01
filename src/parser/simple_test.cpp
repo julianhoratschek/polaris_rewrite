@@ -1,7 +1,5 @@
 #include <iostream>
-#include <string>
 #include <string_view>
-#include "polaris_commands.hpp"
 #include "polaris_parser.hpp"
 
 #include "../CommandParser.hpp"
@@ -28,8 +26,7 @@ int main() {
 	cout << "New Parser" << endl;
 	rewrite::PolarisParser	parser;
 
-	if (const auto e = parser.parse_polaris_cmd(
-	    filename.path().string(), error_msg); !e)
+	if (const auto e = parser.parse_file(filename.path(), error_msg); !e)
 	    error_msg(e.error());
 
 	cout << endl << "--------------------------------" << endl << endl;
@@ -46,7 +43,7 @@ int main() {
 	for(int i=0;i<new_list.size();i++) {
 	    cout << "Start: " << new_list[i].getStart() << " " << old_list[i].getStart() << endl;
 	    cout << "Stop: " << new_list[i].getStop() << " " << old_list[i].getStop() << endl;
-	    cout << '[' << i << "]: " << new_list[i].compare(old_list[i]) << endl;
+	    cout << '[' << setw(2) << setfill('0') << i << "]: " << new_list[i].compare(old_list[i]) << endl;
 	}
     }
 

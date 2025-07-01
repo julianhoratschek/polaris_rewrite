@@ -1,7 +1,7 @@
 #ifndef RW_POLARIS_COMMANDS
 #define RW_POLARIS_COMMANDS
 
-#include "command_parser.hpp"
+#include "parsed_line.hpp"
 #include "../Parameters.hpp"
 
 #include <map>

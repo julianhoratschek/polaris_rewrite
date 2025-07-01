@@ -2,7 +2,8 @@
 #define RW_POLARIS_PARSER
 
 #include "../Parameters.hpp"
-#include "command_parser.hpp"
+#include "basic_parser.hpp"
+#include "parsed_line.hpp"
 #include "polaris_commands.hpp"
 
 #include <filesystem>
@@ -10,12 +11,13 @@
 #include <expected>
 #include <string_view>
 #include <utility>
-#include <functional>
 #include <fstream>
+
+#include <array>
+#include <utility>
 
 
 namespace rewrite {
-
 
     /**
      * Flags controlling parser processing
@@ -32,7 +34,7 @@ namespace rewrite {
     /**
      * Per-line parser for POLARIS *.cmd-files
      */
-    class PolarisParser {
+    class PolarisParser: public BasicParser {
     private:
 
 	/**
@@ -73,6 +75,13 @@ namespace rewrite {
 	/// Control flow of parser
 	PolarisParserFlags		flags{ PolarisParserFlags::None };
 
+	/// Result of currently parsed line (invalidated when a new line is read)
+	ParsedLine			parsed_line;
+
+	/**
+	 *
+	 */
+	auto get_command() -> std::expected<void, Message>;
 
 	/**
 	 * Main method looking for <common> and <task> blocks, allocating
@@ -80,14 +89,44 @@ namespace rewrite {
 	 * according to found commands.
 	 * @param line Currently parsed line
 	 */
-	auto process_polaris_cmd(ParsedLine& line)
+	auto process_polaris_cmd()
 	    -> std::expected<void, Message>;
+
+
+	/**
+	 */
+	auto set_line(const std::string& line)
+	    -> std::string::iterator;
+	
+
+	/**
+	 * Parses one singular line. On Success the parsed line object can be
+	 * retrieved with `get_last_line()`.
+	 */
+	auto parse_line()
+	    -> std::expected<void, Message>;
+
 
     public:
 
-
 	PolarisParser()
 	    : commands{make_cmd_map()} {}
+
+
+	/**
+	 * Will return the current ParsedLine object. Should only be called
+	 * after successful call of `parse_line()`. On Failure, the content
+	 * of the ParsedLine-object returned by this method is undefined.
+	 */
+	ParsedLine get_last_line() { return parsed_line; }
+
+
+	/**
+	 * Returns complete parameters-list. Should be called after
+	 * `parse_polaris_cmd`
+	 */
+	auto& get_param_list() { return param_list; }
+
 
 	/**
 	 * Exposes parsing functionality.
@@ -98,16 +137,54 @@ namespace rewrite {
 	template<typename ErrorFn>
 	    requires IsErrorHandlerFn<ErrorFn>
 	auto parse_file(const std::filesystem::path& path,
-		ErrorFn err_fn) -> std::expected<void, Message> {
-	    
-	    const auto		fn =
-		std::bind(&PolarisParser::process_polaris_cmd, this, std::placeholders::_1);
+		ErrorFn err_fn = nullptr) -> std::expected<void, Message> {
 
 	    std::ifstream	file(path);
-	    CommandParser	parser;
+	    std::string		line;
 
-	    if (const auto res = parser.parse_file(file, fn, err_fn);
-		not res) return res;
+	    if (file.fail())
+		return std::unexpected{ Message{
+		    "Not a valid file", Message::Sender::Parser } };
+
+	    while (std::getline(file, line)) {
+		set_line(line);
+
+		// Parse Line
+		auto line_result = parse_line();
+
+		// Handle errors from parsing
+		// Here, Parser errors are marked as "sender: Parser"
+		if (!line_result) {
+		    const auto err = line_result.error();
+		    const Message parser_error {
+			std::format("[{:04}:{}]: {}\n{}\n{}",
+			    parsed_line.line_nr, error_distance(), err.message,
+			    current_line, error_pointer()),
+			err.type,
+			Message::Sender::Parser
+		    };
+
+		    if (!err_fn || !err_fn(parser_error))
+			return std::unexpected{ parser_error };
+		}
+
+		// Process line on success
+		line_result = process_polaris_cmd();
+
+		// Handle errors from processing
+		if (!line_result) {
+		    const auto err = line_result.error();
+		    const Message parser_error {
+			std::format("[{:04}]: {}\n",
+			    parsed_line.line_nr, err.message),
+			err.type,
+			Message::Sender::Processor
+		    };
+
+		    if (!err_fn || !err_fn(parser_error))
+			return std::unexpected{ parser_error };
+		}
+	    }
 
 	    // Slightly different from original:
 	    // Sets start/stop to 0 if not used, not to UINT_MAX
@@ -129,11 +206,6 @@ namespace rewrite {
 	    return {};
 	}
 
-	/**
-	 * Returns complete parameters-list. Should be called after
-	 * `parse_polaris_cmd`
-	 */
-	auto& get_param_list() { return param_list; }
     };
 
 }

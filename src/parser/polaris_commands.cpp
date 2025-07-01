@@ -9,9 +9,10 @@
 
 namespace rewrite {
 
+    // Local to this file
     namespace {
 	/**
-	 *
+	 * 
 	 */
 	struct DetectorRegistration {
 	    struct Flags {
@@ -228,7 +229,7 @@ namespace rewrite {
 
     //---------------------------------------------------------------------
 
-   t_ret cmd_cmd(ParsedLine& line, parameters& param) {
+    t_ret cmd_cmd(ParsedLine& line, parameters& param) {
 
 	constexpr auto commands = std::array {
 	    "CMD_TEMP", "CMD_DUST_EMISSION", "CMD_DUST_SCATTERING",

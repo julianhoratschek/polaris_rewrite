@@ -12,8 +12,6 @@
 #include "Typedefs.hpp"
 #include "Parameters.hpp"
 
-#include "parser/command_parser.hpp"
-
 void CDustComponent::initDustProperties()
 {
     // Init pointer arrays for grain sizes and size distributions

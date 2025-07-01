@@ -9,11 +9,14 @@ PROJECT (POLARIS
 SET (CMAKE_CXX_STANDARD 23)
 SET (CXX_STANDARD_REQUIRED ON)
 
+#begin Branch specific definitions
+set (BUILD_TESTING OFF)
+set (TEST_REWRITE ON)
+set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set (CMAKE_PREFIX_PATH "bin/zlib" "bin/cfitsio" "bin/CCfits")
+#end
+
 SET (PROJECT_PATH ${CMAKE_CURRENT_LIST_DIR}/../)
-SET (BUILD_TESTING OFF)
-SET (TEST_REWRITE ON)
-SET (CMAKE_EXPORT_COMPILE_COMMANDS ON)
-SET (CMAKE_PREFIX_PATH "D:/projects/CPP/polaris_rewrite/bin/zlib;D:/projects/CPP/polaris_rewrite/bin/cfitsio;D:/projects/CPP/polaris_rewrite/bin/CCfits")
 
 OPTION(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
 
@@ -52,7 +55,7 @@ SET (SRC_FILES
     Synchrotron.cpp SyncParameters.cpp
     Vector3D.cpp
 
-    parser/command_parser.cpp
+    parser/basic_parser.cpp
     parser/polaris_commands.cpp
     parser/parsed_line.cpp
     parser/polaris_parser.cpp
@@ -60,6 +63,8 @@ SET (SRC_FILES
 
 ADD_EXECUTABLE (polaris main.cpp ${SRC_FILES})
 TARGET_LINK_LIBRARIES (polaris PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CFITSIO_LIBRARY})
+
+# CCFITS_INCLUDE_DIR must be set, if we only have relative paths
 TARGET_INCLUDE_DIRECTORIES (polaris PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_INCLUDE_DIR} ${CCFITS_INCLUDE_DIR})
 INSTALL (TARGETS polaris)
 
@@ -82,7 +87,7 @@ if (TEST_REWRITE)
 	MathFunctions.cpp
 	Faddeeva.cc
 
-	parser/command_parser.cpp
+	parser/basic_parser.cpp
 	parser/polaris_commands.cpp
 	parser/parsed_line.cpp
 	parser/polaris_parser.cpp
@@ -100,7 +105,7 @@ if (TEST_REWRITE)
 	MathFunctions.cpp
 	Faddeeva.cc
 
-	parser/command_parser.cpp
+	parser/basic_parser.cpp
 	parser/polaris_commands.cpp
 	parser/parsed_line.cpp
 	parser/polaris_parser.cpp

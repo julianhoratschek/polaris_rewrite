@@ -62,6 +62,8 @@ namespace rewrite {
 	/// All found ID-Parameters
 	std::vector<std::string_view>			id_params;
 
+	// Using a map here is only syntactic sugar. It's easier to
+	// use when writing new polaris cmds.
 	/// All found named parameters <cmd named_param1 = "value">
 	std::map<std::string_view, std::vector<double>>	named_params;
 
