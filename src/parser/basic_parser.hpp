@@ -11,7 +11,7 @@
 namespace rewrite {
 
     template<typename Fn>
-    concept IsErrorHandlerFn = requires (Fn fn, const Message msg) {
+    concept ErrorHandlerFn = requires (Fn fn, const Message msg) {
 	{ fn(msg) } -> std::same_as<bool>;
     };
     
@@ -20,6 +20,11 @@ namespace rewrite {
      * as the next line is read. Processing should be done by passing a
      * processing function pointer, which will be called after each line is
      * successfully parsed.
+     */
+
+    /**
+     * Strict base class for static inheritance. Provides
+     * multiple useful methods for file parsing
      */
     class BasicParser {
 	using CharCheckFn = bool(*)(const char);
@@ -47,6 +52,10 @@ namespace rewrite {
 	static bool is_string(const char c) {
 	    return c != '"'; }
 
+	static bool is_comment(const char c) {
+	    return c == '#' || c == '!';
+	}
+
 	static bool is_equals(const char c) {
 	    return c == '='; }
 
@@ -63,6 +72,8 @@ namespace rewrite {
 
 	/**
 	 * Reads text while `check` returns true.
+	 * After a call, pos points at the first char, check()
+	 * returns false for or current_line.end().
 	 * @tparam check Function returning true as long as reading should be
 	 * 		 continued
 	 * @returns string_view of read characters.
@@ -81,12 +92,27 @@ namespace rewrite {
 
 	/**
 	 * Skips whitespace and then returns true if check returns
-	 * true for the next character.
+	 * true for the next character. Starts with the next
+	 * char after pos.
+	 * After a call, pos points to the first expected char or
+	 * at current_line.end()
 	 */
 	template<CharCheckFn check>
 	bool expect_next() {
 	    read_while<is_whitespace>();
 	    return pos < current_line.end() && check(*pos);
+	}
+
+
+	/**
+	 * Checks, if the current char is a comment char,
+	 * otherwise, if current char is whitespace, eats
+	 * whitespace until another char ist found. Returns
+	 * true, if that is a comment char.
+	 */
+	bool is_comment_line() {
+	    return is_comment(*pos)
+		|| (is_whitespace(*pos) && expect_next<is_comment>());
 	}
 
 	/**
@@ -101,6 +127,8 @@ namespace rewrite {
 	size_t error_distance();
 
 	std::string error_pointer();
+
+	Message error_message(const Message& msg);
     };
 }
 

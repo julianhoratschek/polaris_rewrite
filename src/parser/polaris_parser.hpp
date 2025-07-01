@@ -134,8 +134,7 @@ namespace rewrite {
 	 * @param err_fn optional function to handle non-fatal error messages
 	 * @returns on failure Message with fatal error message
 	 */
-	template<typename ErrorFn>
-	    requires IsErrorHandlerFn<ErrorFn>
+	template<ErrorHandlerFn ErrorFn>
 	auto parse_file(const std::filesystem::path& path,
 		ErrorFn err_fn = nullptr) -> std::expected<void, Message> {
 

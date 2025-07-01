@@ -41,4 +41,14 @@ namespace rewrite {
     std::string BasicParser::error_pointer() {
 	return std::string(error_distance(), '~') + '^';
     }
+
+    Message BasicParser::error_message(const Message& err) {
+	return Message {
+	    std::format("[{:04}:{}]: {}\n{}\n{}",
+		0, error_distance(), err.message,
+		current_line, error_pointer()),
+	    err.type,
+	    err.sender
+	};
+    }
 }
