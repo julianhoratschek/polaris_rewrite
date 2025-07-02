@@ -36,12 +36,21 @@ void spline::resize(uint size)
     delete[] y;
 
     N = size - 1;
-    d = new double[size]{0};
-    u = new double[size]{0};
-    w = new double[size]{0};
-    p = new double[size]{0};
-    x = new double[size]{0};
-    y = new double[size]{0};
+    d = new double[size];
+    u = new double[size];
+    w = new double[size];
+    p = new double[size];
+    x = new double[size];
+    y = new double[size];
+
+    for (auto i = 0; i < size; i ++) {
+	d[i] = 0;
+	u[i] = 0;
+	w[i] = 0;
+	p[i] = 0;
+	x[i] = 0;
+	y[i] = 0;
+    }
 }
 
 
@@ -54,12 +63,19 @@ void spline::resizeShared(size_t size, double* x_values, double* y_values) {
     delete[] y;
 
     N = size - 1;
-    d = new double[size]{0};
-    u = new double[size]{0};
-    w = new double[size]{0};
-    p = new double[size]{0};
+    d = new double[size];
+    u = new double[size];
+    w = new double[size];
+    p = new double[size];
     x = x_values;
     y = y_values;
+
+    for (auto i = 0; i < size; i ++) {
+	d[i] = 0;
+	u[i] = 0;
+	w[i] = 0;
+	p[i] = 0;
+    }
 }
 
 double spline::getAverageY()

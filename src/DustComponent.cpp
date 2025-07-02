@@ -11,7 +11,7 @@
 #include "Typedefs.hpp"
 #include "Parameters.hpp"
 
-#include "parser/nk_parser.hpp"
+#include "parser/dust_parameter_parser.hpp"
 
 #include <cstring>
 
@@ -248,6 +248,7 @@ void CDustComponent::initCalorimetry()
 
 bool CDustComponent::readDustParameterFile(parameters & param, uint dust_component_choice)
 {
+    // TODO: cleanup upon return false
     // Get Path to dust parameters file
     string path = param.getDustPath(dust_component_choice);
 
@@ -259,9 +260,6 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     auto data = parser.get_result();
 
     // Init variables
-    // CCommandParser ps;
-    // unsigned char ru[4] = { '|', '/', '-', '\\' };
-    // string line;
     dlist values, wavelength_list_dustcat;
 
     // temporary variables for wavelength interpolation
@@ -272,19 +270,7 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     double a_min = param.getSizeMin(dust_component_choice);
     double a_max = param.getSizeMax(dust_component_choice);
 
-    // Init progress counter
-    // uint line_counter = 0;
-    // uint char_counter = 0;
-    uint eff_counter = 0;
-
-        // Show progress
-        // if(line_counter % 500 == 0)
-        // {
-        //     char_counter++;
-        //     printIDs();
-        //     cout << "- reading dust parameters file: " << ru[(uint)char_counter % 4] << "             \r";
-        // }
-	
+    // Set String ID
     stringID = data.stringID;
 
     // The number of dust grain sizes
@@ -301,7 +287,7 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 
     // The material density (only used if no one was set in the command file)
     if(material_density == 0) {
-	// TODO
+	// TODO: rather return an error than outputting here
 	if(data.material_density == 0) {
 	    printIDs();
 	    cout << ERROR_LINE << "dust bulk mass is zero!" << endl;
@@ -323,7 +309,7 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     gold_g_factor = 0.5 * (aspect_ratio * aspect_ratio - 1);
 
     // Init splines for wavelength interpolation of the dust optical properties
-    eff_wl = new spline[nr_of_dust_species * NR_OF_EFF];
+    eff_wl = new spline[nr_of_dust_species * (NR_OF_EFF - 1)];
     Qtrq_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
     HG_g_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
     HG_g2_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
@@ -337,7 +323,7 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     mass = new double[nr_of_dust_species];
 
     // Calculate the grain size distribution
-    calcSizeDistribution(values, mass);
+    calcSizeDistribution(data.a_eff, mass);
 
     // Check if size limits are inside grain sizes and set global ones
     if(!checkGrainSizeLimits(a_min, a_max))
@@ -393,8 +379,8 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 
     // At the last wavelength, activate the splines
     // For the dust grain optical properties
-    // TODO: Better to have these directly above after assignemnt?
-    for(uint i = 0; i < nr_of_dust_species * NR_OF_EFF - 1; i++)
+    // For-Loops here or included in loop above: no real difference in performance
+    for(uint i = 0; i < nr_of_dust_species * (NR_OF_EFF - 1); i++)
 	eff_wl[i].createSpline();
 
     // For the Qtrq and HG g factor for each incident angle
@@ -427,6 +413,12 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     HG_g2_factor = new spline[nr_of_dust_species * nr_of_wavelength];
     HG_g3_factor = new spline[nr_of_dust_species * nr_of_wavelength];
 
+    // Calculate the difference between two incident angles
+    const double d_ang = nr_of_incident_angles > 1 ?
+	PI / double(nr_of_incident_angles - 1)
+	: 1;
+    const auto phf_id = param.getPhaseFunctionID(dust_component_choice);
+
     for(uint a = 0; a < nr_of_dust_species; a++) {
         // Resize the splines for each grain size
         Qext1[a] = new double[nr_of_wavelength];
@@ -455,11 +447,6 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 
 	    // TODO: extract
             if(sizeIndexUsed(a)) {
-                // Calculate the difference between two incident angles
-                double d_ang = 1;
-
-                if(nr_of_incident_angles > 1)
-                    d_ang = PI / double(nr_of_incident_angles - 1);
 
                 // Set the splines of Qtrq and HG g factor for each incident angle
                 for(uint i_inc = 0; i_inc < nr_of_incident_angles; i_inc++) {
@@ -487,18 +474,19 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
                     return false;
                 }
 
-		const auto phf_id = param.getPhaseFunctionID(dust_component_choice);
-
                 if(phf_id == PH_DHG) {
                     if(avg_HG_g2_factor < 0.0 || avg_HG_g2_factor > 1.0) {
                         cout << ERROR_LINE << "Henyey-Greenstein factor alpha is invalid: " << avg_HG_g2_factor << endl;
                         return false;
                     }
+
                 } else if(phf_id == PH_TTHG) {
+		    
                     if(avg_HG_g2_factor <= -1.0 || avg_HG_g2_factor >= 1.0) {
                         cout << ERROR_LINE << "Henyey-Greenstein factor g2 is invalid: " << avg_HG_g2_factor << endl;
                         return false;
                     }
+
                     if(avg_HG_g2_factor * avg_HG_g3_factor > 0.0) {
                         cout << ERROR_LINE << "Henyey-Greenstein g1 and g2 must have different signs." << endl;
                         return false;
@@ -513,25 +501,24 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
                 // Set the splines of the dust grain optical properties
 		// TODO extract?
                 if (is_align) {
-                    Qext1[a][w] = eff_wl[a * NR_OF_EFF + 0].getValue(wavelength_list[w]);
-                    Qext2[a][w] = eff_wl[a * NR_OF_EFF + 1].getValue(wavelength_list[w]);
-                    Qabs1[a][w] = eff_wl[a * NR_OF_EFF + 2].getValue(wavelength_list[w]);
-                    Qabs2[a][w] = eff_wl[a * NR_OF_EFF + 3].getValue(wavelength_list[w]);
-                    Qsca1[a][w] = eff_wl[a * NR_OF_EFF + 4].getValue(wavelength_list[w]);
-                    Qsca2[a][w] = eff_wl[a * NR_OF_EFF + 5].getValue(wavelength_list[w]);
-                    Qcirc[a][w] = eff_wl[a * NR_OF_EFF + 6].getValue(wavelength_list[w]);
+                    Qext1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]);
+                    Qext2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]);
+                    Qabs1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]);
+                    Qabs2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]);
+                    Qsca1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]);
+                    Qsca2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]);
+                    Qcirc[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 6].getValue(wavelength_list[w]);
                 }
-                else
-                {
+                else {
                     double tmpQext = 1.0 / 3.0 *
-                                     (2.0 * eff_wl[a * NR_OF_EFF + 0].getValue(wavelength_list[w]) +
-                                      eff_wl[a * NR_OF_EFF + 1].getValue(wavelength_list[w]));
+                                     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]) +
+                                      eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]));
                     double tmpQabs = 1.0 / 3.0 *
-                                     (2.0 * eff_wl[a * NR_OF_EFF + 2].getValue(wavelength_list[w]) +
-                                      eff_wl[a * NR_OF_EFF + 3].getValue(wavelength_list[w]));
+                                     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]) +
+                                      eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]));
                     double tmpQsca = 1.0 / 3.0 *
-                                     (2.0 * eff_wl[a * NR_OF_EFF + 4].getValue(wavelength_list[w]) +
-                                      eff_wl[a * NR_OF_EFF + 5].getValue(wavelength_list[w]));
+                                     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]) +
+                                      eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]));
 
                     Qext1[a][w] = tmpQext;
                     Qext2[a][w] = tmpQext;
@@ -573,8 +560,8 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 
     // Read the scattering matrix if MIE scattering should be used
     // With the same grid of wavelengths and grain sizes
-    if(param.getPhaseFunctionID(dust_component_choice) == PH_MIE)
-        if(!readScatteringMatrices(path, nr_of_wavelength_dustcat, wavelength_list_dustcat))
+    if (phf_id == PH_MIE
+	&& !readScatteringMatrices(path, nr_of_wavelength_dustcat, wavelength_list_dustcat))
             return false;
 
     // Remove temporary pointer arrays
@@ -3005,7 +2992,7 @@ void CDustComponent::preCalcTemperatureLists(double minTemp, double maxTemp, uin
     }
 }
 
-bool CDustComponent::calcSizeDistribution(dlist values, double * mass)
+bool CDustComponent::calcSizeDistribution(const dlist& values, double * mass)
 {
     // Calculates various grain size distributions.
     // From DustEM Code "https://www.ias.u-psud.fr/DUSTEM/"

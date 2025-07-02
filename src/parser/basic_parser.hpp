@@ -104,6 +104,14 @@ namespace rewrite {
 	}
 
 
+	template<CharCheckFn check>
+	bool is_or_next() {
+	    if (check(*pos))
+		return true;
+	    return expect_next<check>();
+	}
+
+
 	/**
 	 * Checks, if the current char is a comment char,
 	 * otherwise, if current char is whitespace, eats

@@ -1,5 +1,5 @@
-#ifndef RW_NK_PARSER
-#define RW_NK_PARSER
+#ifndef RW_DUST_PARAMETER_PARSER
+#define RW_DUST_PARAMETER_PARSER
 
 #include "basic_parser.hpp"
 
@@ -33,8 +33,6 @@ namespace rewrite {
 	bool			align;
 
 	std::vector<double>	a_eff;
-	size_t			line_length;
-	size_t			data_length;
 	double			*wavelengths{nullptr};
 	double			*eff_wl{nullptr};
 	double			*Qtrq_wl{nullptr};
@@ -81,6 +79,7 @@ namespace rewrite {
 
 	    std::array<double, 8>	values;
 	    size_t			column = 0;
+	    size_t			data_length = 0;
 
 
 	    file.open(path, std::ios::binary);
@@ -100,13 +99,13 @@ namespace rewrite {
 	    if (!next_line())
 		return safe_error( "Unexpected End of File" );
 
-	    while (expect_next<is_number>() && column < 8)
+	    while (is_or_next<is_number>() && column < 8)
 		if (const auto num = get_number();
 		    not num.has_value()) return safe_error( num.error().message );
 		else values[column++] = num.value();
 
 	    if (column != 8)
-		// TODO
+		// TODO: Correct line
 		return safe_error( "Expected 8 Values in line 2" );
 
 	    std::tie(
@@ -124,7 +123,6 @@ namespace rewrite {
 	    // result.nr_inc_angles = static_cast<size_t>(values[2]);
 	    // result.aspect_ratio = values[3];
 	    //
-	    // // TODO: check if set in cmd
 	    // result.material_density = values[4];
 	    // result.sub_temp = values[5];
 	    // result.delta = values[6];
@@ -135,11 +133,12 @@ namespace rewrite {
 	    if (!next_line())
 		return safe_error( "Unexpected End of File" );
 
-	    result.a_eff.reserve(result.nr_dust_species);
-	    while (expect_next<is_number>())
+	    result.a_eff.resize(result.nr_dust_species);
+	    for (column = 0; is_or_next<is_number>() && column < result.nr_dust_species; column++) {
 		if (const auto num = get_number();
 		    not num.has_value()) return safe_error( num.error().message );
-		else result.a_eff.push_back(num.value());
+		else result.a_eff[column] = num.value();
+	    }
 
 	    if (result.a_eff.size() != result.nr_dust_species)
 		return safe_error( "Mismatching dust species counts" );
@@ -150,7 +149,7 @@ namespace rewrite {
 		return safe_error( "Unexpected End of File" );
 
 	    result.wavelengths = new double[result.nr_wavelengths];
-	    for (column = 0; column < result.nr_wavelengths && expect_next<is_number>(); column++)
+	    for (column = 0; column < result.nr_wavelengths && is_or_next<is_number>(); column++)
 		if (const auto num = get_number();
 		    not num.has_value()) return safe_error( num.error().message );
 		else result.wavelengths[column] = num.value();
@@ -160,17 +159,16 @@ namespace rewrite {
 
 	    // Get all relevant remaining lines
 
-	    // TODO: This should be profiled: Is it faster than 
-	    // "On the go" allocation?
 	    auto pos = file.tellg();
-	    result.data_length = 0;
+	    data_length = 0;
 	    while (next_line())
-		++result.data_length;
-	    file.seekg(pos);
+		++data_length;
+	    file.clear();
+	    file.seekg(pos, std::ios::beg);
 
 	    // If not a line per combination of grain size and wavelength was found in the
 	    // catalog, show error
-	    if (result.data_length != result.nr_wavelengths * result.nr_dust_species)
+	    if (data_length != result.nr_wavelengths * result.nr_dust_species)
 		return safe_error( "Wrong amount of efficiencies" );
 
 	    // Allocate memory
@@ -178,26 +176,34 @@ namespace rewrite {
 	    // is obliged to free this
 	    // TODO: Rather have shared pointers? runtime-cost?
 
-	    result.eff_wl = new double[result.data_length * 7];
-	    result.Qtrq_wl = new double[result.data_length * result.nr_inc_angles];
-	    result.HG_g_factor_wl = new double[result.data_length * result.nr_inc_angles]{0};
-	    result.HG_g2_factor_wl = new double[result.data_length * result.nr_inc_angles]{0};
-	    result.HG_g3_factor_wl = new double[result.data_length * result.nr_inc_angles]{1};
+	    result.eff_wl = new double[data_length * 7];
+	    result.Qtrq_wl = new double[data_length * result.nr_inc_angles];
+	    result.HG_g_factor_wl = new double[data_length * result.nr_inc_angles];
+	    result.HG_g2_factor_wl = new double[data_length * result.nr_inc_angles];
+	    result.HG_g3_factor_wl = new double[data_length * result.nr_inc_angles];
+
+	    for (auto i = 0; i < data_length * result.nr_inc_angles; i++) {
+		result.HG_g_factor_wl[i] = 0.0;
+		result.HG_g2_factor_wl[i] = 0.0;
+		result.HG_g3_factor_wl[i] = 1.0;
+	    }
 
 	    // Read and transform values while reading
-	    // These memory locations are meant to be used over
-	    // multiple splines
+	    // This makes it easier to simply transfer the pointers to
+	    // the memory locations to the splines
+	    
+	    size_t cnt = 0;
 
 	    for (auto w = 0; w < result.nr_wavelengths; w++) {
 		for (auto a = 0; a < result.nr_dust_species; a++) {
 		    if (!next_line())
 			return safe_error( "Unexpected end of file");
 
-		    for(column = 0; column < 7 && expect_next<is_number>(); column++) {
+		    for(column = 0; column < 7 && is_or_next<is_number>(); column++) {
 			if (const auto num = get_number();
 			    not num.has_value()) return safe_error( num.error().message );
 			else
-			    result.eff_wl[a * result.nr_wavelengths * 7 + col * result.nr_wavelengths + w] = num.value();
+			    result.eff_wl[a * result.nr_wavelengths * 7 + column * result.nr_wavelengths + w] = num.value();
 		    }
 
 		    for(column = 0; column < result.nr_inc_angles && expect_next<is_number>(); column++) {

@@ -95,6 +95,23 @@ if (TEST_REWRITE)
 
     target_link_libraries(trynerror OpenMP::OpenMP_CXX)
 
+    add_executable(test_dust
+	MathSpline.cpp
+	Parameters.cpp
+	CommandParser.cpp
+	Stokes.cpp
+	Vector3D.cpp
+	Matrix2D.cpp
+	MathProbList.cpp
+	MathFunctions.cpp
+	Faddeeva.cc
+
+	parser/basic_parser.cpp
+	parser/test_dust_parser.cpp)
+
+    target_link_libraries (test_dust
+	OpenMP::OpenMP_CXX)
+
     add_executable (test_parser
 	Parameters.cpp
 	CommandParser.cpp

@@ -860,7 +860,7 @@ public:
 
     bool writeComponentData(string path_data);
     bool writeComponentPlot(string path_plot);
-    bool calcSizeDistribution(dlist values, double * mass);
+    bool calcSizeDistribution(const dlist& values, double * mass);
     bool add(double ** size_fraction, CDustComponent * comp, uint ** nr_of_scat_theta_tmp, double *** scat_theta_tmp);
 
     uint getInteractingDust(CGridBasic * grid, photon_package * pp, CRandomGenerator * rand_gen, uint cross_section = CROSS_ABS) const;
