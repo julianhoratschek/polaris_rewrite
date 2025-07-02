@@ -12,58 +12,54 @@ uint spline::size() const
 
 void spline::clear()
 {
-    if(d != 0)
-        delete[] d;
-    d = 0;
-    if(u != 0)
-        delete[] u;
-    u = 0;
-    if(w != 0)
-        delete[] w;
-    w = 0;
-    if(p != 0)
-        delete[] p;
-    p = 0;
-    if(x != 0)
-        delete[] x;
-    x = 0;
-    if(y != 0)
-        delete[] y;
-    y = 0;
+    delete[] d;
+    d = nullptr;
+    delete[] u;
+    u = nullptr;
+    delete[] w;
+    w = nullptr;
+    delete[] p;
+    p = nullptr;
+    delete[] x;
+    x = nullptr;
+    delete[] y;
+    y = nullptr;
 }
 
 void spline::resize(uint size)
 {
-    if(d != 0)
-        delete[] d;
-    if(u != 0)
-        delete[] u;
-    if(w != 0)
-        delete[] w;
-    if(p != 0)
-        delete[] p;
-    if(x != 0)
-        delete[] x;
-    if(y != 0)
-        delete[] y;
+    delete[] d;
+    delete[] u;
+    delete[] w;
+    delete[] p;
+    delete[] x;
+    delete[] y;
 
     N = size - 1;
-    d = new double[size];
-    u = new double[size];
-    w = new double[size];
-    p = new double[size];
-    x = new double[size];
-    y = new double[size];
+    d = new double[size]{0};
+    u = new double[size]{0};
+    w = new double[size]{0};
+    p = new double[size]{0};
+    x = new double[size]{0};
+    y = new double[size]{0};
+}
 
-    for(uint i = 0; i < size; i++)
-    {
-        d[i] = 0;
-        u[i] = 0;
-        w[i] = 0;
-        p[i] = 0;
-        x[i] = 0;
-        y[i] = 0;
-    }
+
+void spline::resizeShared(size_t size, double* x_values, double* y_values) {
+    delete[] d;
+    delete[] u;
+    delete[] w;
+    delete[] p;
+    delete[] x;
+    delete[] y;
+
+    N = size - 1;
+    d = new double[size]{0};
+    u = new double[size]{0};
+    w = new double[size]{0};
+    p = new double[size]{0};
+    x = x_values;
+    y = y_values;
 }
 
 double spline::getAverageY()
@@ -93,6 +89,7 @@ void spline::setValue(uint pos, double _x, double _y)
 
 void spline::addValue(uint pos, double _x, double _y)
 {
+    // TODO: is this correct?
     x[pos] = _x;
     y[pos] += _y;
 }
@@ -119,9 +116,9 @@ void spline::addYValueExt(uint pos, double _x, double _y)
 }
 */
 
-double spline::f(double x) const
+double spline::f(double k) const
 {
-    return x * x * x - x;
+    return k * k * k - k;
 }
 
 void spline::printX()
