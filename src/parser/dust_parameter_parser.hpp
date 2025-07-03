@@ -22,6 +22,7 @@ namespace rewrite {
      */
 
     struct DustParameterFile {
+	//TODO: Free resources here
 	std::string		stringID;
 	size_t			nr_dust_species;
 	size_t			nr_wavelengths;

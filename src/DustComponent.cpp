@@ -267,8 +267,8 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     uint nr_of_wavelength_dustcat;
 
     // Get min and max dust grain size
-    double a_min = param.getSizeMin(dust_component_choice);
-    double a_max = param.getSizeMax(dust_component_choice);
+    const double a_min = param.getSizeMin(dust_component_choice);
+    const double a_max = param.getSizeMax(dust_component_choice);
 
     // Set String ID
     stringID = data.stringID;
@@ -308,12 +308,6 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     // Calculate the GOLD alignment g factor
     gold_g_factor = 0.5 * (aspect_ratio * aspect_ratio - 1);
 
-    // Init splines for wavelength interpolation of the dust optical properties
-    eff_wl = new spline[nr_of_dust_species * (NR_OF_EFF - 1)];
-    Qtrq_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
-    HG_g_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
-    HG_g2_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
-    HG_g3_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
 
     // Init arrays for grain size, size distribution, and mass
     a_eff = new double[nr_of_dust_species];
@@ -347,11 +341,13 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 	}
     }
 
-    // Get the wavelength and grain size indizes
-    // uint w = int(eff_counter / nr_of_dust_species);
-    // uint a = eff_counter % nr_of_dust_species;
-    
-    // At the first wavelength, resize the splines for the wavelengths
+    // Init splines for wavelength interpolation of the dust optical properties
+    eff_wl = new spline[nr_of_dust_species * (NR_OF_EFF - 1)];
+    Qtrq_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
+    HG_g_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
+    HG_g2_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
+    HG_g3_factor_wl = new spline[nr_of_dust_species * nr_of_incident_angles];
+
     for (size_t a = 0; a < nr_of_dust_species; a++) {
 	for (size_t i = 0; i < 7; i++) {
 	    eff_wl[a + i].resizeShared(
@@ -413,6 +409,14 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     HG_g2_factor = new spline[nr_of_dust_species * nr_of_wavelength];
     HG_g3_factor = new spline[nr_of_dust_species * nr_of_wavelength];
 
+    // Resize the splines of Qtrq and HG g factor for each wavelength
+    for (size_t i = 0; i < nr_of_dust_species * nr_of_wavelength; i++) {
+	Qtrq[i].resize(nr_of_incident_angles);
+	HG_g_factor[i].resize(nr_of_incident_angles);
+	HG_g2_factor[i].resize(nr_of_incident_angles);
+	HG_g3_factor[i].resize(nr_of_incident_angles);
+    }
+
     // Calculate the difference between two incident angles
     const double d_ang = nr_of_incident_angles > 1 ?
 	PI / double(nr_of_incident_angles - 1)
@@ -436,133 +440,141 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
         CabsMean[a] = new double [nr_of_wavelength]{0};
         CscaMean[a] = new double [nr_of_wavelength]{0};
 
-        for(uint w = 0; w < nr_of_wavelength; w++) {
-	    const auto idx = w * nr_of_dust_species + a;
+	// Extracted from inner loop to reduce branching
+	if (!sizeIndexUsed(a)) {
+	    for(uint w = 0; w < nr_of_wavelength; w++) {
+		const auto idx = w * nr_of_dust_species + a;
 
-            // Resize the splines of Qtrq and HG g factor for each wavelength
-            Qtrq[idx].resize(nr_of_incident_angles);
-            HG_g_factor[idx].resize(nr_of_incident_angles);
-            HG_g2_factor[idx].resize(nr_of_incident_angles);
-            HG_g3_factor[idx].resize(nr_of_incident_angles);
+		Qext1[a][w] = 0;
+		Qext2[a][w] = 0;
+		Qabs1[a][w] = 0;
+		Qabs2[a][w] = 0;
+		Qsca1[a][w] = 0;
+		Qsca2[a][w] = 0;
+		Qcirc[a][w] = 0;
+		HGg[a][w] = 0;
+		HGg2[a][w] = 0;
+		HGg3[a][w] = 1;
 
-	    // TODO: extract
-            if(sizeIndexUsed(a)) {
+		// Activate the splines of Qtrq and HG g factor
+		Qtrq[idx].createSpline();
+		HG_g_factor[idx].createSpline();
+		HG_g2_factor[idx].createSpline();
+		HG_g3_factor[idx].createSpline();
 
-                // Set the splines of Qtrq and HG g factor for each incident angle
-                for(uint i_inc = 0; i_inc < nr_of_incident_angles; i_inc++) {
-                    Qtrq[idx].setValue(
-                        i_inc, i_inc * d_ang,
-                        Qtrq_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w]));
-                    HG_g_factor[idx].setValue(
-                        i_inc, i_inc * d_ang,
-                        HG_g_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
-                    HG_g2_factor[idx].setValue(
-                        i_inc, i_inc * d_ang,
-                        HG_g2_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
-                    HG_g3_factor[idx].setValue(
-                        i_inc, i_inc * d_ang,
-                        HG_g3_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
-                }
+		CextMean[a][w] = 0;
+		CabsMean[a][w] = 0;
+		CscaMean[a][w] = 0;
 
-                // Calculate the average parameters for Henyey-Greenstein phase function over all angles
-                double avg_HG_g_factor = HG_g_factor[idx].getAverageY();
-                double avg_HG_g2_factor = HG_g2_factor[idx].getAverageY();
-                double avg_HG_g3_factor = HG_g3_factor[idx].getAverageY();
+		// CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
+		// CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
+		// CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
+	    }
+	}
+	
+	// sizeIndexUsed(a) == true
+	else {
 
-                if(avg_HG_g_factor <= -1.0 || avg_HG_g_factor >= 1.0) {
-                    cout << ERROR_LINE << "Henyey-Greenstein g factor is invalid: " << avg_HG_g_factor << endl;
-                    return false;
-                }
+	    for(uint w = 0; w < nr_of_wavelength; w++) {
+		const auto idx = w * nr_of_dust_species + a;
 
-                if(phf_id == PH_DHG) {
-                    if(avg_HG_g2_factor < 0.0 || avg_HG_g2_factor > 1.0) {
-                        cout << ERROR_LINE << "Henyey-Greenstein factor alpha is invalid: " << avg_HG_g2_factor << endl;
-                        return false;
-                    }
+		// Set the splines of Qtrq and HG g factor for each incident angle
+		for(uint i_inc = 0; i_inc < nr_of_incident_angles; i_inc++) {
+		    Qtrq[idx].setValue(
+			i_inc, i_inc * d_ang,
+			Qtrq_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w]));
+		    HG_g_factor[idx].setValue(
+			i_inc, i_inc * d_ang,
+			HG_g_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
+		    HG_g2_factor[idx].setValue(
+			i_inc, i_inc * d_ang,
+			HG_g2_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
+		    HG_g3_factor[idx].setValue(
+			i_inc, i_inc * d_ang,
+			HG_g3_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
+		}
 
-                } else if(phf_id == PH_TTHG) {
+		// Calculate the average parameters for Henyey-Greenstein phase function over all angles
+		const double avg_HG_g_factor = HG_g_factor[idx].getAverageY();
+		const double avg_HG_g2_factor = HG_g2_factor[idx].getAverageY();
+		const double avg_HG_g3_factor = HG_g3_factor[idx].getAverageY();
+
+		if(avg_HG_g_factor <= -1.0 || avg_HG_g_factor >= 1.0) {
+		    cout << ERROR_LINE << "Henyey-Greenstein g factor is invalid: " << avg_HG_g_factor << endl;
+		    return false;
+		}
+
+		if(phf_id == PH_DHG) {
+		    if(avg_HG_g2_factor < 0.0 || avg_HG_g2_factor > 1.0) {
+			cout << ERROR_LINE << "Henyey-Greenstein factor alpha is invalid: " << avg_HG_g2_factor << endl;
+			return false;
+		    }
+
+		} else if(phf_id == PH_TTHG) {
 		    
-                    if(avg_HG_g2_factor <= -1.0 || avg_HG_g2_factor >= 1.0) {
-                        cout << ERROR_LINE << "Henyey-Greenstein factor g2 is invalid: " << avg_HG_g2_factor << endl;
-                        return false;
-                    }
+		    if(avg_HG_g2_factor <= -1.0 || avg_HG_g2_factor >= 1.0) {
+			cout << ERROR_LINE << "Henyey-Greenstein factor g2 is invalid: " << avg_HG_g2_factor << endl;
+			return false;
+		    }
 
-                    if(avg_HG_g2_factor * avg_HG_g3_factor > 0.0) {
-                        cout << ERROR_LINE << "Henyey-Greenstein g1 and g2 must have different signs." << endl;
-                        return false;
-                    }
-                }
+		    if(avg_HG_g2_factor * avg_HG_g3_factor > 0.0) {
+			cout << ERROR_LINE << "Henyey-Greenstein g1 and g2 must have different signs." << endl;
+			return false;
+		    }
+		}
 
-                if(avg_HG_g3_factor < 0.0 || avg_HG_g3_factor > 1.0) {
-                    cout << ERROR_LINE << "Henyey-Greenstein weight factor is invalid: " << avg_HG_g3_factor << endl;
-                    return false;
-                }
+		if(avg_HG_g3_factor < 0.0 || avg_HG_g3_factor > 1.0) {
+		    cout << ERROR_LINE << "Henyey-Greenstein weight factor is invalid: " << avg_HG_g3_factor << endl;
+		    return false;
+		}
 
-                // Set the splines of the dust grain optical properties
+		// Set the splines of the dust grain optical properties
 		// TODO extract?
-                if (is_align) {
-                    Qext1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]);
-                    Qext2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]);
-                    Qabs1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]);
-                    Qabs2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]);
-                    Qsca1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]);
-                    Qsca2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]);
-                    Qcirc[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 6].getValue(wavelength_list[w]);
-                }
-                else {
-                    double tmpQext = 1.0 / 3.0 *
-                                     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]) +
-                                      eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]));
-                    double tmpQabs = 1.0 / 3.0 *
-                                     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]) +
-                                      eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]));
-                    double tmpQsca = 1.0 / 3.0 *
-                                     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]) +
-                                      eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]));
+		if (is_align) {
+		    Qext1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]);
+		    Qext2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]);
+		    Qabs1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]);
+		    Qabs2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]);
+		    Qsca1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]);
+		    Qsca2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]);
+		    Qcirc[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 6].getValue(wavelength_list[w]);
+		}
+		else {
+		    double tmpQext = 1.0 / 3.0 *
+				     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]) +
+				      eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]));
+		    double tmpQabs = 1.0 / 3.0 *
+				     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]) +
+				      eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]));
+		    double tmpQsca = 1.0 / 3.0 *
+				     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]) +
+				      eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]));
 
-                    Qext1[a][w] = tmpQext;
-                    Qext2[a][w] = tmpQext;
-                    Qabs1[a][w] = tmpQabs;
-                    Qabs2[a][w] = tmpQabs;
-                    Qsca1[a][w] = tmpQsca;
-                    Qsca2[a][w] = tmpQsca;
-                    Qcirc[a][w] = 0;
-                }
-                HGg[a][w] = avg_HG_g_factor;
-                HGg2[a][w] = avg_HG_g2_factor;
-                HGg3[a][w] = avg_HG_g3_factor;
-            }
-            else
-            {
-                Qext1[a][w] = 0;
-                Qext2[a][w] = 0;
-                Qabs1[a][w] = 0;
-                Qabs2[a][w] = 0;
-                Qsca1[a][w] = 0;
-                Qsca2[a][w] = 0;
-                Qcirc[a][w] = 0;
-                HGg[a][w] = 0;
-                HGg2[a][w] = 0;
-                HGg3[a][w] = 1;
-            }
+		    Qext1[a][w] = tmpQext;
+		    Qext2[a][w] = tmpQext;
+		    Qabs1[a][w] = tmpQabs;
+		    Qabs2[a][w] = tmpQabs;
+		    Qsca1[a][w] = tmpQsca;
+		    Qsca2[a][w] = tmpQsca;
+		    Qcirc[a][w] = 0;
+		}
 
-            // Activate the splines of Qtrq and HG g factor
-            Qtrq[idx].createSpline();
-            HG_g_factor[idx].createSpline();
-            HG_g2_factor[idx].createSpline();
-            HG_g3_factor[idx].createSpline();
+		HGg[a][w] = avg_HG_g_factor;
+		HGg2[a][w] = avg_HG_g2_factor;
+		HGg3[a][w] = avg_HG_g3_factor;
 
-            CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
-            CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
-            CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
-        }
+		// Activate the splines of Qtrq and HG g factor
+		Qtrq[idx].createSpline();
+		HG_g_factor[idx].createSpline();
+		HG_g2_factor[idx].createSpline();
+		HG_g3_factor[idx].createSpline();
+
+		CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
+		CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
+		CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
+	    }
+	}
     }
-
-    // Read the scattering matrix if MIE scattering should be used
-    // With the same grid of wavelengths and grain sizes
-    if (phf_id == PH_MIE
-	&& !readScatteringMatrices(path, nr_of_wavelength_dustcat, wavelength_list_dustcat))
-            return false;
 
     // Remove temporary pointer arrays
     delete[] eff_wl;
@@ -570,6 +582,12 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     delete[] HG_g_factor_wl;
     delete[] HG_g2_factor_wl;
     delete[] HG_g3_factor_wl;
+
+    // Read the scattering matrix if MIE scattering should be used
+    // With the same grid of wavelengths and grain sizes
+    if (phf_id == PH_MIE
+	&& !readScatteringMatrices(path, nr_of_wavelength_dustcat, wavelength_list_dustcat))
+            return false;
 
     return true;
 }
