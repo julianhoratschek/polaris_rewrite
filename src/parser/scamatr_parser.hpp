@@ -5,169 +5,134 @@
 
 #include "basic_parser.hpp"
 
+#include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <fstream>
 #include <vector>
 
 namespace rewrite {
+
+    struct ScaMatrFile {
+	size_t		nr_of_scat_phi;
+	size_t		nr_of_scat_theta_tmp;
+	size_t		nr_of_scat_mat_elements;
+	int		elements[16];
+	unsigned int	phID;
+    };
     
     class ScaMatrParser: public BasicParser {
-	public:
-	    auto parse_file(const std::filesystem::path& path)
-		-> std::expected<void, Message> {
+	private:
+	    std::ifstream	inf_file;
+	    ScaMatrFile		result;
 
-		bool disable_mie_scattering = true;
+	    std::unexpected<Message> safe_error(const std::string& msg) {
+		if (inf_file.is_open())
+		    inf_file.close();
+		return std::unexpected { Message { msg } };
+	    }
+
+
+	public:
+	    auto parse_file(const std::filesystem::path& path,
+		const size_t nr_of_dust_species,
+		const size_t nr_of_wavelength_dustcat,
+		const size_t nr_of_incident_angles)
+		    -> std::expected<void, Message> {
+
 		const auto inf_path = path.parent_path() / (path.stem().string() + "scat.inf");
-		const size_t nr_of_scat_theta_tmp = 2 * NANG - 1;
+		// const size_t nr_of_scat_theta_tmp = 2 * NANG - 1;
 		size_t column = 0;
 		std::vector<double>	values(5);
 
-		std::ifstream inf_reader(inf_path);
+		inf_file.open(inf_path);
 
 		// Error message if the read does not work
-		if(inf_reader.fail())
+		if(inf_file.fail())
 		    return std::unexpected { Message {
 		    "Cannot open scattering matrix info file:"
 		} };
 
 		// The first line needs 5 values
-		if (!get_next_line(inf_file))
-		    return;
+		if (!next_line(inf_file))
+		    return safe_error( "Unexpected end of file" );
 
 		for (column = 0; is_or_next<is_number>() && column < 5; column++) {
 		    if (const auto num = get_number();
-			not num.has_value()) return;
-		    values[column] = num.value();
+			not num.has_value()) return safe_error( num.error().message );
+		    else values[column] = num.value();
 		}
 
 		if (column != 5)
-		    return std::unexpected{};
+		    return safe_error( "Expected 5 parameters in first line" );
 
 		// The number of dust grain sizes
 		if(values[0] != nr_of_dust_species)
-		    return std::unexpected { Message {
-			"Number of dust species does not match the number in the dust parameters file!"
-		    } };
+		    return safe_error(
+			"Number of dust species does not match the number in the dust parameters file!");
 
 		// The number of wavelength used by the dust catalog
 		if(values[1] != nr_of_wavelength_dustcat) 
-		    return std::unexpected { Message {
-			"Number of wavelength does not match the number in the dust parameters file!" 
-		    } };
+		    return safe_error(
+			"Number of wavelength does not match the number in the dust parameters file!");
 
 		// The number of incident angles
 		if(values[2] != nr_of_incident_angles) 
-		    return std::unexpected { Message {
-			"Number of incident angles does not match the number in the dust parameters file!"
-		    } };
+		    return safe_error(
+			"Number of incident angles does not match the number in the dust parameters file!");
 
 		// The number of phi angles (outgoing radiation)
-		nr_of_scat_phi = static_cast<unsigned int>(values[3]);
+		result.nr_of_scat_phi = static_cast<unsigned int>(values[3]);
 
 		// The number of theta angles (outgoing radiation)
-		nr_of_scat_theta_tmp = static_cast<unsigned int>(values[4]);
+		result.nr_of_scat_theta_tmp = static_cast<unsigned int>(values[4]);
 
-		if (!get_next_line())
-		    return;
+		if (!next_line(inf_file))
+		    return safe_error( "Unexpected end of file" );
 
 		if (const auto num = get_number();
-		    not num.has_value()) return "Wrong amount of scattering matrix elements";
+		    not num.has_value())
+		    return safe_error( "Wrong amount of scattering matrix elements" );
 		else
-		    nr_of_scat_mat_elements = num.value();
+		    result.nr_of_scat_mat_elements = num.value();
 
-		if (!get_next_line(inf_file))
-		    return;
+		// The third line needs 16 values
+		if (!next_line(inf_file))
+		    return safe_error( "Unexpected end of file" );
+
+		// The relation which scattering matrix entry is used at which position in
+		// the 4x4 matrix
+		for (column = 0; column < 16; column++) {
+		    if (const auto num = get_number();
+			not num.has_value()) return safe_error( "Wrong amount of matrix elements" );
+		    else result.elements[column] = num.value();
+		}
 
 
+		// Close the file reader
+		inf_file.close();
 
+		// If scattering matrix is empty, disable mie scattering for the corresponding dust
+		// component
+		const bool disable_mie_scattering = std::any_of(result.elements, result.elements + 16,
+		    [](auto e) { e != 0; });
 
-		    case 3:
-			// The third line needs 16 values
-			if(values.size() != 16)
-			{
-			    cout << ERROR_LINE << "Wrong amount of matrix elements in:" << endl;
-			    cout << inf_filename.c_str() << " line 3!" << endl;
-			    return false;
-			}
-
-			// The relation which scattering matrix entry is used at which position in
-			// the 4x4 matrix
-			for(uint i = 0; i < 16; i++)
-			{
-			    elements[i] = int(values[i]);
-			    if(elements[i] != 0)
-				disable_mie_scattering = false;
-			}
-			break;
-
-	    // Close the file reader
-	    inf_reader.close();
-
-	    // If scattering matrix is empty, disable mie scattering for the corresponding dust
-	    // component
-	    if(disable_mie_scattering)
-	    {
-		phID = PH_HG;
-		return true;
-	    }
-
-	    // Init counter and percentage to show progress
-	    ullong per_counter = 0;
-	    float last_percentage = 0;
-
-	    // Init maximum counter value
-	    uint max_counter = nr_of_incident_angles * nr_of_dust_species * nr_of_scat_phi;
+		if (disable_mie_scattering) {
+		    result.phID = PH_HG;
+		    return {};
+		}
 
 	    // First init of the scattering matrix interp
-	    interp ***** sca_mat_wl = new interp ****[nr_of_dust_species];
+	    // interp ***** sca_mat_wl = new interp ****[nr_of_dust_species];
+	    //
+	    const size_t full_size = nr_of_dust_species * nr_of_incident_angles *
+	    nr_of_scat_phi * nr_of_scat_theta_tmp * nr_of_scat_mat_elements;
 
-	    #pragma omp parallel for
-	    for(int a = 0; a < int(nr_of_dust_species); a++)
-	    {
-		// Second init of the scattering matrix interp
-		sca_mat_wl[a] = new interp ***[nr_of_incident_angles];
-		for(uint inc = 0; inc < nr_of_incident_angles; inc++)
-		{
-		    // Third init of the scattering matrix interp
-		    sca_mat_wl[a][inc] = new interp **[nr_of_scat_phi];
-		    for(uint sph = 0; sph < nr_of_scat_phi; sph++)
-		    {
-			// Increase counter used to show progress
-			per_counter++;
+	    interp *sca_mat_wl = new interp[full_size];
 
-			// Calculate percentage of total progress per source
-			float percentage = 100.0 * float(per_counter) / float(max_counter);
-
-			// Show only new percentage number if it changed
-			if((percentage - last_percentage) > PERCENTAGE_STEP)
-			{
-			    #pragma omp critical
-			    {
-				printIDs();
-				cout << "- allocating memory: " << percentage << " [%]                      \r";
-				last_percentage = percentage;
-			    }
-			}
-
-			// Fourth init of the scattering matrix interp
-			sca_mat_wl[a][inc][sph] = new interp *[nr_of_scat_theta_tmp];
-			for(uint sth = 0; sth < nr_of_scat_theta_tmp; sth++)
-			{
-			    // Fifth init of the scattering matrix interp
-			    sca_mat_wl[a][inc][sph][sth] = new interp[nr_of_scat_mat_elements];
-
-			    // Resize the linear for each scattering matrix element
-			    for(uint mat = 0; mat < nr_of_scat_mat_elements; mat++)
-				sca_mat_wl[a][inc][sph][sth][mat].resize(nr_of_wavelength_dustcat);
-			}
-		    }
-		}
-	    }
-
-	    // Set counter and percentage to show progress
-	    per_counter = 0;
-	    last_percentage = 0;
+	    // omp-loop?
+	    for (size_t i = 0; i < full_size; i++)
+		sca_mat_wl[i].resize(nr_of_wavelength_dustcat);
 
 	    // Init error bool
 	    bool error = false;
@@ -191,7 +156,7 @@ namespace rewrite {
 		bin_filename += str_ID_end;
 
 		// Init text file reader for scattering binary file
-		ifstream bin_reader(bin_filename.c_str(), ios::in | ios::binary);
+		ifstream bin_reader(bin_filename, ios::in | ios::binary);
 
 		// Error message if the read does not work
 		if(bin_reader.fail())
@@ -204,23 +169,6 @@ namespace rewrite {
 
 		for(uint a = 0; a < nr_of_dust_species; a++)
 		{
-		    // Increase counter used to show progress
-		    per_counter++;
-
-		    // Calculate percentage of total progress per source
-		    float percentage = 100.0 * float(per_counter) / float(max_counter);
-
-		    // Show only new percentage number if it changed
-		    if((percentage - last_percentage) > PERCENTAGE_STEP)
-		    {
-			#pragma omp critical
-			{
-			    printIDs();
-			    cout << "- loading matrices: " << percentage << " [%]                      \r";
-			    last_percentage = percentage;
-			}
-		    }
-
 		    for(uint inc = 0; inc < nr_of_incident_angles; inc++)
 		    {
 			for(uint sph = 0; sph < nr_of_scat_phi; sph++)
