@@ -46,36 +46,32 @@ bool CPipeline::Init(int argc, char** argv) {
     srand(0);		// TODO: WHY? THis does not seem to have any real effects,
 			// because random values later on are also determined
 			// by id of the current thread.
+    
+	   cout <<
+	"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+	       "┃                                         ┃\n"
+	"┃                 POLARIS                 ┃\n"
+	"┃    ~ polarized radiation simulator ~    ┃\n"
+	"┃                                         ┃\n"
+	       "┃                 4.13.01                 ┃\n"
+	       "┃                                         ┃\n"
+	       "┃                                         ┃\n"
+	       "┃                                         ┃\n"
+	       "┃           © 2018 Stefan Reissl          ┃\n"
+	       "┃                                         ┃\n"
+	"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n" << endl;
 
-#ifdef _WIN32
-    cout << "\n\n"
-	"\t+-----------------------------------------+\n"
-	"\t|                                         |\n"
-	"\t|                 POLARIS                 |\n"
-	"\t|    ~ polarized radiation simulator ~    |\n"
-	"\t|                                         |\n"
-	"\t|                 4.13.01                 |\n"
-	"\t|                                         |\n"
-	"\t|                                         |\n"
-	"\t|                                         |\n"
-	"\t|          (c)2018 Stefan Reissl          |\n"
-	"\t|                                         |\n"
-	"\t+-----------------------------------------+\n\n" << endl;
-#else
-    cout << "\n\n"
-	"\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-	"\t┃                                         ┃\n"
-	"\t┃                 POLARIS                 ┃\n"
-	"\t┃    ~ polarized radiation simulator ~    ┃\n"
-	"\t┃                                         ┃\n"
-	"\t┃                 4.13.01                 ┃\n"
-	"\t┃                                         ┃\n"
-	"\t┃                                         ┃\n"
-	"\t┃                                         ┃\n"
-	"\t┃           © 2018 Stefan Reissl          ┃\n"
-	"\t┃                                         ┃\n"
-	"\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n" << endl;
-#endif
+	//    cout << 
+	// "\t+-----------------------------------------+\n"
+	// "\t|                 POLARIS                 |\n"
+	// "\t|    ~ polarized radiation simulator ~    |\n"
+	// "\t|                                         |\n"
+	// "\t|                 4.13.01                 |\n"
+	// "\t|                                         |\n"
+	// "\t|                                         |\n"
+	// "\t|          (c)2018 Stefan Reissl          |\n"
+	// "\t|                                         |\n"
+	// "\t+-----------------------------------------+\n\n" << endl;
 
 
     if(argc != 2) 
