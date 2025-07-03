@@ -6,6 +6,7 @@
 #include <string_view>
 #include <string>
 #include <expected>
+#include <fstream>
 
 
 namespace rewrite {
@@ -121,6 +122,17 @@ namespace rewrite {
 	bool is_comment_line() {
 	    return is_comment(*pos)
 		|| (is_whitespace(*pos) && expect_next<is_comment>());
+	}
+
+
+	bool next_line(std::ifstream& in_file) {
+	    while (std::getline(in_file, current_line)) {
+		pos = current_line.begin();
+		if (!is_comment_line() && pos < current_line.end())
+		    return true;
+	    }
+
+	    return false;
 	}
 
 	/**

@@ -3,7 +3,6 @@
 
 #include "basic_parser.hpp"
 
-#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -47,16 +46,6 @@ namespace rewrite {
 	std::ifstream		file;
 	DustParameterFile	result;
 
-	bool next_line() {
-	    while (std::getline(file, current_line)) {
-		pos = current_line.begin();
-		if (!is_comment_line() && pos < current_line.end())
-		    return true;
-	    }
-
-	    return false;
-	}
-
 	std::unexpected<Message> safe_error(const std::string& msg) {
 	    file.close();
 	    delete[] result.wavelengths;
@@ -90,14 +79,14 @@ namespace rewrite {
 
 	    // Read String ID
 
-	    if (!next_line())
+	    if (!next_line(file))
 		return safe_error( "Unexpected End of File" );
 
 	    result.stringID = current_line;
 
 	    // Read 8 Values: general parameters
 
-	    if (!next_line())
+	    if (!next_line(file))
 		return safe_error( "Unexpected End of File" );
 
 	    while (is_or_next<is_number>() && column < 8)
@@ -131,7 +120,7 @@ namespace rewrite {
 	    
 	    // Read a_eff values per dust grain size
 
-	    if (!next_line())
+	    if (!next_line(file))
 		return safe_error( "Unexpected End of File" );
 
 	    result.a_eff.resize(result.nr_dust_species);
@@ -146,7 +135,7 @@ namespace rewrite {
 
 	    // Read wavelengths
 
-	    if (!next_line())
+	    if (!next_line(file))
 		return safe_error( "Unexpected End of File" );
 
 	    result.wavelengths = new double[result.nr_wavelengths];
@@ -162,7 +151,7 @@ namespace rewrite {
 
 	    auto pos = file.tellg();
 	    data_length = 0;
-	    while (next_line())
+	    while (next_line(file))
 		++data_length;
 	    file.clear();
 	    file.seekg(pos, std::ios::beg);
@@ -197,7 +186,7 @@ namespace rewrite {
 
 	    for (auto w = 0; w < result.nr_wavelengths; w++) {
 		for (auto a = 0; a < result.nr_dust_species; a++) {
-		    if (!next_line())
+		    if (!next_line(file))
 			return safe_error( "Unexpected end of file");
 
 		    for(column = 0; column < 7 && is_or_next<is_number>(); column++) {
