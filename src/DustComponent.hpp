@@ -855,7 +855,7 @@ public:
                                      uint dust_component_choice,
                                      double a_min_mixture,
                                      double a_max_mixture);
-    bool readScatteringMatrices(string path, uint nr_of_wavelength_dustcat, dlist wavelength_list_dustcat);
+    bool readScatteringMatrices(string path, uint nr_of_wavelength_dustcat, double* wavelength_list_dustcat, const std::vector<size_t>& size_indices_used);
     bool readCalorimetryFile(parameters & param, uint dust_component_choice);
 
     bool writeComponentData(string path_data);

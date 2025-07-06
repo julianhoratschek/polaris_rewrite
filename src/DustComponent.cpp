@@ -12,8 +12,12 @@
 #include "Parameters.hpp"
 
 #include "parser/dust_parameter_parser.hpp"
+#include "parser/scamatr_parser.hpp"
+#include "parser/calorimetry_parser.hpp"
 
 #include <cstring>
+#include <ranges>
+#include <numeric>
 
 void CDustComponent::initDustProperties()
 {
@@ -148,10 +152,6 @@ void CDustComponent::initScatteringMatrixArray()
 
 void CDustComponent::initScatteringMatrixArray(uint nr_of_scat_theta_tmp)
 {
-    // Init counter and percentage to show progress
-    ullong per_counter = 0;
-    float last_percentage = 0;
-
     // Init maximum counter value
     uint max_counter = nr_of_wavelength * nr_of_dust_species;
 
@@ -160,32 +160,18 @@ void CDustComponent::initScatteringMatrixArray(uint nr_of_scat_theta_tmp)
     scat_theta = new double **[nr_of_dust_species];
     nr_of_scat_theta = new uint *[nr_of_dust_species];
 
-    for(uint a = 0; a < nr_of_dust_species; a++)
-    {
+    // TODO: rather have memory next to each other?
+    for(uint a = 0; a < nr_of_dust_species; a++) {
         // Second init of the scattering matrix and scattering angle
         sca_mat[a] = new Matrix2D ***[nr_of_wavelength];
         scat_theta[a] = new double *[nr_of_wavelength];
         nr_of_scat_theta[a] = new uint [nr_of_wavelength];
 
-        for(uint w = 0; w < nr_of_wavelength; w++)
-        {
-            // Increase counter used to show progress
-            per_counter++;
-
-            // Calculate percentage of total progress per source
-            float percentage = 100.0 * float(per_counter) / float(max_counter);
-
-            // Show only new percentage number if it changed
-            if((percentage - last_percentage) > PERCENTAGE_STEP)
-            {
-                printIDs();
-                cout << "- allocating memory: " << percentage << " [%]                      \r";
-                last_percentage = percentage;
-            }
-
+        for(uint w = 0; w < nr_of_wavelength; w++) {
             // Third init of the scattering matrix
             sca_mat[a][w] = new Matrix2D **[nr_of_incident_angles];
             scat_theta[a][w] = new double[nr_of_scat_theta_tmp];
+	    // TODO: does this value change?
             nr_of_scat_theta[a][w] = nr_of_scat_theta_tmp;
 
             for(uint inc = 0; inc < nr_of_incident_angles; inc++)
@@ -254,13 +240,14 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 
     rewrite::DustParameterParser	parser;
 
+    // TODO
     if (const auto res = parser.parse_file(path); !res)
 	return false;
 
     auto data = parser.get_result();
 
     // Init variables
-    dlist values, wavelength_list_dustcat;
+    std::vector<double>		values;
 
     // temporary variables for wavelength interpolation
     spline *eff_wl, *Qtrq_wl, *HG_g_factor_wl, *HG_g2_factor_wl, *HG_g3_factor_wl;
@@ -317,23 +304,21 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     mass = new double[nr_of_dust_species];
 
     // Calculate the grain size distribution
+    // TODO
     calcSizeDistribution(data.a_eff, mass);
 
     // Check if size limits are inside grain sizes and set global ones
     if(!checkGrainSizeLimits(a_min, a_max))
 	return false;
 
-    wavelength_list_dustcat.resize(data.nr_wavelengths);
-    std::copy(data.wavelengths, data.wavelengths + data.nr_wavelengths, wavelength_list_dustcat.begin());
-
     // TODO
-    if(wavelength_list[0] < wavelength_list_dustcat[0] ||
-	wavelength_list[nr_of_wavelength - 1] > wavelength_list_dustcat[nr_of_wavelength_dustcat - 1]) {
+    if(wavelength_list[0] < data.wavelengths[0] ||
+	wavelength_list[nr_of_wavelength - 1] > data.wavelengths[nr_of_wavelength_dustcat - 1]) {
 	cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
 	    << "         wavelength range          : " << wavelength_list[0] << " [m] to "
 	    << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
-	    << "         wavelength range (catalog): " << wavelength_list_dustcat[0] << " [m] to "
-	    << wavelength_list_dustcat[nr_of_wavelength_dustcat - 1] << " [m]" << endl;
+	    << "         wavelength range (catalog): " << data.wavelengths[0] << " [m] to "
+	    << data.wavelengths[nr_of_wavelength_dustcat - 1] << " [m]" << endl;
 	if(!IGNORE_WAVELENGTH_RANGE)
 	{
 	    cout << "         To continue, set 'IGNORE_WAVELENGTH_RANGE' to 'true' in src/Typedefs.h and recompile!" << endl;
@@ -423,7 +408,59 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 	: 1;
     const auto phf_id = param.getPhaseFunctionID(dust_component_choice);
 
-    for(uint a = 0; a < nr_of_dust_species; a++) {
+    std::vector<size_t>		size_indices_used, size_indices_unused;
+    {
+	std::vector<size_t>		size_indices(nr_of_dust_species);
+	std::iota(size_indices_used.begin(), size_indices_used.end(), 0);
+
+	std::partition_copy(size_indices.begin(), size_indices.end(),
+	    std::back_inserter(size_indices_used),
+	    std::back_inserter(size_indices_unused),
+	    [&](size_t a) { return sizeIndexUsed(a); });
+    }
+
+    for (const auto& a: size_indices_unused) {
+        // Resize the splines for each grain size
+        Qext1[a] = new double[nr_of_wavelength];
+	std::memset(Qext1, 0, nr_of_wavelength * sizeof(double));
+        Qext2[a] = new double[nr_of_wavelength];
+	std::memset(Qext2, 0, nr_of_wavelength * sizeof(double));
+        Qabs1[a] = new double[nr_of_wavelength];
+	std::memset(Qabs1, 0, nr_of_wavelength * sizeof(double));
+        Qabs2[a] = new double[nr_of_wavelength];
+	std::memset(Qabs2, 0, nr_of_wavelength * sizeof(double));
+        Qsca1[a] = new double[nr_of_wavelength];
+	std::memset(Qsca1, 0, nr_of_wavelength * sizeof(double));
+        Qsca2[a] = new double[nr_of_wavelength];
+	std::memset(Qsca2, 0, nr_of_wavelength * sizeof(double));
+        Qcirc[a] = new double[nr_of_wavelength];
+	std::memset(Qcirc, 0, nr_of_wavelength * sizeof(double));
+        HGg[a] = new double[nr_of_wavelength];
+	std::memset(HGg, 0, nr_of_wavelength * sizeof(double));
+        HGg2[a] = new double[nr_of_wavelength];
+	std::memset(HGg2, 0, nr_of_wavelength * sizeof(double));
+        HGg3[a] = new double[nr_of_wavelength];
+
+        CextMean[a] = new double [nr_of_wavelength];
+	std::memset(CextMean, 0, nr_of_wavelength * sizeof(double));
+        CabsMean[a] = new double [nr_of_wavelength];
+	std::memset(CabsMean, 0, nr_of_wavelength * sizeof(double));
+        CscaMean[a] = new double [nr_of_wavelength];
+	std::memset(CscaMean, 0, nr_of_wavelength * sizeof(double));
+
+	for(uint w = 0; w < nr_of_wavelength; w++) {
+	    const auto idx = w * nr_of_dust_species + a;
+	    HGg3[a][w] = 1;
+
+	    // Activate the splines of Qtrq and HG g factor
+	    Qtrq[idx].createSpline();
+	    HG_g_factor[idx].createSpline();
+	    HG_g2_factor[idx].createSpline();
+	    HG_g3_factor[idx].createSpline();
+	}
+    }
+
+    for(const auto& a: size_indices_used) {
         // Resize the splines for each grain size
         Qext1[a] = new double[nr_of_wavelength];
         Qext2[a] = new double[nr_of_wavelength];
@@ -436,145 +473,114 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
         HGg2[a] = new double[nr_of_wavelength];
         HGg3[a] = new double[nr_of_wavelength];
 
-        CextMean[a] = new double [nr_of_wavelength]{0};
-        CabsMean[a] = new double [nr_of_wavelength]{0};
-        CscaMean[a] = new double [nr_of_wavelength]{0};
+        CextMean[a] = new double [nr_of_wavelength];
+        CabsMean[a] = new double [nr_of_wavelength];
+        CscaMean[a] = new double [nr_of_wavelength];
 
-	// Extracted from inner loop to reduce branching
-	if (!sizeIndexUsed(a)) {
-	    for(uint w = 0; w < nr_of_wavelength; w++) {
-		const auto idx = w * nr_of_dust_species + a;
+	for(uint w = 0; w < nr_of_wavelength; w++) {
+	    const auto idx = w * nr_of_dust_species + a;
 
-		Qext1[a][w] = 0;
-		Qext2[a][w] = 0;
-		Qabs1[a][w] = 0;
-		Qabs2[a][w] = 0;
-		Qsca1[a][w] = 0;
-		Qsca2[a][w] = 0;
+	    // Set the splines of Qtrq and HG g factor for each incident angle
+	    for(uint i_inc = 0; i_inc < nr_of_incident_angles; i_inc++) {
+		Qtrq[idx].setValue(
+		    i_inc, i_inc * d_ang,
+		    Qtrq_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w]));
+		HG_g_factor[idx].setValue(
+		    i_inc, i_inc * d_ang,
+		    HG_g_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
+		HG_g2_factor[idx].setValue(
+		    i_inc, i_inc * d_ang,
+		    HG_g2_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
+		HG_g3_factor[idx].setValue(
+		    i_inc, i_inc * d_ang,
+		    HG_g3_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
+	    }
+
+	    // Calculate the average parameters for Henyey-Greenstein phase function over all angles
+	    const double avg_HG_g_factor = HG_g_factor[idx].getAverageY();
+	    const double avg_HG_g2_factor = HG_g2_factor[idx].getAverageY();
+	    const double avg_HG_g3_factor = HG_g3_factor[idx].getAverageY();
+
+	    if(avg_HG_g_factor <= -1.0 || avg_HG_g_factor >= 1.0) {
+		cout << ERROR_LINE << "Henyey-Greenstein g factor is invalid: " << avg_HG_g_factor << endl;
+		return false;
+	    }
+
+	    if(phf_id == PH_DHG) {
+		if(avg_HG_g2_factor < 0.0 || avg_HG_g2_factor > 1.0) {
+		    cout << ERROR_LINE << "Henyey-Greenstein factor alpha is invalid: " << avg_HG_g2_factor << endl;
+		    return false;
+		}
+
+	    } else if(phf_id == PH_TTHG) {
+		
+		if(avg_HG_g2_factor <= -1.0 || avg_HG_g2_factor >= 1.0) {
+		    cout << ERROR_LINE << "Henyey-Greenstein factor g2 is invalid: " << avg_HG_g2_factor << endl;
+		    return false;
+		}
+
+		if(avg_HG_g2_factor * avg_HG_g3_factor > 0.0) {
+		    cout << ERROR_LINE << "Henyey-Greenstein g1 and g2 must have different signs." << endl;
+		    return false;
+		}
+	    }
+
+	    if(avg_HG_g3_factor < 0.0 || avg_HG_g3_factor > 1.0) {
+		cout << ERROR_LINE << "Henyey-Greenstein weight factor is invalid: " << avg_HG_g3_factor << endl;
+		return false;
+	    }
+
+	    // Set the splines of the dust grain optical properties
+	    // TODO extract?
+	    if (is_align) {
+		Qext1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]);
+		Qext2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]);
+		Qabs1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]);
+		Qabs2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]);
+		Qsca1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]);
+		Qsca2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]);
+		Qcirc[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 6].getValue(wavelength_list[w]);
+	    }
+	    else {
+		double tmpQext = 1.0 / 3.0 *
+				 (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]) +
+				  eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]));
+		double tmpQabs = 1.0 / 3.0 *
+				 (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]) +
+				  eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]));
+		double tmpQsca = 1.0 / 3.0 *
+				 (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]) +
+				  eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]));
+
+		Qext1[a][w] = tmpQext;
+		Qext2[a][w] = tmpQext;
+		Qabs1[a][w] = tmpQabs;
+		Qabs2[a][w] = tmpQabs;
+		Qsca1[a][w] = tmpQsca;
+		Qsca2[a][w] = tmpQsca;
 		Qcirc[a][w] = 0;
-		HGg[a][w] = 0;
-		HGg2[a][w] = 0;
-		HGg3[a][w] = 1;
-
-		// Activate the splines of Qtrq and HG g factor
-		Qtrq[idx].createSpline();
-		HG_g_factor[idx].createSpline();
-		HG_g2_factor[idx].createSpline();
-		HG_g3_factor[idx].createSpline();
-
-		CextMean[a][w] = 0;
-		CabsMean[a][w] = 0;
-		CscaMean[a][w] = 0;
-
-		// CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
-		// CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
-		// CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
 	    }
-	}
-	
-	// sizeIndexUsed(a) == true
-	else {
 
-	    for(uint w = 0; w < nr_of_wavelength; w++) {
-		const auto idx = w * nr_of_dust_species + a;
+	    HGg[a][w] = avg_HG_g_factor;
+	    HGg2[a][w] = avg_HG_g2_factor;
+	    HGg3[a][w] = avg_HG_g3_factor;
 
-		// Set the splines of Qtrq and HG g factor for each incident angle
-		for(uint i_inc = 0; i_inc < nr_of_incident_angles; i_inc++) {
-		    Qtrq[idx].setValue(
-			i_inc, i_inc * d_ang,
-			Qtrq_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w]));
-		    HG_g_factor[idx].setValue(
-			i_inc, i_inc * d_ang,
-			HG_g_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
-		    HG_g2_factor[idx].setValue(
-			i_inc, i_inc * d_ang,
-			HG_g2_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
-		    HG_g3_factor[idx].setValue(
-			i_inc, i_inc * d_ang,
-			HG_g3_factor_wl[a * nr_of_incident_angles + i_inc].getValue(wavelength_list[w], CONST));
-		}
+	    // Activate the splines of Qtrq and HG g factor
+	    Qtrq[idx].createSpline();
+	    HG_g_factor[idx].createSpline();
+	    HG_g2_factor[idx].createSpline();
+	    HG_g3_factor[idx].createSpline();
 
-		// Calculate the average parameters for Henyey-Greenstein phase function over all angles
-		const double avg_HG_g_factor = HG_g_factor[idx].getAverageY();
-		const double avg_HG_g2_factor = HG_g2_factor[idx].getAverageY();
-		const double avg_HG_g3_factor = HG_g3_factor[idx].getAverageY();
-
-		if(avg_HG_g_factor <= -1.0 || avg_HG_g_factor >= 1.0) {
-		    cout << ERROR_LINE << "Henyey-Greenstein g factor is invalid: " << avg_HG_g_factor << endl;
-		    return false;
-		}
-
-		if(phf_id == PH_DHG) {
-		    if(avg_HG_g2_factor < 0.0 || avg_HG_g2_factor > 1.0) {
-			cout << ERROR_LINE << "Henyey-Greenstein factor alpha is invalid: " << avg_HG_g2_factor << endl;
-			return false;
-		    }
-
-		} else if(phf_id == PH_TTHG) {
-		    
-		    if(avg_HG_g2_factor <= -1.0 || avg_HG_g2_factor >= 1.0) {
-			cout << ERROR_LINE << "Henyey-Greenstein factor g2 is invalid: " << avg_HG_g2_factor << endl;
-			return false;
-		    }
-
-		    if(avg_HG_g2_factor * avg_HG_g3_factor > 0.0) {
-			cout << ERROR_LINE << "Henyey-Greenstein g1 and g2 must have different signs." << endl;
-			return false;
-		    }
-		}
-
-		if(avg_HG_g3_factor < 0.0 || avg_HG_g3_factor > 1.0) {
-		    cout << ERROR_LINE << "Henyey-Greenstein weight factor is invalid: " << avg_HG_g3_factor << endl;
-		    return false;
-		}
-
-		// Set the splines of the dust grain optical properties
-		// TODO extract?
-		if (is_align) {
-		    Qext1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]);
-		    Qext2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]);
-		    Qabs1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]);
-		    Qabs2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]);
-		    Qsca1[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]);
-		    Qsca2[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]);
-		    Qcirc[a][w] = eff_wl[a * (NR_OF_EFF - 1) + 6].getValue(wavelength_list[w]);
-		}
-		else {
-		    double tmpQext = 1.0 / 3.0 *
-				     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 0].getValue(wavelength_list[w]) +
-				      eff_wl[a * (NR_OF_EFF - 1) + 1].getValue(wavelength_list[w]));
-		    double tmpQabs = 1.0 / 3.0 *
-				     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 2].getValue(wavelength_list[w]) +
-				      eff_wl[a * (NR_OF_EFF - 1) + 3].getValue(wavelength_list[w]));
-		    double tmpQsca = 1.0 / 3.0 *
-				     (2.0 * eff_wl[a * (NR_OF_EFF - 1) + 4].getValue(wavelength_list[w]) +
-				      eff_wl[a * (NR_OF_EFF - 1) + 5].getValue(wavelength_list[w]));
-
-		    Qext1[a][w] = tmpQext;
-		    Qext2[a][w] = tmpQext;
-		    Qabs1[a][w] = tmpQabs;
-		    Qabs2[a][w] = tmpQabs;
-		    Qsca1[a][w] = tmpQsca;
-		    Qsca2[a][w] = tmpQsca;
-		    Qcirc[a][w] = 0;
-		}
-
-		HGg[a][w] = avg_HG_g_factor;
-		HGg2[a][w] = avg_HG_g2_factor;
-		HGg3[a][w] = avg_HG_g3_factor;
-
-		// Activate the splines of Qtrq and HG g factor
-		Qtrq[idx].createSpline();
-		HG_g_factor[idx].createSpline();
-		HG_g2_factor[idx].createSpline();
-		HG_g3_factor[idx].createSpline();
-
-		CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
-		CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
-		CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
-	    }
+	    CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
+	    CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
+	    CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
 	}
     }
+
+    // Read the scattering matrix if MIE scattering should be used
+    // With the same grid of wavelengths and grain sizes
+    bool ret_val = phf_id != PH_MIE ||
+	readScatteringMatrices(path, nr_of_wavelength_dustcat, data.wavelengths, size_indices_used);
 
     // Remove temporary pointer arrays
     delete[] eff_wl;
@@ -583,13 +589,8 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     delete[] HG_g2_factor_wl;
     delete[] HG_g3_factor_wl;
 
-    // Read the scattering matrix if MIE scattering should be used
-    // With the same grid of wavelengths and grain sizes
-    if (phf_id == PH_MIE
-	&& !readScatteringMatrices(path, nr_of_wavelength_dustcat, wavelength_list_dustcat))
-            return false;
 
-    return true;
+    return ret_val;
 }
 
 bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
@@ -1176,520 +1177,83 @@ bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
     return true;
 }
 
-bool CDustComponent::readScatteringMatrices(string path,
-                                            uint nr_of_wavelength_dustcat,
-                                            dlist wavelength_list_dustcat)
-{
-    // Init variables
-    string::size_type pos = 0;
-    bool disable_mie_scattering = true;
-    CCommandParser ps;
-    dlist values;
-    string line;
+bool CDustComponent::readScatteringMatrices(
+    string path,
+    uint nr_of_wavelength_dustcat,
+    double* wavelength_list_dustcat,
+    const std::vector<size_t>& size_indices_used) {
 
-    // Erase the ".dat" from the path
-    if(path.find(".dat") != string::npos)
-    {
-        pos = path.find(".dat");
-        path.erase(pos, 4);
-    }
+    rewrite::ScaMatrParser	sca_parser;
 
-    // Create the filename of the scattering info file
-    string inf_filename = path;
-    inf_filename += SEP;
-    inf_filename += "scat.inf";
+    // TODO return on disable_mie_scattering: determine
+    if (const auto res = sca_parser.parse_file(
+	path, nr_of_dust_species, nr_of_wavelength_dustcat, nr_of_incident_angles,
+	// TODO: wrong
+	wavelength_list_dustcat);
+	not res) return false;
 
-    // Init text file reader for scattering info file
-    ifstream inf_reader(inf_filename.c_str());
-
-    // Error message if the read does not work
-    if(inf_reader.fail())
-    {
-        cout << ERROR_LINE << "Cannot open scattering matrix info file:" << endl;
-        cout << inf_filename << endl;
-        return false;
-    }
-
-    // Init progress counter
-    uint line_counter = 0;
-    uint cmd_counter = 0;
-
-    uint nr_of_scat_theta_tmp = 2*NANG - 1;
-
-    // Go through each line of the info file
-    while(getline(inf_reader, line))
-    {
-        // Format the text file line
-        ps.formatLine(line);
-
-        // Increase line counter
-        line_counter++;
-
-        // If the line is empty -> skip
-        if(line.size() == 0)
-            continue;
-
-        // Parse the values of the current line
-        values = ps.parseValues(line);
-
-        // If no values found -> skip
-        if(values.size() == 0)
-            continue;
-
-        // Increase the command counter
-        cmd_counter++;
-
-        switch(cmd_counter)
-        {
-            case 1:
-                // The first line needs 5 values
-                if(values.size() != 5)
-                {
-                    cout << ERROR_LINE << "Wrong amount of dust component parameters in:" << endl;
-                    cout << inf_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
-                // The number of dust grain sizes
-                if(values[0] != nr_of_dust_species)
-                {
-                    cout << ERROR_LINE << inf_filename.c_str() << " line " << line_counter << "!" << endl;
-                    cout << "Number of dust species does not match the number in the "
-                            "dust parameters file!"
-                         << endl;
-                    return false;
-                }
-
-                // The number of wavelength used by the dust catalog
-                if(values[1] != nr_of_wavelength_dustcat)
-                {
-                    cout << ERROR_LINE << inf_filename.c_str() << " line " << line_counter << "!" << endl;
-                    cout << "Number of wavelength does not match the number in the dust "
-                            "parameters file!"
-                         << endl;
-                    return false;
-                }
-
-                // The number of incident angles
-                if(values[2] != nr_of_incident_angles)
-                {
-                    cout << ERROR_LINE << inf_filename.c_str() << " line " << line_counter << "!" << endl;
-                    cout << "Number of incident angles does not match the number in the "
-                            "dust parameters file!"
-                         << endl;
-                    return false;
-                }
-
-                // The number of phi angles (outgoing radiation)
-                nr_of_scat_phi = uint(values[3]);
-
-                // The number of theta angles (outgoing radiation)
-                nr_of_scat_theta_tmp = uint(values[4]);
-
-                break;
-
-            case 2:
-                // The second line needs one value
-                if(values.size() != 1)
-                {
-                    cout << ERROR_LINE << "Wrong amount of scattering matrix elements in:" << endl;
-                    cout << inf_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
-                // The number of used scattering elements
-                nr_of_scat_mat_elements = uint(values[0]);
-                break;
-
-            case 3:
-                // The third line needs 16 values
-                if(values.size() != 16)
-                {
-                    cout << ERROR_LINE << "Wrong amount of matrix elements in:" << endl;
-                    cout << inf_filename.c_str() << " line 3!" << endl;
-                    return false;
-                }
-
-                // The relation which scattering matrix entry is used at which position in
-                // the 4x4 matrix
-                for(uint i = 0; i < 16; i++)
-                {
-                    elements[i] = int(values[i]);
-                    if(elements[i] != 0)
-                        disable_mie_scattering = false;
-                }
-                break;
-        }
-    }
-
-    // Close the file reader
-    inf_reader.close();
-
-    // If scattering matrix is empty, disable mie scattering for the corresponding dust
-    // component
-    if(disable_mie_scattering)
-    {
-        phID = PH_HG;
-        return true;
-    }
-
-    // Init counter and percentage to show progress
-    ullong per_counter = 0;
-    float last_percentage = 0;
-
-    // Init maximum counter value
-    uint max_counter = nr_of_incident_angles * nr_of_dust_species * nr_of_scat_phi;
-
-    // First init of the scattering matrix interp
-    interp ***** sca_mat_wl = new interp ****[nr_of_dust_species];
-
-    #pragma omp parallel for
-    for(int a = 0; a < int(nr_of_dust_species); a++)
-    {
-        // Second init of the scattering matrix interp
-        sca_mat_wl[a] = new interp ***[nr_of_incident_angles];
-        for(uint inc = 0; inc < nr_of_incident_angles; inc++)
-        {
-            // Third init of the scattering matrix interp
-            sca_mat_wl[a][inc] = new interp **[nr_of_scat_phi];
-            for(uint sph = 0; sph < nr_of_scat_phi; sph++)
-            {
-                // Increase counter used to show progress
-                per_counter++;
-
-                // Calculate percentage of total progress per source
-                float percentage = 100.0 * float(per_counter) / float(max_counter);
-
-                // Show only new percentage number if it changed
-                if((percentage - last_percentage) > PERCENTAGE_STEP)
-                {
-                    #pragma omp critical
-                    {
-                        printIDs();
-                        cout << "- allocating memory: " << percentage << " [%]                      \r";
-                        last_percentage = percentage;
-                    }
-                }
-
-                // Fourth init of the scattering matrix interp
-                sca_mat_wl[a][inc][sph] = new interp *[nr_of_scat_theta_tmp];
-                for(uint sth = 0; sth < nr_of_scat_theta_tmp; sth++)
-                {
-                    // Fifth init of the scattering matrix interp
-                    sca_mat_wl[a][inc][sph][sth] = new interp[nr_of_scat_mat_elements];
-
-                    // Resize the linear for each scattering matrix element
-                    for(uint mat = 0; mat < nr_of_scat_mat_elements; mat++)
-                        sca_mat_wl[a][inc][sph][sth][mat].resize(nr_of_wavelength_dustcat);
-                }
-            }
-        }
-    }
-
-    // Set counter and percentage to show progress
-    per_counter = 0;
-    last_percentage = 0;
-
-    // Init error bool
-    bool error = false;
-
-    // Set maximum counter value
-    max_counter = nr_of_wavelength_dustcat * nr_of_dust_species;
-
-    #pragma omp parallel for
-    for(int w = 0; w < int(nr_of_wavelength_dustcat); w++)
-    {
-        if(error)
-            continue;
-
-	const auto str_ID_end = std::format("wID{:03}.sca", w + 1);
-
-        float tmp_val = 0;
-
-        // Create the filename
-        string bin_filename = path;
-        bin_filename += SEP;
-        bin_filename += str_ID_end;
-
-        // Init text file reader for scattering binary file
-        ifstream bin_reader(bin_filename.c_str(), ios::in | ios::binary);
-
-        // Error message if the read does not work
-        if(bin_reader.fail())
-        {
-            cout << ERROR_LINE << "Cannot open scattering matrix file:" << endl;
-            cout << bin_filename.c_str() << endl;
-            bin_reader.close();
-            error = true;
-        }
-
-        for(uint a = 0; a < nr_of_dust_species; a++)
-        {
-            // Increase counter used to show progress
-            per_counter++;
-
-            // Calculate percentage of total progress per source
-            float percentage = 100.0 * float(per_counter) / float(max_counter);
-
-            // Show only new percentage number if it changed
-            if((percentage - last_percentage) > PERCENTAGE_STEP)
-            {
-                #pragma omp critical
-                {
-                    printIDs();
-                    cout << "- loading matrices: " << percentage << " [%]                      \r";
-                    last_percentage = percentage;
-                }
-            }
-
-            for(uint inc = 0; inc < nr_of_incident_angles; inc++)
-            {
-                for(uint sph = 0; sph < nr_of_scat_phi; sph++)
-                {
-                    for(uint sth = 0; sth < nr_of_scat_theta_tmp; sth++)
-                    {
-                        for(uint mat = 0; mat < nr_of_scat_mat_elements; mat++)
-                        {
-                            // Read value from binary file
-                            bin_reader.read((char *)&tmp_val, 4);
-
-                            // Set value of interp to the read value
-                            sca_mat_wl[a][inc][sph][sth][mat].setValue(
-                                w, wavelength_list_dustcat[w], tmp_val);
-                        }
-                    }
-                }
-            }
-        }
-        // Close scattering binary file
-        bin_reader.close();
-    }
-
-    if(error)
-        return false;
+    auto				data = sca_parser.get_result();
+    if (data.disable_mie_scattering)
+	return true;
 
     // Init normal scattering matrix array
-    initScatteringMatrixArray(nr_of_scat_theta_tmp);
+    initScatteringMatrixArray(data.nr_of_scat_theta_tmp);
 
-    // Fill values of the scattering matrix via interpolation
+    const auto dim1 = nr_of_incident_angles * nr_of_scat_phi * data.nr_of_scat_theta_tmp * 16;
+    const auto dim2 = nr_of_scat_phi * data.nr_of_scat_theta_tmp * 16;
+    const auto dim3 = data.nr_of_scat_theta_tmp * 16;
+
+    for (size_t a = 0; a < nr_of_dust_species; a++)
+	for (size_t w = 0; w < nr_of_wavelength; w++)
+	    for (size_t sth = 0; sth < data.nr_of_scat_theta_tmp; sth++)
+		// TODO: where is this allocated? pointer could just be used
+		scat_theta[a][w][sth] = PI * static_cast<double>(sth) /
+		    static_cast<double>(data.nr_of_scat_theta_tmp - 1);
+
+    std::vector<std::pair<size_t, size_t>>		elems;
+    for (size_t i = 0; i < 16; i++)
+	if (const auto pos = std::abs(elements[i]);
+	    pos > 0) elems.push_back(std::make_pair(i, pos - 1));
+
     #pragma omp parallel for
-    for(int a = 0; a < int(nr_of_dust_species); a++)
-    {
-        if(sizeIndexUsed(a))
-        {
-            for(uint inc = 0; inc < nr_of_incident_angles; inc++)
-            {
-                for(uint sph = 0; sph < nr_of_scat_phi; sph++)
-                {
-                    for(uint sth = 0; sth < nr_of_scat_theta_tmp; sth++)
-                    {
-                        for(uint e = 0; e < 16; e++)
-                        {
-                            double sign = CMathFunctions::sgn(elements[e]);
-                            int pos = abs(elements[e]);
-                            if(pos > 0)
-                            {
-                                for(uint w = 0; w < nr_of_wavelength; w++)
-                                {
-                                    sca_mat[a][w][inc][sph][sth](e) =
-                                        sign *
-                                        sca_mat_wl[a][inc][sph][sth][pos - 1].getValue(wavelength_list[w]);
-                                    scat_theta[a][w][sth] = PI * double(sth) / double(nr_of_scat_theta_tmp - 1);
-                                }
-                            }
-                        }
-                        delete[] sca_mat_wl[a][inc][sph][sth];
-                    }
-                    delete[] sca_mat_wl[a][inc][sph];
-                }
-                delete[] sca_mat_wl[a][inc];
-            }
+    for(const auto& a: size_indices_used) {
+	for(size_t inc = 0; inc < nr_of_incident_angles; inc++) {
+	    for(size_t sph = 0; sph < nr_of_scat_phi; sph++) {
+		for(size_t sth = 0; sth < data.nr_of_scat_theta_tmp; sth++) {
+		    for(size_t w = 0; w < nr_of_wavelength; w++) {
+			for(const auto& [e, pos]: elems) {
+			    sca_mat[a][w][inc][sph][sth](e) =
+				std::copysign(data.sca_mat_wl[
+				    a * dim1 + inc * dim2 + sph * dim3 + sth * 16 + pos
+				].getValue(wavelength_list[w]), elements[e]);
+			}
+		    }
+		}
+	    }
         }
-        delete[] sca_mat_wl[a];
     }
-    delete[] sca_mat_wl;
+
+    delete[] data.sca_mat_wl;
 
     // Set that the scattering matrix was successfully read
     scat_loaded = true;
-
     return true;
 }
 
-bool CDustComponent::readCalorimetryFile(parameters & param, uint dust_component_choice)
-{
-    // Init variables
-    string::size_type pos = 0;
-    CCommandParser ps;
-    dlist values;
-    string line;
+bool CDustComponent::readCalorimetryFile(parameters & param, uint dust_component_choice) {
+    rewrite::CalorimetryParser	parser;
 
-    // Get Path to dust parameters file
-    string path = param.getDustPath(dust_component_choice);
+    if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice), nr_of_dust_species);
+	not res) return false;
 
-    // Erase the ".dat" from the path
-    if(path.find(".dat") != string::npos)
-    {
-        pos = path.find(".dat");
-        path.erase(pos, 4);
-    }
-    else if(path.find(".nk") != string::npos)
-    {
-        pos = path.find(".nk");
-        path.erase(pos, 4);
-    }
+    auto data = parser.get_result();
 
-    // Create the filename of the calorimetry file
-    string calo_filename = path;
-    calo_filename += SEP;
-    calo_filename += "calorimetry.dat";
-
-    // Init text file reader for scattering info file
-    ifstream calo_reader(calo_filename.c_str());
-
-    // Error message if the read does not work
-    if(calo_reader.fail())
-    {
-        cout << ERROR_LINE << "Cannot open calorimetry file:" << endl;
-        cout << calo_filename << endl;
-        return false;
-    }
-
-    // Init progress counter
-    uint line_counter = 0;
-    uint cmd_counter = 0;
-
-    // Go through each line of the info file
-    while(getline(calo_reader, line))
-    {
-        // Format the text file line
-        ps.formatLine(line);
-
-        // Increase line counter
-        line_counter++;
-
-        // If the line is empty -> skip
-        if(line.size() == 0)
-            continue;
-
-        // Parse the values of the current line
-        values = ps.parseValues(line);
-
-        // If no values found -> skip
-        if(values.size() == 0)
-            continue;
-
-        // Increase the command counter
-        cmd_counter++;
-
-        switch(cmd_counter)
-        {
-            case 1:
-                // The first line needs one value
-                if(values.size() != 1)
-                {
-                    cout << ERROR_LINE << "Wrong amount of calorimetry temperatures in:" << endl;
-                    cout << calo_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
-                // The amount of calorimetry temperatures
-                nr_of_calorimetry_temperatures = values[0];
-
-                // Init array for the calorimetry temperatures
-                calorimetry_temperatures = new double[nr_of_calorimetry_temperatures];
-
-                // Init 2D array for the enthalpy
-                enthalpy = new double *[nr_of_dust_species];
-
-                // Add second dimension
-                for(uint a = 0; a < nr_of_dust_species; a++)
-                    enthalpy[a] = new double[nr_of_calorimetry_temperatures];
-                break;
-
-            case 2:
-                // The second line needs a value per calorimetric temperature
-                if(values.size() != nr_of_calorimetry_temperatures)
-                {
-                    cout << ERROR_LINE << "Wrong calorimetry temperatures in:" << endl;
-                    cout << calo_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
-                // Set the calorimetric temperatures
-                for(uint t = 0; t < nr_of_calorimetry_temperatures; t++)
-                    calorimetry_temperatures[t] = double(values[t]);
-                break;
-
-            case 3:
-                // The second line needs one value
-                if(values.size() != 1)
-                {
-                    cout << ERROR_LINE << "Wrong calorimetry type in:" << endl;
-                    cout << calo_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
-                // The unit of the calorimetry data
-                calorimetry_type = uint(values[0]);
-
-                // Only heat capacity or enthalpy are possible
-                if(calorimetry_type != CALO_HEAT_CAP && calorimetry_type != CALO_ENTHALPY)
-                {
-                    cout << ERROR_LINE << "Wrong calorimetry type in:" << endl;
-                    cout << calo_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-                break;
-
-            default:
-                // The other lines have either one or a value per dust grain size
-                if(values.size() != 1 && values.size() != nr_of_dust_species)
-                {
-                    cout << ERROR_LINE << "Wrong amount of dust species in:" << endl;
-                    cout << calo_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
-                // Get temperature index
-                uint t = cmd_counter - 4;
-
-                for(uint a = 0; a < nr_of_dust_species; a++)
-                {
-                    // Use either a value per grain size or one value for all
-                    double tmp_value;
-                    if(values.size() == 1)
-                        tmp_value = double(values[0]);
-                    else
-                        tmp_value = double(values[a]);
-
-                    // If heat capacity, perform integration
-                    if(calorimetry_type == CALO_HEAT_CAP)
-                    {
-                        if(t == 0)
-                            enthalpy[a][t] = tmp_value * calorimetry_temperatures[t];
-                        else
-                            enthalpy[a][t] =
-                                enthalpy[a][t - 1] +
-                                tmp_value * (calorimetry_temperatures[t] - calorimetry_temperatures[t - 1]);
-                    }
-                    else if(calorimetry_type == CALO_ENTHALPY)
-                    {
-                        // Enthalpy is already in the right unit
-                        enthalpy[a][t] = tmp_value;
-                    }
-                    else
-                    {
-                        // Reset enthalpy if wrong type
-                        enthalpy[a][t] = 0;
-                    }
-                }
-                break;
-        }
-    }
-    // Close calorimetry file reader
-    calo_reader.close();
+    calorimetry_temperatures = data.calorimetry_temperatures;
+    enthalpy = data.enthalpy;
+    calorimetry_type = data.calorimetry_type;
 
     // Multiply the specific enthalpy with the grain size to get the enthalpy
+    // TODO: move to loading
     for(uint a = 0; a < nr_of_dust_species; a++)
         for(uint t = 0; t < nr_of_calorimetry_temperatures; t++)
             enthalpy[a][t] *= 4.0 / 3.0 * PI * a_eff[a] * a_eff[a] * a_eff[a];

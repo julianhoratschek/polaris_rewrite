@@ -34,9 +34,11 @@ namespace rewrite {
 
 
     public:
+	CalorimetryFile& get_result() { return result; }
+
 	auto parse_file(const std::filesystem::path& path,
 	    const size_t nr_of_dust_species)
-	    -> std::expected<void, Message> {
+		-> std::expected<void, Message> {
 
 	    size_t		column;
 
@@ -61,6 +63,7 @@ namespace rewrite {
 	    result.enthalpy = new double *[nr_of_dust_species];
 
 	    // Add second dimension
+	    // TODO: zero?
 	    for(size_t a = 0; a < nr_of_dust_species; a++)
 		result.enthalpy[a] = new double[result.nr_of_calorimetry_temperatures];
 
@@ -90,98 +93,56 @@ namespace rewrite {
 	    if(result.calorimetry_type != CALO_HEAT_CAP && result.calorimetry_type != CALO_ENTHALPY)
 		return safe_error( "Wrong calorimetry type" );
 
-	    
-    // Init progress counter
-    uint line_counter = 0;
-    uint cmd_counter = 0;
+	    // Get special case: first line of temperatures
 
-    // Go through each line of the info file
-    while(getline(calo_reader, line))
-    {
-        // Format the text file line
-        ps.formatLine(line);
+	    if (!next_line(file))
+		return safe_error( "Unexpected end of file" );
 
-        // Increase line counter
-        line_counter++;
+	    auto fact = result.calorimetry_type == CALO_HEAT_CAP ?
+		result.calorimetry_temperatures[0] : 1;
+	    double last_num = 0.0;
 
-        // If the line is empty -> skip
-        if(line.size() == 0)
-            continue;
+	    for (column = 0; column < nr_of_dust_species; column++) {
+		if (is_or_next<is_number>())
+		    last_num = get_number().value_or(0.0);
+		result.enthalpy[column][0] = last_num * fact;
+	    }
 
-        // Parse the values of the current line
-        values = ps.parseValues(line);
+	    size_t enthalpy_counter = 0;
 
-        // If no values found -> skip
-        if(values.size() == 0)
-            continue;
-
-        // Increase the command counter
-        cmd_counter++;
-
-        switch(cmd_counter)
-        {
-
-            default:
-                // The other lines have either one or a value per dust grain size
-                if(values.size() != 1 && values.size() != nr_of_dust_species)
-                {
-                    cout << ERROR_LINE << "Wrong amount of dust species in:" << endl;
-                    cout << calo_filename.c_str() << " line " << line_counter << "!" << endl;
-                    return false;
-                }
-
+	    while (next_line(file)) {
                 // Get temperature index
-                uint t = cmd_counter - 4;
+                // uint t = cmd_counter - 4;
 
-                for(uint a = 0; a < nr_of_dust_species; a++)
-                {
-                    // Use either a value per grain size or one value for all
-                    double tmp_value;
-                    if(values.size() == 1)
-                        tmp_value = double(values[0]);
-                    else
-                        tmp_value = double(values[a]);
+		++enthalpy_counter;
+
+                for(column = 0; column < nr_of_dust_species; column++) {
+		    if (is_or_next<is_number>())
+			last_num = get_number().value_or(0.0);
 
                     // If heat capacity, perform integration
-                    if(calorimetry_type == CALO_HEAT_CAP)
-                    {
-                        if(t == 0)
-                            enthalpy[a][t] = tmp_value * calorimetry_temperatures[t];
-                        else
-                            enthalpy[a][t] =
-                                enthalpy[a][t - 1] +
-                                tmp_value * (calorimetry_temperatures[t] - calorimetry_temperatures[t - 1]);
-                    }
-                    else if(calorimetry_type == CALO_ENTHALPY)
-                    {
-                        // Enthalpy is already in the right unit
-                        enthalpy[a][t] = tmp_value;
+                    if(result.calorimetry_type == CALO_HEAT_CAP) {
+			result.enthalpy[column][enthalpy_counter] =
+			    result.enthalpy[column][enthalpy_counter - 1] +
+			    last_num * (result.calorimetry_temperatures[enthalpy_counter] - result.calorimetry_temperatures[enthalpy_counter - 1]);
                     }
                     else
-                    {
-                        // Reset enthalpy if wrong type
-                        enthalpy[a][t] = 0;
-                    }
-                }
-                break;
-        }
-    }
-    // Close calorimetry file reader
-    calo_reader.close();
+                        // Enthalpy is already in the right unit
+                        result.enthalpy[column][enthalpy_counter] = last_num;
+		}
+                
+			//              if(values.size() != 1 && values.size() != nr_of_dust_species)
+			//    return safe_error (
+			// "Wrong amount of dust species in:" );
+	    }
+	    
+	    // Close calorimetry file reader
+	    file.close();
 
-    // Multiply the specific enthalpy with the grain size to get the enthalpy
-    for(uint a = 0; a < nr_of_dust_species; a++)
-        for(uint t = 0; t < nr_of_calorimetry_temperatures; t++)
-            enthalpy[a][t] *= 4.0 / 3.0 * PI * a_eff[a] * a_eff[a] * a_eff[a];
-
-    // Set that the calorimetry file was successfully loaded
-    calorimetry_loaded = true;
-
-    return true;
-}
+	    return {};
 
 	}
-};
+    };
 
 
 }

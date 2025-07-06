@@ -13,25 +13,27 @@
 class interp
 {
 public:
-    interp()
-    {
+    interp() {
         N = 0;
+	x = nullptr;
+	y = nullptr;
     }
 
-    interp(uint size)
-    {
+    interp(uint size) {
         N = size - 1;
-        x.resize(size);
-        y.resize(size);
+	x = new double[size];
+	y = new double[size];
     }
 
     uint size() const;
 
     void resize(uint size);
 
+    void resizeShared(size_t size, double* x_values, double* y_values);
+
     void setValue(uint pos, double _x, double _y);
 
-    void addValue(double _x, double _y);
+    // void addValue(double _x, double _y);
 
     double getLinear(uint i, double v) const;
 
@@ -39,8 +41,8 @@ public:
 
 private:
     uint N;
-    dlist x;
-    dlist y;
+    double *x;
+    double *y;
 };
 
 #endif /* CMATH_INTERP_H */
