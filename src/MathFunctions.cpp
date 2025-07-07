@@ -1918,7 +1918,7 @@ bool calcBHMie(double x,
 }
 
 bool CMathFunctions::calcWVMie(double x,
-                        dlist scat_angle,
+                        const dlist& scat_angle,
                         dcomplex refractive_index,
                         double & qext,
                         double & qabs,
@@ -2140,6 +2140,229 @@ bool CMathFunctions::calcWVMie(double x,
             S12[i_scat_ang] = 0.0;
             S34[i_scat_ang] = 0.0;
         }
+    }
+
+    return true;
+}
+
+bool CMathFunctions::calcWVMie(double x,
+                        double scat_angle,
+                        dcomplex refractive_index,
+                        double& qext,
+                        double& qabs,
+                        double& qsca,
+                        double& gsca,
+                        double& S11,
+                        double& S12,
+                        double& S33,
+                        double& S34) {
+// Wolf & Voshchinnikov approximation of optical properties for spherical grains.
+// see Wolf & Voshchinnikov (2004), Comput. Phys. Commun. 162, 113
+    // Step width
+    const double factor = 1e250;
+
+    if(x <= MIN_MIE_SIZE_PARAM) {
+        cout << ERROR_LINE << "Mie scattering limit exceeded, current size parameter: " << x << endl;
+        return false;
+    }
+
+    const double ax = 1.0 / x;
+    const double b = 2.0 * ax * ax;
+    dcomplex ss(0.0, 0.0);
+    const dcomplex s3(0.0, -1.0);
+    double an = 3.0;
+
+    // choice of number for subroutine aa [Loskutov (1971)]
+    const double y = abs(refractive_index) * x;
+    uint num = uint(1.25 * y + 15.5);
+
+    if(y < 1.0)
+        num = uint(7.5 * y + 9.0);
+    else if(y > 100.0 && y < 50000.0)
+        num = uint(1.0625 * y + 28.5);
+    else if(y >= 50000.0)
+        num = uint(1.005 * y + 50.5);
+
+    if(num > MAX_MIE_ITERATIONS) {
+        cout << ERROR_LINE << "Maximum number of terms : " << MAX_MIE_ITERATIONS << ", number of terms required: " << num << endl;
+        cout << "  increase default value of MAX_MIE_ITERATIONS in src/Typedefs.h" << endl;
+        return false;
+        // return calcGeometricOptics(x, refractive_index, qext, qabs,
+        //    qabs, gsca, S11, S12, S33, S34);
+    }
+
+    // logarithmic derivative to Bessel function (complex argument)
+    dcomplex *ru = new dcomplex[num];
+    const dcomplex s_tmp = ax / refractive_index;
+
+    ru[num-1] = dcomplex(num + 1, 0.0) * s_tmp;
+
+    for(uint i = num - 1; i >= 1; i--) {
+        const dcomplex s1 = double(i + 1) * s_tmp;
+        ru[i-1] = s1 - dcomplex(1.0, 0.0) / (ru[i] + s1);
+    }
+
+    // Bessel functions
+    const double ass = 1.0 / sqrt(PI2 * ax);
+    const double w1 = invPI2 * ax;
+    const double Si = sin(x) / x;
+    const double Co = cos(x) / x;
+
+    // n=0
+    double besJ0 = Si * ass;
+    double besY0 = -Co * ass;
+    uint iu0 = 0;
+
+    // n=1
+    double besJ1 = (Si * ax - Co) * ass;
+    double besY1 = (-Co * ax - Si) * ass;
+    uint iu1 = 0;
+    uint iu2 = 0;
+
+    // Mie coefficients (first term)
+    dcomplex s, s1, s2, ra0, rb0;
+
+    // coefficient a_1
+    s = ru[0] / refractive_index + ax;
+    s1 = s * besJ1 - besJ0;
+    s2 = s * besY1 - besY0;
+    ra0 = s1 / (s1 - s3 * s2);
+
+    // coefficient b_1
+    s = ru[0] * refractive_index + ax;
+    s1 = s * besJ1 - besJ0;
+    s2 = s * besY1 - besY0;
+    rb0 = s1 / (s1 - s3 * s2);
+
+    // efficiency factors (first term)
+    dcomplex r = -1.5 * (ra0 - rb0);
+    qext = an * real(ra0 + rb0);
+    qsca = an * (norm(ra0) + norm(rb0));
+
+    // scattering amplitude functions
+    double FN = 1.5;
+    double dPI, dTAU;
+
+    double dAMU, dPI0 = 0, dPI1 = 1;
+
+    dcomplex SM1, SM2;
+
+    dAMU = cos(scat_angle);
+
+    dTAU = dAMU * dPI1 - 2.0 * dPI0;
+
+    SM1 = SM1 + FN * (ra0 * dPI1 + rb0 * dTAU);
+    SM2 = SM2 + FN * (ra0 * dTAU + rb0 * dPI1);
+
+    dPI = dPI1;
+    dPI1 *= (dAMU * 3.0);
+    dPI1 -= (dPI0 * 2.0);
+    dPI0 = dPI;
+
+    // 2., 3., ... num
+    double z = -1.0, besY2, besJ2, an2, qq, r_iterm;
+    dcomplex ra1, rb1, rr;
+
+    for (size_t iterm = 2; iterm <= num; iterm++) {
+        an = an + 2.0;
+        an2 = an - 2.0;
+
+        // Bessel functions
+        if(iu1 == iu0)
+            besY2 = an2 * ax * besY1 - besY0;
+        else
+            besY2 = an2 * ax * besY1 - besY0 / factor;
+
+        if(abs(besY2) > 1e200) {
+            besY2 = besY2 / factor;
+            iu2 = iu1 + 1;
+        }
+
+        // rbrunngraeber 10/14: Changed from besJ2 = (w1 + besY2 * besJ1) / besY1,
+        // because besY2*besJ1 could become very large (1e300) for large grain sizes,
+        // besY2/besY1 is about 1; suggested by fkirchschlager
+        besJ2 = besY2 / besY1;
+        besJ2 = w1 / besY1 + besJ2 * besJ1;
+
+        // Mie coefficients
+        r_iterm = double(iterm);
+
+        s = ru[iterm-1] / refractive_index + r_iterm * ax;
+        s1 = s * (besJ2 / factorial(iu2)) - besJ1 / factorial(iu1);
+        s2 = s * (besY2 * factorial(iu2)) - besY1 * factorial(iu1);
+        ra1 = s1 / (s1 - s3 * s2); // coefficient a_n, (n=iterm)
+
+        s = ru[iterm-1] * refractive_index + r_iterm * ax;
+        s1 = s * (besJ2 / factorial(iu2)) - besJ1 / factorial(iu1);
+        s2 = s * (besY2 * factorial(iu2)) - besY1 * factorial(iu1);
+        rb1 = s1 / (s1 - s3 * s2); // coefficient b_n, (n=iterm)
+
+        // efficiency factors
+        z = -z;
+        rr = z * (r_iterm + 0.5) * (ra1 - rb1);
+        r = r + rr;
+        ss = ss + (r_iterm - 1.0) * (r_iterm + 1.0) / r_iterm * (ra0 * conj(ra1) + rb0 * conj(rb1)) +
+                an2 / r_iterm / (r_iterm - 1.0) * (ra0 * conj(rb0));
+        qq = an * real(ra1 + rb1);
+        qext = qext + qq;
+        qsca = qsca + an * (norm(ra1) + norm(rb1));
+
+        // leaving-the-loop with error criterion
+        if(isnan(qext)) {
+            cout << ERROR_LINE << "Qext is not a number" << endl;
+            return false;
+        }
+
+        // leaving-the-loop criterion
+        if(abs(qq / qext) < MIE_ACCURACY) {
+            break;
+        }
+
+        // Bessel functions
+        besJ0 = besJ1;
+        besJ1 = besJ2;
+        besY0 = besY1;
+        besY1 = besY2;
+        iu0 = iu1;
+        iu1 = iu2;
+        ra0 = ra1;
+        rb0 = rb1;
+
+        // scattering amplitude functions
+        FN = (2.0 * r_iterm + 1.0) / (r_iterm * (r_iterm + 1.0));
+
+	dTAU = r_iterm * dAMU * dPI1 - (r_iterm + 1.0) * dPI0;
+
+	SM1 = SM1 + FN * (ra0 * dPI1 + rb0 * dTAU);
+	SM2 = SM2 + FN * (ra0 * dTAU + rb0 * dPI1);
+
+	dPI = dPI1;
+	dPI1 *= (dAMU * (2.0 + 1.0 / r_iterm));
+	dPI1 -= (dPI0 * (1.0 + 1.0 / r_iterm));
+	dPI0 = dPI;
+    }
+
+    delete[] ru;
+
+    // efficiency factors (final calculations)
+    qext = b * qext;
+    qsca = b * qsca;
+    // double qbk = 2.0 * b * r * conj(r);
+    const double qpr = qext - 2.0 * b * real(ss);
+    qabs = qext - qsca;
+    gsca = (qext - qpr) / qsca;
+
+    S11 = 0.5 * (abs(SM2) * abs(SM2) + abs(SM1) * abs(SM1));
+    S12 = 0.5 * (abs(SM2) * abs(SM2) - abs(SM1) * abs(SM1));
+    S33 = real(SM2 * conj(SM1));
+    S34 = imag(SM2 * conj(SM1));
+
+    // if SM2 and SM1 get really large (if x >> 1 for instance)
+    // then double precision may not be enough
+    // to get S12/S34 = 0 for theta = 0/pi (cos(theta) = +-1)
+    if(abs(dAMU) == 1.0) {
+	S12 = 0.0;
+	S34 = 0.0;
     }
 
     return true;

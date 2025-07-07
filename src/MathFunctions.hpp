@@ -364,7 +364,7 @@ public:
     see Wolf & Voshchinnikov (2004), Comput. Phys. Commun. 162, 113
     */
     static bool calcWVMie(double x,
-                          dlist scat_angle,
+                          const dlist& scat_angle,
                           dcomplex refractive_index,
                           double & qext,
                           double & qabs,
@@ -374,6 +374,19 @@ public:
                           double * S12,
                           double * S33,
                           double * S34);
+
+    // Specialized version for scat_angle.size() == 1
+    static bool calcWVMie(double x,
+                          double scat_angle,
+                          dcomplex refractive_index,
+                          double& qext,
+                          double& qabs,
+                          double& qsca,
+                          double& gsca,
+                          double& S11,
+                          double& S12,
+                          double& S33,
+                          double& S34);
 
     static bool calcGeometricOptics(double x,
                                            dcomplex refractive_index,
