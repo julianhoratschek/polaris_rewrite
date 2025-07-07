@@ -12,6 +12,7 @@
 #include "Parameters.hpp"
 
 #include "parser/dust_parameter_parser.hpp"
+#include "parser/refractive_index_parser.hpp"
 #include "parser/scamatr_parser.hpp"
 #include "parser/calorimetry_parser.hpp"
 
@@ -193,8 +194,7 @@ void CDustComponent::initScatteringMatrixArray(uint nr_of_scat_theta_tmp)
     }
 }
 
-void CDustComponent::initNrOfScatThetaArray()
-{
+void CDustComponent::initNrOfScatThetaArray() {
     nr_of_scat_theta = new uint *[nr_of_dust_species];
 
     for(uint a = 0; a < nr_of_dust_species; a++)
@@ -593,24 +593,23 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     return ret_val;
 }
 
-bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
-                                                 uint dust_component_choice,
-                                                 double a_min_mixture,
-                                                 double a_max_mixture)
-{
+bool CDustComponent::readDustRefractiveIndexFile(
+	parameters & param,
+	uint dust_component_choice,
+	double a_min_mixture,
+	double a_max_mixture) {
+
     // Init variables
-    CCommandParser ps;
-    unsigned char ru[4] = { '|', '/', '-', '\\' };
-    string line;
-    dlist values, values_aeff;
+    rewrite::RefractiveIndexFileParser	parser;
+    dlist 	values, values_aeff;
 
     // temporary variables for wavelength interpolation
-    spline refractive_index_real, refractive_index_imag;
-    uint nr_of_wavelength_dustcat;
+    spline 	refractive_index_real, refractive_index_imag;
+    uint 	nr_of_wavelength_dustcat;
 
     // Get min and max dust grain size
-    double a_min = param.getSizeMin(dust_component_choice);
-    double a_max = param.getSizeMax(dust_component_choice);
+    double 	a_min = param.getSizeMin(dust_component_choice);
+    double 	a_max = param.getSizeMax(dust_component_choice);
 
     // Set number of grain sizes for Mie theory (1 if only one grain size is used)
     if(a_min_mixture == a_max_mixture)
@@ -622,161 +621,69 @@ bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
     // Init dust grain sizes
     CMathFunctions::LogList(a_min_mixture, a_max_mixture, values_aeff, 10);
 
-    // Get Path to dust parameters file
-    string path = param.getDustPath(dust_component_choice);
+    if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice)))
+	return false;
 
-    // Init text file reader for dust cat file
-    fstream reader(path.c_str());
+    auto result = parser.get_result();
 
-    // Error message if the read does not work
-    if(reader.fail())
-    {
-        cout << ERROR_LINE << "Cannot open dust refractive index file:" << endl;
-        cout << path << endl;
-        return false;
-    }
+    // The number of wavelength used by the dust catalog
+    nr_of_wavelength_dustcat = result.nr_wavelengths;
 
-    // Init progress counter
-    uint line_counter = 0;
-    uint char_counter = 0;
-    uint cmd_counter = 0;
-    uint wl_counter = 0;
+    // The number of incident angles
+    nr_of_incident_angles = result.nr_inc_angles; // For non-spherical: (uint) values[1];
 
-    while(getline(reader, line))
-    {
-        // Show progress
-        if(line_counter % 500 == 0)
-        {
-            char_counter++;
-            printIDs();
-            cout << "- reading dust parameters file: " << ru[(uint)char_counter % 4] << "             \r";
-        }
+    // The aspect ratio of minor to major dust grain axes
+    aspect_ratio = result.aspect_ratio; // For non-spherical: values[2];
 
-        // Format the text file line
-        ps.formatLine(line);
+    // The material density (only used if no one was set in the command file)
+    if(material_density == 0)
+	material_density = result.material_density;
 
-        // Increase line counter
-        line_counter++;
+    // The sublimation temperature
+    sub_temp = result.sub_temp;
 
-        // If the line is empty -> skip
-        if(line.size() == 0)
-            continue;
+    // The delta value fot the RAT alignment theory
+    delta_rat = result.delta; // a sphere has delta = 1; for non-spherical: values[5];
+    // see e.g. Draine & Weingartner, 1996 ApJ 470:551, 1997 ApJ 480:663
 
-        if(cmd_counter > 0)
-        {
-            // Parse the values of the current line
-            values = ps.parseValues(line);
+    // The boolean value if the dust catalog is aligned or not
+    is_align = result.align;
 
-            // If no values found -> skip
-            if(values.size() == 0)
-                continue;
-        }
+    // Calculate the GOLD alignment g factor
+    gold_g_factor = 0.5 * (aspect_ratio * aspect_ratio - 1);
 
-        // Increase the command counter
-        cmd_counter++;
+    // Init splines for wavelength interpolation of the dust optical properties
+    refractive_index_real.resizeShared(
+	nr_of_wavelength_dustcat,
+	result.wavelengths,
+	result.real_part);
+    refractive_index_imag.resizeShared(
+	nr_of_wavelength_dustcat,
+	result.wavelengths,
+	result.imag_part);
 
-        switch(cmd_counter)
-        {
-            case 1:
-                // The first line contains the name of the dust component
-                stringID = line;
-                break;
+    // Set size parameters
+    a_eff = new double[nr_of_dust_species];
+    a_eff_squared = new double[nr_of_dust_species];
+    grain_distribution_x_aeff_sq = new double[nr_of_dust_species];
+    grain_size_distribution = new double[nr_of_dust_species];
+    mass = new double[nr_of_dust_species];
 
-            case 2:
-                // The second line needs 7 values
-                if(values.size() != 7)
-                {
-                    cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers!" << endl;
-                    return false;
-                }
+    // Calculate the grain size distribution
+    calcSizeDistribution(values_aeff, mass);
 
-                // The number of wavelength used by the dust catalog
-                nr_of_wavelength_dustcat = (uint)values[0];
+    // Check if size limits are inside grain sizes and set global ones
+    if(!checkGrainSizeLimits(a_min, a_max))
+	return false;
 
-                // The number of incident angles
-                nr_of_incident_angles = 1; // For non-spherical: (uint) values[1];
-
-                // The aspect ratio of minor to major dust grain axes
-                aspect_ratio = 1; // For non-spherical: values[2];
-
-                // The material density (only used if no one was set in the command file)
-                if(material_density == 0)
-                    material_density = values[3];
-
-                // The sublimation temperature
-                sub_temp = values[4];
-
-                // The delta value fot the RAT alignment theory
-                delta_rat = 1; // a sphere has delta = 1; for non-spherical: values[5];
-                // see e.g. Draine & Weingartner, 1996 ApJ 470:551, 1997 ApJ 480:663
-
-                // The boolean value if the dust catalog is aligned or not
-                if(values[6] == 1)
-                    is_align = true;
-                else
-                    is_align = false;
-
-                // Calculate the GOLD alignment g factor
-                gold_g_factor = 0.5 * (aspect_ratio * aspect_ratio - 1);
-
-                // Init splines for wavelength interpolation of the dust optical properties
-                refractive_index_real.resize(nr_of_wavelength_dustcat);
-                refractive_index_imag.resize(nr_of_wavelength_dustcat);
-
-                // Set size parameters
-                a_eff = new double[nr_of_dust_species];
-                a_eff_squared = new double[nr_of_dust_species];
-                grain_distribution_x_aeff_sq = new double[nr_of_dust_species];
-                grain_size_distribution = new double[nr_of_dust_species];
-                mass = new double[nr_of_dust_species];
-
-                // Calculate the grain size distribution
-                calcSizeDistribution(values_aeff, mass);
-
-                // Check if size limits are inside grain sizes and set global ones
-                if(!checkGrainSizeLimits(a_min, a_max))
-                    return false;
-                break;
-
-            default:
-                // Init boolean value to check if the lines contain the right values
-                bool rec = false;
-
-                // Each line contains NR_OF_EFF - 1 plus 2 times nr_of_incident_angles
-                // values
-                if(values.size() == 3)
-                {
-                    // he current line contains enough values
-                    rec = true;
-
-                    // Set the dust grain optical properties
-                    refractive_index_real.setValue(wl_counter, values[0], values[1]);
-                    refractive_index_imag.setValue(wl_counter, values[0], values[2]);
-
-                    // Increace the counter for the dust grain optical properties
-                    wl_counter++;
-                }
-
-                //  If a line was not correct, show error
-                if(!rec)
-                {
-                    cout << "WARING: Wrong amount of values in line " << line_counter << "!" << endl;
-                    return false;
-                }
-                break;
-        }
-    }
-
-    if(wavelength_list[0] < refractive_index_real.getX(0) ||
-        wavelength_list[nr_of_wavelength - 1] > refractive_index_real.getX(nr_of_wavelength_dustcat - 1))
-    {
+    if(wavelength_list[0] < result.wavelengths[0]
+	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[nr_of_wavelength - 1]) {
         cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
             << "         wavelength range          : " << wavelength_list[0] << " [m] to "
             << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
             << "         wavelength range (catalog): " << refractive_index_real.getX(0) << " [m] to "
             << refractive_index_real.getX(nr_of_wavelength_dustcat - 1) << " [m]" << endl;
-        if(!IGNORE_WAVELENGTH_RANGE)
-        {
+        if(!IGNORE_WAVELENGTH_RANGE) {
             cout << "         To continue, set 'IGNORE_WAVELENGTH_RANGE' to 'true' in src/Typedefs.h and recompile!" << endl;
             return false;
         }
@@ -785,18 +692,6 @@ bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
     // At the last wavelength, activate the splines
     refractive_index_real.createSpline();
     refractive_index_imag.createSpline();
-
-    // If not a line per combination of grain size and wavelength was found in the
-    // catalog, show error
-    if(wl_counter != nr_of_wavelength_dustcat)
-    {
-        cout << stringID << endl;
-        cout << ERROR_LINE << "Wrong amount of efficiencies in file!" << endl;
-        return false;
-    }
-
-    // Close the text file reader for the dust catalog
-    reader.close();
 
     // Init pointer arrays for dust optical properties
     Qext1 = new double *[nr_of_dust_species];
@@ -828,11 +723,11 @@ bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
         HGg3[a] = new double[nr_of_wavelength];
 
         CextMean[a] = new double [nr_of_wavelength];
-        fill(CextMean[a], CextMean[a] + nr_of_wavelength, 0);
+	std::memset(CextMean[a], 0, nr_of_wavelength * sizeof(double));
         CabsMean[a] = new double [nr_of_wavelength];
-        fill(CabsMean[a], CabsMean[a] + nr_of_wavelength, 0);
+	std::memset(CabsMean[a], 0, nr_of_wavelength * sizeof(double));
         CscaMean[a] = new double [nr_of_wavelength];
-        fill(CscaMean[a], CscaMean[a] + nr_of_wavelength, 0);
+	std::memset(CscaMean[a], 0, nr_of_wavelength * sizeof(double));
     }
 
     // Init splines for incident angle interpolation of Qtrq and parameters for Henyey-Greenstein phase function
@@ -848,7 +743,7 @@ bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
     nr_of_scat_phi = 1;
 
     // --- Theta angle
-    uint nr_of_scat_theta_start = 2 * NANG - 1;
+    const uint nr_of_scat_theta_start = 2 * NANG - 1;
 
     // Init normal scattering matrix array
     initNrOfScatThetaArray();
