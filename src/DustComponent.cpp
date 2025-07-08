@@ -236,26 +236,22 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 {
     // TODO: cleanup upon return false
     // Get Path to dust parameters file
-    string path = param.getDustPath(dust_component_choice);
-
+    string 				path = param.getDustPath(dust_component_choice);
     rewrite::DustParameterParser	parser;
 
     // TODO
     if (const auto res = parser.parse_file(path); !res)
 	return false;
 
-    auto data = parser.get_result();
-
-    // Init variables
-    std::vector<double>		values;
+    auto 				data = parser.get_result();
 
     // temporary variables for wavelength interpolation
-    spline *eff_wl, *Qtrq_wl, *HG_g_factor_wl, *HG_g2_factor_wl, *HG_g3_factor_wl;
-    uint nr_of_wavelength_dustcat;
+    spline 		*eff_wl, *Qtrq_wl, *HG_g_factor_wl, *HG_g2_factor_wl, *HG_g3_factor_wl;
+    uint 		nr_of_wavelength_dustcat;
 
     // Get min and max dust grain size
-    const double a_min = param.getSizeMin(dust_component_choice);
-    const double a_max = param.getSizeMax(dust_component_choice);
+    const double 	a_min = param.getSizeMin(dust_component_choice);
+    const double 	a_max = param.getSizeMax(dust_component_choice);
 
     // Set String ID
     stringID = data.stringID;
@@ -273,11 +269,11 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     aspect_ratio = data.aspect_ratio;
 
     // The material density (only used if no one was set in the command file)
-    if(material_density == 0) {
+    if (material_density == 0) {
 	// TODO: rather return an error than outputting here
-	if(data.material_density == 0) {
+	if (data.material_density == 0) {
 	    printIDs();
-	    cout << ERROR_LINE << "dust bulk mass is zero!" << endl;
+	    std::cout << ERROR_LINE << "dust bulk mass is zero!" << std::endl;
 	    return false;
 	}
 	material_density = data.material_density;
@@ -308,7 +304,8 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     calcSizeDistribution(data.a_eff, mass);
 
     // Check if size limits are inside grain sizes and set global ones
-    if(!checkGrainSizeLimits(a_min, a_max))
+    // TODO
+    if (!checkGrainSizeLimits(a_min, a_max))
 	return false;
 
     // TODO
@@ -601,7 +598,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
 
     // Init variables
     rewrite::RefractiveIndexFileParser	parser;
-    std::vector<double>			values;
 
     // temporary variables for wavelength interpolation
     spline 		refractive_index_real, refractive_index_imag;
@@ -610,6 +606,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
     // Get min and max dust grain size
     const double 	a_min = param.getSizeMin(dust_component_choice);
     const double	a_max = param.getSizeMax(dust_component_choice);
+    double		max_rel_diff;
 
     // Set number of grain sizes for Mie theory (1 if only one grain size is used)
     if(a_min_mixture == a_max_mixture)
@@ -730,7 +727,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
 
     // Init normal scattering matrix array
     initNrOfScatThetaArray();
-    // TODO: only usage
     initScatThetaArray();
     initScatteringMatrixArray();
 
@@ -740,10 +736,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
     // Init error in refractive index data check
     bool nk_error = false;
 
-    double max_rel_diff = 0.0;
-
     // Init maximum counter value
-    uint max_counter = nr_of_dust_species * nr_of_wavelength;
+    // uint max_counter = nr_of_dust_species * nr_of_wavelength;
 
     if(USE_SPLINE_FOR_REFRACTIVE_INDEX){
         cout << WARNING_LINE << "USE_SPLINE_FOR_REFRACTIVE_INDEX was set to true in 'Typedefs.h'!" << endl;
@@ -763,6 +757,14 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	    [&](size_t a) { return sizeIndexUsed(a); });
     }
 
+    for (size_t i = 0; i < nr_of_dust_species * nr_of_wavelength; i++) {
+	Qtrq[i].resize(nr_of_incident_angles);
+	HG_g_factor[i].resize(nr_of_incident_angles);
+	HG_g2_factor[i].resize(nr_of_incident_angles);
+	HG_g3_factor[i].resize(nr_of_incident_angles);
+    }
+
+    // TODO: do we need this?
     for (const auto& a: size_indices_unused) {
         Qext1[a] = new double[nr_of_wavelength];
 	std::memset(Qext1[a], 0, nr_of_wavelength * sizeof(double));
@@ -794,11 +796,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
 
 	// TODO: is this neccesary?
 	for (size_t w = 0; w < nr_of_wavelength; w++) {
-            Qtrq[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-            HG_g_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-            HG_g2_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-            HG_g3_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-
             // Activate the splines of Qtrq and HG g factor
             Qtrq[w * nr_of_dust_species + a].createSpline();
             HG_g_factor[w * nr_of_dust_species + a].createSpline();
@@ -851,11 +848,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	std::memset(CscaMean[a], 0, nr_of_wavelength * sizeof(double));
 
 	for (size_t w = 0; w < nr_of_wavelength; w++) {
-            Qtrq[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-            HG_g_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-            HG_g2_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-            HG_g3_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-
 	    // Set size index and refractive index as complex number
 	    const double x = 2.0 * PI * a_eff[a] / wavelength_list[w];
 	    std::complex<double> refractive_index;
@@ -866,10 +858,10 @@ bool CDustComponent::readDustRefractiveIndexFile(
 #else
 	    // TODO consteval
 	    if constexpr (USE_SPLINE_FOR_REFRACTIVE_INDEX)
-		refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
+		refractive_index = std::complex<double>(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
 					    refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
 	    else
-		refractive_index = dcomplex(refractive_index_real.getLinearValue(wavelength_list[w]),
+		refractive_index = std::complex<double>(refractive_index_real.getLinearValue(wavelength_list[w]),
 					    refractive_index_imag.getLinearValue(wavelength_list[w]));
 #endif
 	    if(refractive_index.imag() < 0 || refractive_index.real() < 0) {
@@ -1013,6 +1005,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
             HG_g2_factor[w * nr_of_dust_species + a].createSpline();
             HG_g3_factor[w * nr_of_dust_species + a].createSpline();
 
+	    // TODO this is 2x Qext1...
             CextMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qext1[a][w] + Qext2[a][w]) / 3.0;
             CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
             CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;

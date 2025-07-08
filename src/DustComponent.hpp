@@ -911,7 +911,7 @@ public:
                             photon_package * pp_escape) const;
     double getCellEmission(CGridBasic * grid, const photon_package & pp, uint i_density) const;
 
-private:
+protected:
     interp ** avg_scattering_frac;
     interp ** phase_pdf;
 
