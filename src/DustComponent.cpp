@@ -17,7 +17,6 @@
 #include "parser/calorimetry_parser.hpp"
 
 #include <cstring>
-#include <ranges>
 #include <numeric>
 
 void CDustComponent::initDustProperties()
@@ -232,11 +231,13 @@ void CDustComponent::initCalorimetry()
     }
 }
 
-bool CDustComponent::readDustParameterFile(parameters & param, uint dust_component_choice)
-{
+bool CDustComponent::readDustParameterFile(
+    const parameters& param,
+    const uint dust_component_choice) {
+
     // TODO: cleanup upon return false
     // Get Path to dust parameters file
-    string 				path = param.getDustPath(dust_component_choice);
+    const string			path = param.getDustPath(dust_component_choice);
     rewrite::DustParameterParser	parser;
 
     // TODO
@@ -401,8 +402,8 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
 
     // Calculate the difference between two incident angles
     const double d_ang = nr_of_incident_angles > 1 ?
-	PI / double(nr_of_incident_angles - 1)
-	: 1;
+	PI / double(nr_of_incident_angles - 1) : 1;
+
     const auto phf_id = param.getPhaseFunctionID(dust_component_choice);
 
     std::vector<size_t>		size_indices_used, size_indices_unused;
@@ -585,7 +586,6 @@ bool CDustComponent::readDustParameterFile(parameters & param, uint dust_compone
     delete[] HG_g_factor_wl;
     delete[] HG_g2_factor_wl;
     delete[] HG_g3_factor_wl;
-
 
     return ret_val;
 }
@@ -1041,8 +1041,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
 }
 
 bool CDustComponent::readScatteringMatrices(
-    string path,
-    uint nr_of_wavelength_dustcat,
+    const string path,
+    const uint nr_of_wavelength_dustcat,
     double* wavelength_list_dustcat,
     const std::vector<size_t>& size_indices_used) {
 

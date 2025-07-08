@@ -850,12 +850,12 @@ public:
     void initScatThetaArray();
     void initCalorimetry();
 
-    bool readDustParameterFile(parameters & param, uint dust_component_choice);
+    bool readDustParameterFile(const parameters& param, uint dust_component_choice);
     bool readDustRefractiveIndexFile(parameters & param,
                                      uint dust_component_choice,
                                      double a_min_mixture,
                                      double a_max_mixture);
-    bool readScatteringMatrices(string path, uint nr_of_wavelength_dustcat, double* wavelength_list_dustcat, const std::vector<size_t>& size_indices_used);
+    bool readScatteringMatrices(const string path, uint nr_of_wavelength_dustcat, double* wavelength_list_dustcat, const std::vector<size_t>& size_indices_used);
     bool readCalorimetryFile(parameters & param, uint dust_component_choice);
 
     bool writeComponentData(string path_data);
@@ -911,7 +911,11 @@ public:
                             photon_package * pp_escape) const;
     double getCellEmission(CGridBasic * grid, const photon_package & pp, uint i_density) const;
 
-protected:
+#ifdef TEST_REWRITE
+public:
+#else
+private:
+#endif
     interp ** avg_scattering_frac;
     interp ** phase_pdf;
 

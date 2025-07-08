@@ -55,10 +55,10 @@ SET (SRC_FILES
     Synchrotron.cpp SyncParameters.cpp
     Vector3D.cpp
 
-    parser/basic_parser.cpp
-    parser/polaris_commands.cpp
-    parser/parsed_line.cpp
-    parser/polaris_parser.cpp
+    # parser/basic_parser.cpp
+    # parser/polaris_commands.cpp
+    # parser/parsed_line.cpp
+    # parser/polaris_parser.cpp
 )
 
 ADD_EXECUTABLE (polaris main.cpp ${SRC_FILES})
@@ -77,29 +77,33 @@ if (TEST_REWRITE)
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
-    add_executable (trynerror
-	Parameters.cpp
-	CommandParser.cpp
-	Stokes.cpp
-	Vector3D.cpp
-	Matrix2D.cpp
-	MathProbList.cpp
-	MathFunctions.cpp
-	Faddeeva.cc
+
+    add_executable (test_dust_component
+	parser/test/dust_component_parameter_parser.cpp
+
+	${SRC_FILES}
 
 	parser/basic_parser.cpp
 	parser/polaris_commands.cpp
 	parser/parsed_line.cpp
 	parser/polaris_parser.cpp
-	parser/trynerror.cpp)
+    )
 
-    target_link_libraries(trynerror OpenMP::OpenMP_CXX)
+    target_compile_definitions (test_dust_component PRIVATE TEST_REWRITE)
 
-    target_link_libraries (test_parser
-	OpenMP::OpenMP_CXX)
+    target_link_libraries (test_dust_component
+	${CCFITS_LIBRARY}
+	${CFITSIO_LIBRARY}
+	OpenMP::OpenMP_CXX
+	GTest::gmock
+	GTest::gtest_main
+    )
+    target_include_directories (test_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
+
+	#    target_link_libraries (test_parser
+	# OpenMP::OpenMP_CXX)
 	# GTest::gmock
 	# GTest::gtest_main)
-    # target_include_directories (test_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 endif()
 
 if(BUILD_TESTING)

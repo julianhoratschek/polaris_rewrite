@@ -17,6 +17,8 @@
 #include "Stokes.hpp"
 #include "Vector3D.hpp"
 
+namespace legacy {
+
 class CDustComponent
 {
 public:
@@ -911,7 +913,11 @@ public:
                             photon_package * pp_escape) const;
     double getCellEmission(CGridBasic * grid, const photon_package & pp, uint i_density) const;
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     interp ** avg_scattering_frac;
     interp ** phase_pdf;
 
@@ -994,5 +1000,7 @@ private:
     uilist dust_mixtures;
     uilist dust_choices_to_index;
 };
+
+}
 
 #endif /* CDUST_COMPONENT_H */

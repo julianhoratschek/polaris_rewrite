@@ -67,6 +67,9 @@ public:
 
     void resize(uint size);
 
+    /*
+     *
+     */
     void resizeShared(size_t size, double* x_values, double* y_values);
 
     double getAverageY();

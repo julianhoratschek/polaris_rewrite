@@ -5,12 +5,14 @@
 
 #include <string.h>
 #include <cmath>
-#include "DustComponent.hpp"
+#include "DustComponent_1.hpp"
 #include "CommandParser.hpp"
 #include "GridBasic.hpp"
 #include "MathFunctions.hpp"
 #include "Typedefs.hpp"
 #include "Parameters.hpp"
+
+namespace legacy {
 
 void CDustComponent::initDustProperties()
 {
@@ -7647,4 +7649,6 @@ uint CDustComponent::getScatThetaID(double theta, uint a, uint w) const
     }
 
     return sth;
+}
+
 }
