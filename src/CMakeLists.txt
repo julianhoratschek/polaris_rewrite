@@ -80,6 +80,7 @@ if (TEST_REWRITE)
 
     add_executable (test_dust_component
 	parser/test/dust_component_parameter_parser.cpp
+	DustComponent_1.cpp
 
 	${SRC_FILES}
 

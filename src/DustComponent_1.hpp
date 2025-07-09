@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CDUST_COMPONENT_H
-#define CDUST_COMPONENT_H
+#ifndef CDUST_COMPONENT_1_H
+#define CDUST_COMPONENT_1_H
 
 #include "GridBasic.hpp"
 #include "Matrix2D.hpp"
@@ -17,7 +17,7 @@
 #include "Stokes.hpp"
 #include "Vector3D.hpp"
 
-namespace legacy {
+namespace rewrite::legacy {
 
 class CDustComponent
 {

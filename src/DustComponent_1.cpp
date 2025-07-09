@@ -12,7 +12,7 @@
 #include "Typedefs.hpp"
 #include "Parameters.hpp"
 
-namespace legacy {
+namespace rewrite::legacy {
 
 void CDustComponent::initDustProperties()
 {
