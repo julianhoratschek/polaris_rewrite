@@ -116,19 +116,13 @@ public:
 
     void operator+=(spline spline2);
 
-    bool compare(const spline& other) {
-	if (N != other.N) {
-	    cout << endl << "N: " << N << " " << other.N << endl;
+    bool operator==(const spline& other) {
+	if (N != other.N)
 	    return false;
-	}
 
-	for (size_t i = 0; i < N; i++) {
-	     if (x[i] != other.x[i] || y[i] != other.y[i]) {
-		cout << endl << "\t@ " << i << " " << x[i] << "|" << other.x[i] << "\t" <<
-		    y[i] << "|" << other.y[i] << endl;
+	for (size_t i = 0; i < N; i++)
+	    if (x[i] != other.x[i] || y[i] != other.y[i])
 		return false;
-	     }
-	}
 	return true;
     }
 
