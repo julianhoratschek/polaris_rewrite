@@ -24,6 +24,7 @@
 /****************************************************************************/
 
 #include "OPIATE.hpp"
+#include <cstring>
 
 /*void OPIATE::formatLine(string &line)
 {

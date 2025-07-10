@@ -147,7 +147,7 @@ public:
 
     Matrix2D & operator=(Matrix2D * rhs);
 
-    bool operator==(const Matrix2D & rhs);
+    bool operator==(const Matrix2D & rhs) const;
 
     friend Matrix2D operator*(const Matrix2D & lhs, const Matrix2D & rhs);
 

@@ -614,8 +614,11 @@ bool CDustComponent::readDustRefractiveIndexFile(
     else
         nr_of_dust_species = MIE_NR_DUST_SIZE;
 
-    if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice)))
+    if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice));
+	!res.has_value()) {
+	cout << res.error().message << endl;
 	return false;
+    }
 
     auto result = parser.get_result();
 
@@ -757,6 +760,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	    [&](size_t a) { return sizeIndexUsed(a); });
     }
 
+    cout << "after indices" << endl;
+
     for (size_t i = 0; i < nr_of_dust_species * nr_of_wavelength; i++) {
 	Qtrq[i].resize(nr_of_incident_angles);
 	HG_g_factor[i].resize(nr_of_incident_angles);
@@ -803,6 +808,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
             HG_g3_factor[w * nr_of_dust_species + a].createSpline();
 	}
     }
+
+    cout << "after unused" << endl;
 
     // Init variables and pointer arrays
     double 		*S11_start = new double[nr_of_scat_theta_start],
@@ -1011,6 +1018,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
             CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
 	}
     }
+
+    cout << "after used" << endl;
 
     delete[] S11_start;
     delete[] S12_start;

@@ -334,7 +334,7 @@ Matrix2D & Matrix2D::operator=(Matrix2D * rhs)
     return *this;
 }
 
-bool Matrix2D::operator==(const Matrix2D & rhs)
+bool Matrix2D::operator==(const Matrix2D & rhs) const
 {
 #ifdef TEST_REWRITE
     if (m_n != rhs.col() || m_m != rhs.row())

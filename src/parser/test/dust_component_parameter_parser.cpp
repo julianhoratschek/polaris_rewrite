@@ -5,8 +5,6 @@
 #include <string>
 #include <random>
 
-#define TEST_REWRITE
-
 #include "../../CommandParser.hpp"
 #include "../../MathSpline.hpp"
 #include "../../DustComponent.hpp"
@@ -36,6 +34,10 @@ namespace rewrite::testing {
 	CDustComponent 		comp_new;
 	legacy::CDustComponent 	comp_old;
 
+	TestDustComponent() {
+	    wavelengths.resize(5);
+	}
+
 	void generate_nk_file() {
 	    std::mt19937			gen(std::random_device{}());
 	    std::uniform_real_distribution<>	rdist;
@@ -44,12 +46,11 @@ namespace rewrite::testing {
 	    current_path = std::format("dust_file{:04}.nk", idist(gen));
 
 	    std::ofstream			out(current_path);
-	    double				nr_wavelengths(idist(gen)),
-						nr_inc_angles(idist(gen));
+	    double				nr_inc_angles(idist(gen));
 
 	    out << "# Comment lines" << endl;
 	    out << "String ID" << endl;
-	    out << nr_wavelengths << '\t';
+	    out << wavelengths.size() << '\t';
 	    out << nr_inc_angles << '\t';
 	    // 0 -> nr_wavelengths
 	    // 1 -> nr_inc_angles
@@ -57,8 +58,9 @@ namespace rewrite::testing {
 		out << rdist(gen) << '\t';
 	    out << endl;
 
-	    for (auto row = 0; row < nr_wavelengths; row++)
-		out << wavelengths[row] << '\t' << rdist(gen) << '\t' << rdist(gen) << endl;
+	    for (const auto& wl: wavelengths)
+		out << wl << '\t' << rdist(gen) << '\t' << rdist(gen) << endl;
+	    cout << endl;
 	}
 
 
@@ -91,23 +93,43 @@ namespace rewrite::testing {
 	    "plaw", "plaw-ed", "plaw-cv", "plaw-ed-cv", "logn", "zda"
 	};
 
+
 	std::ranges::generate(size_param, [&]() { return rdist(gen); });
-	CMathFunctions::LogList(0.01, 1000.1, wavelengths, 10);
+
+	//1.00000e-07-1.00000e-01
+	//6.19920000e-11-1.23984000e-01
+	//1.00000000e-09-1.00000000e-02
+	CMathFunctions::LogList(WL_MIN, WL_MAX, wavelengths, 10);
 
 	generate_nk_file();
 
+	double a_min_global = rdist(gen);
+	double a_max_global = a_min_global;
+
 	param.AddDustComponentChoice(1);
 	param.addDustComponent(
-	    current_path.string(),	// dust_path
-	    keywords[idist(gen)],	// size_keyword
-	    rdist(gen),			// dust_fractions
-	    rdist(gen),			// material_density
-	    rdist(gen),			// a_min_global
-	    rdist(gen),			// a_max_global
+	    // current_path.string(),	// dust_path
+	    // keywords[idist(gen)],	// size_keyword
+	    "input/dust_nk/iron_p94.nk",
+	    "plaw",
+	    // rdist(gen),			// dust_fractions
+	    0.25, //0.625
+	    // rdist(gen),			// material_density
+	    2250, //3500
+	    // a_min_global,			// a_min_global
+	    5e-09,
+	    // a_max_global,			// a_max_global
+	    2.5e-07,
 	    size_param);
 
 	init_dust_component(0, comp_new);
 	init_dust_component(0, comp_old);
+
+	if (!comp_old.readDustRefractiveIndexFile(param, 0,
+	    param.getSizeMin(0), param.getSizeMax(0))) {
+	    FAIL() << "Error running old loader";
+	    return;
+	}
 
 	if (!comp_new.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0))) {
@@ -115,11 +137,8 @@ namespace rewrite::testing {
 	    return;
 	}
 
-	if (!comp_old.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0))) {
-	    FAIL() << "Error running old loader";
-	    return;
-	}
+	cout << "after new" << endl;
+
 
 	std::filesystem::remove(current_path);
 

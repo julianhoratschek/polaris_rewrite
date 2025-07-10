@@ -116,7 +116,7 @@ public:
 
     void operator+=(spline spline2);
 
-    bool operator==(const spline& other) {
+    bool operator==(const spline& other) const {
 	if (N != other.N)
 	    return false;
 
