@@ -128,22 +128,25 @@ namespace rewrite::testing {
 
 	init_dust_component(0, comp_new);
 	init_dust_component(0, comp_old);
+	cout << "HERE" << endl;
 
 	if (!comp_old.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0))) {
 	    FAIL() << "Error running old loader";
 	    return;
 	}
+	cout << "after old" << endl;
 
 	if (!comp_new.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0))) {
 	    FAIL() << "Error running new loader";
 	    return;
 	}
-
 	cout << "after new" << endl;
 
+
 	std::filesystem::remove(current_path);
+	cout << "start tests" << endl;
 
 	EXPECT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
 	EXPECT_EQ(comp_old.nr_of_wavelength, comp_new.nr_of_wavelength);
@@ -195,6 +198,8 @@ namespace rewrite::testing {
 	EXPECT_EQ(comp_old.nr_of_scat_mat_elements, comp_new.nr_of_scat_mat_elements);
 	EXPECT_EQ(comp_old.nr_of_scat_phi, comp_new.nr_of_scat_phi);
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
+
+	cout << "Done" << endl;
     }
     
 }

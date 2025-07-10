@@ -67,8 +67,6 @@ void spline::resizeShared(size_t size, double* x_values, double* y_values) {
     u = new double[size];
     w = new double[size];
     p = new double[size];
-    x = x_values;
-    y = y_values;
 
     for (auto i = 0; i < size; i ++) {
 	d[i] = 0;
@@ -76,6 +74,9 @@ void spline::resizeShared(size_t size, double* x_values, double* y_values) {
 	w[i] = 0;
 	p[i] = 0;
     }
+
+    x = x_values;
+    y = y_values;
 }
 
 double spline::getAverageY()

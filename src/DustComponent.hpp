@@ -851,8 +851,8 @@ public:
     void initCalorimetry();
 
     bool readDustParameterFile(const parameters& param, uint dust_component_choice);
-    bool readDustRefractiveIndexFile(parameters & param,
-                                     uint dust_component_choice,
+    bool readDustRefractiveIndexFile(const parameters& param,
+                                     size_t dust_component_choice,
                                      double a_min_mixture,
                                      double a_max_mixture);
     bool readScatteringMatrices(const string path, uint nr_of_wavelength_dustcat, double* wavelength_list_dustcat, const std::vector<size_t>& size_indices_used);

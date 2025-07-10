@@ -91,12 +91,19 @@ namespace rewrite {
 	    result.wavelengths = new double[result.nr_wavelengths],
 	    result.real_part = new double[result.nr_wavelengths],
 	    result.imag_part = new double[result.nr_wavelengths];
-	    std::size_t row = 0;
+	    double *ptr[3]{result.wavelengths, result.real_part, result.imag_part};
+
+	    std::size_t row;
 
 	    for (row = 0; next_line(file) && row < result.nr_wavelengths; row++) {
-		result.wavelengths[row] = get_number().value();
-		result.real_part[row] = get_number().value();
-		result.imag_part[row] = get_number().value();
+		for (column = 0; is_or_next<is_number>() && column < 3; column++) {
+		    if (const auto num = get_number();
+			!num.has_value()) return safe_error(num.error().message);
+		    else {
+			*ptr[column] = num.value();
+			++ptr[column];
+		    }
+		}
 	    }
 
 	    // If not a line per combination of grain size and wavelength was found in the
