@@ -2083,7 +2083,7 @@ bool CMathFunctions::calcWVMie(double x,
 
         // leaving-the-loop with error criterion
         if(isnan(qext)) {
-            cout << ERROR_LINE << "Qext is not a number" << endl;
+            cout << ERROR_LINE << "A Qext is not a number" << endl;
             return false;
         }
 
@@ -2309,7 +2309,7 @@ bool CMathFunctions::calcWVMie(double x,
 
         // leaving-the-loop with error criterion
         if(isnan(qext)) {
-            cout << ERROR_LINE << "Qext is not a number" << endl;
+            cout << ERROR_LINE << "B Qext is not a number" << endl;
             return false;
         }
 

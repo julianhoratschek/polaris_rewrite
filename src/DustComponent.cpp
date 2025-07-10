@@ -681,7 +681,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	return false;
 
     if(wavelength_list[0] < result.wavelengths[0]
-	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[nr_of_wavelength - 1]) {
+	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
         cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
             << "         wavelength range          : " << wavelength_list[0] << " [m] to "
             << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
@@ -760,8 +760,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	    [&](size_t a) { return sizeIndexUsed(a); });
     }
 
-    cout << "after indices" << endl;
-
     for (size_t i = 0; i < nr_of_dust_species * nr_of_wavelength; i++) {
 	Qtrq[i].resize(nr_of_incident_angles);
 	HG_g_factor[i].resize(nr_of_incident_angles);
@@ -809,15 +807,13 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	}
     }
 
-    cout << "after unused" << endl;
-
     // Init variables and pointer arrays
     double 		*S11_start = new double[nr_of_scat_theta_start],
 			*S12_start = new double[nr_of_scat_theta_start],
 			*S33_start = new double[nr_of_scat_theta_start],
 			*S34_start = new double[nr_of_scat_theta_start];
 
-    const auto 		val = PI / (nr_of_scat_theta_start - 1);
+    const double	val = PI / (nr_of_scat_theta_start - 1);
     std::vector<double> scat_angle_start(nr_of_scat_theta_start);
     std::vector<double> S11_final(1), S12_final(1), S33_final(1), S34_final(1), scat_angle_final(1);
     std::vector<double>	S11_tmp(1), S12_tmp(1), S33_tmp(1), S34_tmp(1);
@@ -883,6 +879,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 		Qext1[a][w], Qabs1[a][w], Qsca1[a][w], HGg[a][w],
 		S11_start, S12_start, S33_start, S34_start)) {
 		error = true;
+		cout << "here error" << endl;
 		continue;
 	    }
 

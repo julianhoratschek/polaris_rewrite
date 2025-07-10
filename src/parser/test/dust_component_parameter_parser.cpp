@@ -5,6 +5,10 @@
 #include <string>
 #include <random>
 
+#ifndef TEST_REWRITE
+#define TEST_REWRITE
+#endif
+
 #include "../../CommandParser.hpp"
 #include "../../MathSpline.hpp"
 #include "../../DustComponent.hpp"
@@ -35,7 +39,7 @@ namespace rewrite::testing {
 	legacy::CDustComponent 	comp_old;
 
 	TestDustComponent() {
-	    wavelengths.resize(5);
+	    wavelengths.resize(WL_STEPS);
 	}
 
 	void generate_nk_file() {
@@ -138,7 +142,6 @@ namespace rewrite::testing {
 	}
 
 	cout << "after new" << endl;
-
 
 	std::filesystem::remove(current_path);
 

@@ -63,17 +63,18 @@ namespace rewrite {
 		return safe_error("Cannot open dust refractive index file");
 
 	    if (!next_line(file))
-		return safe_error( "Unexpected ed of file" );
+		return safe_error( "Unexpected end of file" );
 
 	    result.stringID = current_line;
 
 	    if (!next_line(file))
 		return safe_error( "Unexpected End of File" );
 
-	    while (is_or_next<is_number>() && column < 7)
+	    for (column = 0; is_or_next<is_number>() && column < 7; column++) {
 		if (const auto num = get_number();
 		    not num.has_value()) return safe_error( num.error().message );
-		else values[column++] = num.value();
+		else values[column] = num.value();
+	    }
 
 	    if (column != 7)
 		// TODO: Correct line
