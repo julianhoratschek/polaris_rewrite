@@ -133,12 +133,18 @@ namespace rewrite::testing {
 	    param.getSizeMin(0), param.getSizeMax(0)))
 	    FAIL() << "Error running old loader";
 
+	cout << "old done" << endl;
+
 	if (!comp_new.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0)))
 	    FAIL() << "Error running new loader";
 
+	cout << "new done" << endl;
+
 
 	std::filesystem::remove(current_path);
+
+	cout << "start compare" << endl;
 
 	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
 	ASSERT_EQ(comp_old.nr_of_wavelength, comp_new.nr_of_wavelength);
@@ -193,8 +199,6 @@ namespace rewrite::testing {
 	}
 
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
-
-	cout << "Done" << endl;
     }
     
 }

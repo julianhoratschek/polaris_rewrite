@@ -597,14 +597,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
     const double a_max_mixture) {
 
     // temporary variables for wavelength interpolation
-    spline refractive_index_real, refractive_index_imag;
-
-    // Set number of grain sizes for Mie theory (1 if only one grain size is used)
-    if(a_min_mixture == a_max_mixture)
-        nr_of_dust_species = 1;
-    else
-        nr_of_dust_species = MIE_NR_DUST_SIZE;
-
+    spline 				refractive_index_real,
+					refractive_index_imag;
     rewrite::RefractiveIndexFileParser	parser;
 
     if (const auto result = parser.parse_file(param.getDustPath(dust_component_choice));
@@ -614,6 +608,11 @@ bool CDustComponent::readDustRefractiveIndexFile(
     }
 	
     const auto result = parser.get_result();
+
+    cout << "after read" << endl;
+
+    // Set number of grain sizes for Mie theory (1 if only one grain size is used)
+    nr_of_dust_species = a_min_mixture == a_max_mixture ? 1 : MIE_NR_DUST_SIZE;
 
     stringID = result.stringID;
 
@@ -664,15 +663,17 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	    return false;
     }
 
-    if(wavelength_list[0] < result.wavelengths[0] ||
-        wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
+    cout << "after dist" << endl;
+
+    if (wavelength_list[0] < result.wavelengths[0]
+	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
         cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
             << "         wavelength range          : " << wavelength_list[0] << " [m] to "
             << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
             << "         wavelength range (catalog): " << refractive_index_real.getX(0) << " [m] to "
             << result.wavelengths[result.nr_wavelengths - 1] << " [m]" << endl;
-        if(!IGNORE_WAVELENGTH_RANGE)
-        {
+
+        if constexpr (!IGNORE_WAVELENGTH_RANGE) {
             cout << "         To continue, set 'IGNORE_WAVELENGTH_RANGE' to 'true' in src/Typedefs.h and recompile!" << endl;
             return false;
         }
@@ -687,20 +688,20 @@ bool CDustComponent::readDustRefractiveIndexFile(
     refractive_index_imag.createSpline();
 
     // Init pointer arrays for dust optical properties
-    Qext1 = new double *[nr_of_dust_species];
-    Qext2 = new double *[nr_of_dust_species];
-    Qabs1 = new double *[nr_of_dust_species];
-    Qabs2 = new double *[nr_of_dust_species];
-    Qsca1 = new double *[nr_of_dust_species];
-    Qsca2 = new double *[nr_of_dust_species];
-    Qcirc = new double *[nr_of_dust_species];
-    HGg = new double *[nr_of_dust_species];
-    HGg2 = new double *[nr_of_dust_species];
-    HGg3 = new double *[nr_of_dust_species];
+    Qext1 = new double*[nr_of_dust_species];
+    Qext2 = new double*[nr_of_dust_species];
+    Qabs1 = new double*[nr_of_dust_species];
+    Qabs2 = new double*[nr_of_dust_species];
+    Qsca1 = new double*[nr_of_dust_species];
+    Qsca2 = new double*[nr_of_dust_species];
+    Qcirc = new double*[nr_of_dust_species];
+    HGg = new double*[nr_of_dust_species];
+    HGg2 = new double*[nr_of_dust_species];
+    HGg3 = new double*[nr_of_dust_species];
 
-    CextMean = new double *[nr_of_dust_species];
-    CabsMean = new double *[nr_of_dust_species];
-    CscaMean = new double *[nr_of_dust_species];
+    CextMean = new double*[nr_of_dust_species];
+    CabsMean = new double*[nr_of_dust_species];
+    CscaMean = new double*[nr_of_dust_species];
 
     for(uint a = 0; a < nr_of_dust_species; a++) {
         Qext1[a] = new double[nr_of_wavelength];
@@ -721,6 +722,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	memset(HGg[a], 0, sizeof(double) * nr_of_wavelength);
         HGg2[a] = new double[nr_of_wavelength];
 	memset(HGg2[a], 0, sizeof(double) * nr_of_wavelength);
+
+	// Setting non-zero float values will not work well with memset
         HGg3[a] = new double[nr_of_wavelength];
 	std::fill_n(HGg3[a], nr_of_wavelength, 1.0);
 
@@ -731,6 +734,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
         CscaMean[a] = new double [nr_of_wavelength];
 	memset(CscaMean[a], 0, sizeof(double) * nr_of_wavelength);
     }
+
+    cout << "after alloc" << endl;
 
     // Init splines for incident angle interpolation of Qtrq and parameters for Henyey-Greenstein phase function
     Qtrq = new spline[nr_of_dust_species * nr_of_wavelength];
@@ -745,23 +750,22 @@ bool CDustComponent::readDustRefractiveIndexFile(
     nr_of_scat_phi = 1;
 
     // --- Theta angle
-    const uint nr_of_scat_theta_start = 2 * NANG - 1;
+    const size_t 		nr_of_scat_theta_start = 2 * NANG - 1;
 
     // Init normal scattering matrix array
     initNrOfScatThetaArray();
     initScatThetaArray();
     initScatteringMatrixArray();
 
+    cout << "after matr" << endl;
+
     // Init error check
-    bool error = false;
+    bool 			error = false;
 
     // Init error in refractive index data check
-    bool nk_error = false;
+    bool 			nk_error = false;
 
-    double max_rel_diff = 0.0;
-
-    // Init maximum counter value
-    const uint max_counter = nr_of_dust_species * nr_of_wavelength;
+    double 			max_rel_diff = 0.0;
 
     if constexpr (USE_SPLINE_FOR_REFRACTIVE_INDEX){
         cout << WARNING_LINE << "USE_SPLINE_FOR_REFRACTIVE_INDEX was set to true in 'Typedefs.h'!" << endl;
@@ -777,23 +781,29 @@ bool CDustComponent::readDustRefractiveIndexFile(
     const std::span<size_t> 	used_indices{size_indices.begin(), unused_indices.begin()};
 
     // TODO: do we need this?
-	//    for (size_t w = 0; w < nr_of_wavelength; w++) {
-	// for (const size_t& a: unused_indices) {
-	//            Qtrq[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	//            HG_g_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	//            HG_g2_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	//            HG_g3_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	// }
-	//    }
+   for (size_t w = 0; w < nr_of_wavelength; w++) {
+	for (const size_t& a: unused_indices) {
+	           Qtrq[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
+	           HG_g_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
+	           HG_g2_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
+	           HG_g3_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
+	}
+	   }
 
     // TODO: could be an array if not for CalcMie
     std::vector<double> scat_angle_start(nr_of_scat_theta_start);
     const auto pival = PI / (nr_of_scat_theta_start - 1);
+	//    std::ranges::generate(scat_angle_start,
+	// [pival {PI / (nr_of_scat_theta_start - 1)}, n{0}] mutable { return n++ * pival; });
     for(size_t i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start; i_scat_ang++)
 	scat_angle_start[i_scat_ang] = i_scat_ang * pival;
 
-    #pragma omp parallel for schedule(dynamic) collapse(2)
-    for(const size_t& a: used_indices) {
+    cout << "after scat angle" << endl;
+
+    // #pragma omp parallel for schedule(dynamic) collapse(2)
+    for (const auto& a: used_indices) {
+	cout << "size: " << a << endl;
+
 	// Init variables and pointer arrays
 	// TODO: just give some to each thread?
 	double *S11_start, *S12_start, *S33_start, *S34_start;
@@ -861,7 +871,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 
 	    double current_S11_rel_diff;
 
-	    for(uint i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start -1; i_scat_ang++) {
+	    for(uint i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start - 1; i_scat_ang++) {
 		dlist S11_tmp(1), S12_tmp(1), S33_tmp(1), S34_tmp(1);
 		dlist scat_angle_tmp(2);
 
@@ -995,6 +1005,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	delete[] S33_start;
 	delete[] S34_start;
     } // end of grain size loop
+
+    cout << "after calculation" << endl;
 
     refractive_index_imag.unshare();
     refractive_index_real.unshare();

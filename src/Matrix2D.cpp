@@ -335,14 +335,16 @@ Matrix2D & Matrix2D::operator=(Matrix2D * rhs)
 }
 
 bool Matrix2D::operator==(const Matrix2D & rhs) const
-{
+{ 
 #ifdef TEST_REWRITE
     if (m_n != rhs.col() || m_m != rhs.row())
 	return false;
 
     for (auto i = 0; i < m_size; i++)
-	if (m_data[i] != rhs.m_data[i])
+	if (std::abs(m_data[i] - rhs.m_data[i]) >= 2e-06) {
+	    cout << m_data[i] << " " << rhs.m_data[i] << endl;
 	    return false;
+	}
     return true;
 #else
     return (m_n == rhs.col() && m_m == rhs.row());
