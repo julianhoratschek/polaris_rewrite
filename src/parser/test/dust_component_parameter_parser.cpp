@@ -64,7 +64,7 @@ namespace rewrite::testing {
 
 	    for (const auto& wl: wavelengths)
 		out << wl << '\t' << rdist(gen) << '\t' << rdist(gen) << endl;
-	    cout << endl;
+	    out << endl;
 	}
 
 
@@ -128,29 +128,24 @@ namespace rewrite::testing {
 
 	init_dust_component(0, comp_new);
 	init_dust_component(0, comp_old);
-	cout << "HERE" << endl;
 
 	if (!comp_old.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0))) {
+	    param.getSizeMin(0), param.getSizeMax(0)))
 	    FAIL() << "Error running old loader";
-	    return;
-	}
-	cout << "after old" << endl;
 
 	if (!comp_new.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0))) {
+	    param.getSizeMin(0), param.getSizeMax(0)))
 	    FAIL() << "Error running new loader";
-	    return;
-	}
-	cout << "after new" << endl;
 
 
 	std::filesystem::remove(current_path);
-	cout << "start tests" << endl;
 
-	EXPECT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
-	EXPECT_EQ(comp_old.nr_of_wavelength, comp_new.nr_of_wavelength);
-	EXPECT_EQ(comp_old.nr_of_incident_angles, comp_new.nr_of_incident_angles);
+	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
+	ASSERT_EQ(comp_old.nr_of_wavelength, comp_new.nr_of_wavelength);
+	ASSERT_EQ(comp_old.nr_of_incident_angles, comp_new.nr_of_incident_angles);
+	ASSERT_EQ(comp_old.nr_of_scat_phi, comp_new.nr_of_scat_phi);
+	ASSERT_EQ(comp_old.nr_of_scat_mat_elements, comp_new.nr_of_scat_mat_elements);
+
 	EXPECT_DOUBLE_EQ(comp_old.aspect_ratio, comp_new.aspect_ratio);
 	EXPECT_DOUBLE_EQ(comp_old.material_density, comp_new.material_density);
 	EXPECT_DOUBLE_EQ(comp_old.sub_temp, comp_new.sub_temp);
@@ -164,8 +159,8 @@ namespace rewrite::testing {
 	    EXPECT_DOUBLE_EQ(comp_old.grain_distribution_x_aeff_sq[i], comp_new.grain_distribution_x_aeff_sq[i]);
 	    EXPECT_DOUBLE_EQ(comp_old.mass[i], comp_new.mass[i]);
 
-	    for (auto w = 0; w < comp_old.nr_of_wavelength; i++) {
-		EXPECT_EQ(comp_old.nr_of_scat_theta[i][w], comp_new.nr_of_scat_theta[i][w]);
+	    for (auto w = 0; w < comp_old.nr_of_wavelength; w++) {
+		// cout << "wl " << w << endl;
 		EXPECT_DOUBLE_EQ(comp_old.Qext1[i][w], comp_new.Qext1[i][w]);
 		EXPECT_DOUBLE_EQ(comp_old.Qext2[i][w], comp_new.Qext2[i][w]);
 		EXPECT_DOUBLE_EQ(comp_old.Qabs1[i][w], comp_new.Qabs1[i][w]);
@@ -185,6 +180,8 @@ namespace rewrite::testing {
 		EXPECT_EQ(comp_old.HG_g2_factor[i * comp_old.nr_of_wavelength + w], comp_new.HG_g2_factor[i * comp_old.nr_of_wavelength + w]);
 		EXPECT_EQ(comp_old.HG_g3_factor[i * comp_old.nr_of_wavelength + w], comp_new.HG_g3_factor[i * comp_old.nr_of_wavelength + w]);
 
+		ASSERT_EQ(comp_old.nr_of_scat_theta[i][w], comp_new.nr_of_scat_theta[i][w]);
+
 		for (auto sth = 0; sth < comp_old.nr_of_scat_theta[i][w]; sth++)
 		    EXPECT_DOUBLE_EQ(comp_old.scat_theta[i][w][sth], comp_new.scat_theta[i][w][sth]);
 
@@ -195,8 +192,6 @@ namespace rewrite::testing {
 	    }
 	}
 
-	EXPECT_EQ(comp_old.nr_of_scat_mat_elements, comp_new.nr_of_scat_mat_elements);
-	EXPECT_EQ(comp_old.nr_of_scat_phi, comp_new.nr_of_scat_phi);
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
 
 	cout << "Done" << endl;

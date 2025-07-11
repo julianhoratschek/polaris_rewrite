@@ -45,20 +45,13 @@ public:
         }
     }
 
-    ~spline()
-    {
-        if(d != 0)
-            delete[] d;
-        if(u != 0)
-            delete[] u;
-        if(w != 0)
-            delete[] w;
-        if(p != 0)
-            delete[] p;
-        if(x != 0)
-            delete[] x;
-        if(y != 0)
-            delete[] y;
+    ~spline() {
+	delete[] d;
+	delete[] u;
+	delete[] w;
+	delete[] p;
+	delete[] x;
+	delete[] y;
     }
 
     uint size() const;
@@ -67,10 +60,21 @@ public:
 
     void resize(uint size);
 
-    /*
-     *
+    /**
+     * Indicates that memory of this.x and this.y should not
+     * be managed by this spline. x_values and y_values must be
+     * existing memory locations. This method must be paired with
+     * unshare() to ensure correct freeing of memory. The
+     * caller is still responsible for freeing x_values and y_values.
      */
     void resizeShared(size_t size, double* x_values, double* y_values);
+
+    /**
+     * Sets this.x and this.y to nullptr to ensure, memory will
+     * not be freed by spline. This method call should be preceded
+     * by resizeShared.
+     */
+    void unshare();
 
     double getAverageY();
 

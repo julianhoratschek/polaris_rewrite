@@ -1015,8 +1015,13 @@ bool CDustComponent::readDustRefractiveIndexFile(
             CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
         } // end of wavelength loop
     } // end of grain size loop
-      //
-    cout << "after used" << endl;
+
+    refractive_index_imag.unshare();
+    refractive_index_real.unshare();
+
+    delete[] result.wavelengths;
+    delete[] result.real_part;
+    delete[] result.imag_part;
 
     // Set that the scattering matrix was successfully read
     scat_loaded = true;
@@ -1038,7 +1043,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
         cout << WARNING_LINE << "Number of scattering angles might be too low (max rel diff = " << max_rel_diff << ")." << endl;
         cout << "  If required, increase 'NANG' or decrease 'MAX_MIE_SCA_REL_DIFF' (for x < 100) in src/Typedefs.h and recompile!" << endl;
     }
-    cout << "returned" << endl;
 
     return true;
 }

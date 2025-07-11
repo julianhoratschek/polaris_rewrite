@@ -79,6 +79,11 @@ void spline::resizeShared(size_t size, double* x_values, double* y_values) {
     y = y_values;
 }
 
+void spline::unshare() {
+    x = nullptr;
+    y = nullptr;
+}
+
 double spline::getAverageY()
 {
     uint size = N + 1;
