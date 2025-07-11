@@ -997,6 +997,8 @@ private:
 
     uilist dust_mixtures;
     uilist dust_choices_to_index;
+
+    vector<complex<double>> real_list;
 };
 
 #endif /* CDUST_COMPONENT_H */

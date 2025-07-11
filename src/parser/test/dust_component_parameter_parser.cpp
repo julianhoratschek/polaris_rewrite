@@ -1,4 +1,6 @@
+#include "gmock/gmock.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <filesystem>
 #include <fstream>
@@ -129,6 +131,8 @@ namespace rewrite::testing {
 	init_dust_component(0, comp_new);
 	init_dust_component(0, comp_old);
 
+	cout << "start test" << endl;
+
 	if (!comp_old.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0)))
 	    FAIL() << "Error running old loader";
@@ -139,7 +143,7 @@ namespace rewrite::testing {
 	    param.getSizeMin(0), param.getSizeMax(0)))
 	    FAIL() << "Error running new loader";
 
-	cout << "new done" << endl;
+	cout << "new (new) done" << endl;
 
 
 	std::filesystem::remove(current_path);
@@ -158,6 +162,8 @@ namespace rewrite::testing {
 	EXPECT_DOUBLE_EQ(comp_old.delta_rat, comp_new.delta_rat);
 	EXPECT_EQ(comp_old.is_align, comp_new.is_align);
 	EXPECT_DOUBLE_EQ(comp_old.gold_g_factor, comp_new.gold_g_factor);
+
+	ASSERT_THAT(comp_old.real_list, ::testing::ContainerEq(comp_new.real_list));
 
 	for (auto i = 0; i < comp_old.nr_of_dust_species; i++) {
 	    EXPECT_DOUBLE_EQ(comp_old.a_eff[i], comp_new.a_eff[i]);
@@ -189,12 +195,12 @@ namespace rewrite::testing {
 		ASSERT_EQ(comp_old.nr_of_scat_theta[i][w], comp_new.nr_of_scat_theta[i][w]);
 
 		for (auto sth = 0; sth < comp_old.nr_of_scat_theta[i][w]; sth++)
-		    EXPECT_DOUBLE_EQ(comp_old.scat_theta[i][w][sth], comp_new.scat_theta[i][w][sth]);
+		    ASSERT_DOUBLE_EQ(comp_old.scat_theta[i][w][sth], comp_new.scat_theta[i][w][sth]) << i << " " << w << " " << sth;
 
 		for (auto inc = 0; inc < comp_old.nr_of_incident_angles; inc++)
 		    for (auto sph = 0; sph < comp_old.nr_of_scat_phi; sph++)
 			for (size_t sth = 0; sth < comp_old.nr_of_scat_theta[i][w]; sth++)
-			    EXPECT_EQ(comp_old.sca_mat[i][w][inc][sph][sth], comp_new.sca_mat[i][w][inc][sph][sth]);
+			    ASSERT_EQ(comp_old.sca_mat[i][w][inc][sph][sth], comp_new.sca_mat[i][w][inc][sph][sth]) << i << " " << w << " " << inc << " " << sph << " " << sth;
 	    }
 	}
 

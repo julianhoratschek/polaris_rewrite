@@ -596,24 +596,30 @@ bool CDustComponent::readDustRefractiveIndexFile(
     const double a_min_mixture,
     const double a_max_mixture) {
 
-    // temporary variables for wavelength interpolation
-    spline 				refractive_index_real,
-					refractive_index_imag;
     rewrite::RefractiveIndexFileParser	parser;
 
-    if (const auto result = parser.parse_file(param.getDustPath(dust_component_choice));
-	!result) {
-	cout << ERROR_LINE << result.error().message << endl;
-	return false;
-    }
-	
-    const auto result = parser.get_result();
+    // temporary variables for wavelength interpolation
+    spline 	refractive_index_real, refractive_index_imag;
 
-    cout << "after read" << endl;
+    // Get min and max dust grain size
+    const double a_min = param.getSizeMin(dust_component_choice);
+    const double a_max = param.getSizeMax(dust_component_choice);
 
     // Set number of grain sizes for Mie theory (1 if only one grain size is used)
-    nr_of_dust_species = a_min_mixture == a_max_mixture ? 1 : MIE_NR_DUST_SIZE;
+    if(a_min_mixture == a_max_mixture)
+        nr_of_dust_species = 1;
+    else
+        nr_of_dust_species = MIE_NR_DUST_SIZE;
 
+    if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice));
+	!res.has_value()) {
+	std::cout << ERROR_LINE << res.error().message << std::endl;
+	return false;
+    }
+
+    const auto result = parser.get_result();
+
+    // The first line contains the name of the dust component
     stringID = result.stringID;
 
     // The number of incident angles
@@ -639,6 +645,10 @@ bool CDustComponent::readDustRefractiveIndexFile(
     // Calculate the GOLD alignment g factor
     gold_g_factor = 0.5 * (aspect_ratio * aspect_ratio - 1);
 
+    // Init splines for wavelength interpolation of the dust optical properties
+    refractive_index_real.resizeShared(result.nr_wavelengths, result.wavelengths, result.real_part);
+    refractive_index_imag.resizeShared(result.nr_wavelengths, result.wavelengths, result.imag_part);
+
     // Set size parameters
     a_eff = new double[nr_of_dust_species];
     a_eff_squared = new double[nr_of_dust_species];
@@ -647,95 +657,77 @@ bool CDustComponent::readDustRefractiveIndexFile(
     mass = new double[nr_of_dust_species];
 
     {
-	// Get min and max dust grain size
-	const double 		a_min = param.getSizeMin(dust_component_choice);
-	const double 		a_max = param.getSizeMax(dust_component_choice);
-	std::vector<double>	values_aeff(nr_of_dust_species);
+	std::vector<double>		values_aeff(nr_of_dust_species);
 
 	// Init dust grain sizes
 	CMathFunctions::LogList(a_min_mixture, a_max_mixture, values_aeff, 10);
 
 	// Calculate the grain size distribution
 	calcSizeDistribution(values_aeff, mass);
-
-	// Check if size limits are inside grain sizes and set global ones
-	if(!checkGrainSizeLimits(a_min, a_max))
-	    return false;
     }
 
-    cout << "after dist" << endl;
+    // Check if size limits are inside grain sizes and set global ones
+    if(!checkGrainSizeLimits(a_min, a_max))
+	return false;
 
-    if (wavelength_list[0] < result.wavelengths[0]
+	//    for (size_t wl = 0; wl < result.nr_wavelengths; wl++) {
+	// refractive_index_real.setValue(wl, result.wavelengths[wl], result.real_part[wl]);
+	// refractive_index_imag.setValue(wl, result.wavelengths[wl], result.imag_part[wl]);
+	//    }
+
+    if(wavelength_list[0] < result.wavelengths[0]
 	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
         cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
             << "         wavelength range          : " << wavelength_list[0] << " [m] to "
             << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
             << "         wavelength range (catalog): " << refractive_index_real.getX(0) << " [m] to "
             << result.wavelengths[result.nr_wavelengths - 1] << " [m]" << endl;
-
         if constexpr (!IGNORE_WAVELENGTH_RANGE) {
             cout << "         To continue, set 'IGNORE_WAVELENGTH_RANGE' to 'true' in src/Typedefs.h and recompile!" << endl;
             return false;
         }
     }
 
-    // Init splines for wavelength interpolation of the dust optical properties
-    refractive_index_real.resizeShared(result.nr_wavelengths, result.wavelengths, result.real_part);
-    refractive_index_imag.resizeShared(result.nr_wavelengths, result.wavelengths, result.imag_part);
-
     // At the last wavelength, activate the splines
     refractive_index_real.createSpline();
     refractive_index_imag.createSpline();
 
     // Init pointer arrays for dust optical properties
-    Qext1 = new double*[nr_of_dust_species];
-    Qext2 = new double*[nr_of_dust_species];
-    Qabs1 = new double*[nr_of_dust_species];
-    Qabs2 = new double*[nr_of_dust_species];
-    Qsca1 = new double*[nr_of_dust_species];
-    Qsca2 = new double*[nr_of_dust_species];
-    Qcirc = new double*[nr_of_dust_species];
-    HGg = new double*[nr_of_dust_species];
-    HGg2 = new double*[nr_of_dust_species];
-    HGg3 = new double*[nr_of_dust_species];
+    Qext1 = new double *[nr_of_dust_species];
+    Qext2 = new double *[nr_of_dust_species];
+    Qabs1 = new double *[nr_of_dust_species];
+    Qabs2 = new double *[nr_of_dust_species];
+    Qsca1 = new double *[nr_of_dust_species];
+    Qsca2 = new double *[nr_of_dust_species];
+    Qcirc = new double *[nr_of_dust_species];
+    HGg = new double *[nr_of_dust_species];
+    HGg2 = new double *[nr_of_dust_species];
+    HGg3 = new double *[nr_of_dust_species];
 
-    CextMean = new double*[nr_of_dust_species];
-    CabsMean = new double*[nr_of_dust_species];
-    CscaMean = new double*[nr_of_dust_species];
+    CextMean = new double *[nr_of_dust_species];
+    CabsMean = new double *[nr_of_dust_species];
+    CscaMean = new double *[nr_of_dust_species];
 
-    for(uint a = 0; a < nr_of_dust_species; a++) {
+    for(uint a = 0; a < nr_of_dust_species; a++)
+    {
         Qext1[a] = new double[nr_of_wavelength];
-	memset(Qext1[a], 0, sizeof(double) * nr_of_wavelength);
         Qext2[a] = new double[nr_of_wavelength];
-	memset(Qext2[a], 0, sizeof(double) * nr_of_wavelength);
         Qabs1[a] = new double[nr_of_wavelength];
-	memset(Qabs1[a], 0, sizeof(double) * nr_of_wavelength);
         Qabs2[a] = new double[nr_of_wavelength];
-	memset(Qabs2[a], 0, sizeof(double) * nr_of_wavelength);
         Qsca1[a] = new double[nr_of_wavelength];
-	memset(Qsca1[a], 0, sizeof(double) * nr_of_wavelength);
         Qsca2[a] = new double[nr_of_wavelength];
-	memset(Qsca2[a], 0, sizeof(double) * nr_of_wavelength);
         Qcirc[a] = new double[nr_of_wavelength];
-	memset(Qcirc[a], 0, sizeof(double) * nr_of_wavelength);
         HGg[a] = new double[nr_of_wavelength];
-	memset(HGg[a], 0, sizeof(double) * nr_of_wavelength);
         HGg2[a] = new double[nr_of_wavelength];
-	memset(HGg2[a], 0, sizeof(double) * nr_of_wavelength);
-
-	// Setting non-zero float values will not work well with memset
         HGg3[a] = new double[nr_of_wavelength];
-	std::fill_n(HGg3[a], nr_of_wavelength, 1.0);
 
         CextMean[a] = new double [nr_of_wavelength];
-	memset(CextMean[a], 0, sizeof(double) * nr_of_wavelength);
+        fill(CextMean[a], CextMean[a] + nr_of_wavelength, 0);
         CabsMean[a] = new double [nr_of_wavelength];
-	memset(CabsMean[a], 0, sizeof(double) * nr_of_wavelength);
+        fill(CabsMean[a], CabsMean[a] + nr_of_wavelength, 0);
         CscaMean[a] = new double [nr_of_wavelength];
-	memset(CscaMean[a], 0, sizeof(double) * nr_of_wavelength);
+        fill(CscaMean[a], CscaMean[a] + nr_of_wavelength, 0);
     }
-
-    cout << "after alloc" << endl;
 
     // Init splines for incident angle interpolation of Qtrq and parameters for Henyey-Greenstein phase function
     Qtrq = new spline[nr_of_dust_species * nr_of_wavelength];
@@ -750,74 +742,36 @@ bool CDustComponent::readDustRefractiveIndexFile(
     nr_of_scat_phi = 1;
 
     // --- Theta angle
-    const size_t 		nr_of_scat_theta_start = 2 * NANG - 1;
+    uint nr_of_scat_theta_start = 2 * NANG - 1;
 
     // Init normal scattering matrix array
     initNrOfScatThetaArray();
     initScatThetaArray();
     initScatteringMatrixArray();
 
-    cout << "after matr" << endl;
-
     // Init error check
-    bool 			error = false;
+    bool error = false;
 
     // Init error in refractive index data check
-    bool 			nk_error = false;
+    bool nk_error = false;
 
-    double 			max_rel_diff = 0.0;
+    double max_rel_diff = 0.0;
 
-    if constexpr (USE_SPLINE_FOR_REFRACTIVE_INDEX){
+    if constexpr (USE_SPLINE_FOR_REFRACTIVE_INDEX) {
         cout << WARNING_LINE << "USE_SPLINE_FOR_REFRACTIVE_INDEX was set to true in 'Typedefs.h'!" << endl;
         cout << "(When the wavelength list in the input .nk-file has gaps that are too large compared with the change of the complex refractive index n+ik, using Splines can cause large errors and negative values of n or k.)" << endl;
     }
 
-    std::vector<size_t>		size_indices(nr_of_dust_species);
-
-    std::ranges::iota(size_indices, 0);
-
-    const auto 			unused_indices = std::ranges::partition(size_indices,
-	[&](const auto a) { return sizeIndexUsed(a); });
-    const std::span<size_t> 	used_indices{size_indices.begin(), unused_indices.begin()};
-
-    // TODO: do we need this?
-   for (size_t w = 0; w < nr_of_wavelength; w++) {
-	for (const size_t& a: unused_indices) {
-	           Qtrq[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	           HG_g_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	           HG_g2_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	           HG_g3_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
-	}
-	   }
-
-    // TODO: could be an array if not for CalcMie
-    std::vector<double> scat_angle_start(nr_of_scat_theta_start);
-    const auto pival = PI / (nr_of_scat_theta_start - 1);
-	//    std::ranges::generate(scat_angle_start,
-	// [pival {PI / (nr_of_scat_theta_start - 1)}, n{0}] mutable { return n++ * pival; });
-    for(size_t i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start; i_scat_ang++)
-	scat_angle_start[i_scat_ang] = i_scat_ang * pival;
-
-    cout << "after scat angle" << endl;
-
-    // #pragma omp parallel for schedule(dynamic) collapse(2)
-    for (const auto& a: used_indices) {
-	cout << "size: " << a << endl;
-
-	// Init variables and pointer arrays
-	// TODO: just give some to each thread?
-	double *S11_start, *S12_start, *S33_start, *S34_start;
-	S11_start = new double[nr_of_scat_theta_start];
-	S12_start = new double[nr_of_scat_theta_start];
-	S33_start = new double[nr_of_scat_theta_start];
-	S34_start = new double[nr_of_scat_theta_start];
-
-        for(size_t w = 0; w < nr_of_wavelength; w++) {
+    #pragma omp parallel for schedule(dynamic) collapse(2)
+    for(int a = 0; a < int(nr_of_dust_species); a++)
+    {
+        for(int w = 0; w < int(nr_of_wavelength); w++)
+        {
             // Skip everything else if error was found
             if(error)
                 continue;
 
-	    // TODO: percentag?
+	    // TODO: percentage?
 
             // Resize the splines of Qtrq and HG g factor for each wavelength
             Qtrq[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
@@ -825,169 +779,236 @@ bool CDustComponent::readDustRefractiveIndexFile(
             HG_g2_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
             HG_g3_factor[w * nr_of_dust_species + a].resize(nr_of_incident_angles);
 
-	    // Set size index and refractive index as complex number
-	    const double x = 2.0 * PI * a_eff[a] / wavelength_list[w];
-	    dcomplex refractive_index;
+            if(sizeIndexUsed(a))
+            {
+                // Init variables and pointer arrays
+                double *S11_start, *S12_start, *S33_start, *S34_start;
+                S11_start = new double[nr_of_scat_theta_start];
+                S12_start = new double[nr_of_scat_theta_start];
+                S33_start = new double[nr_of_scat_theta_start];
+                S34_start = new double[nr_of_scat_theta_start];
+
+                dlist scat_angle_start(nr_of_scat_theta_start);
+                for(uint i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start; i_scat_ang++)
+                {
+                    scat_angle_start[i_scat_ang] = i_scat_ang * PI/(nr_of_scat_theta_start-1);
+                }
+
+                // Set size index and refractive index as complex number
+                double x = 2.0 * PI * a_eff[a] / wavelength_list[w];
+                dcomplex refractive_index;
 #if BENCHMARK == PINTE
-	    refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
-					refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
+                refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
+                                            refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
 #else
-	    if constexpr (USE_SPLINE_FOR_REFRACTIVE_INDEX)
-	    {
-		refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
-					    refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
-	    }
-	    else {
-		refractive_index = dcomplex(refractive_index_real.getLinearValue(wavelength_list[w]),
-					    refractive_index_imag.getLinearValue(wavelength_list[w]));
-	    }
+                if(USE_SPLINE_FOR_REFRACTIVE_INDEX)
+                {
+                    refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
+                                                refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
+                }
+                else
+                {
+                    refractive_index = dcomplex(refractive_index_real.getLinearValue(wavelength_list[w]),
+                                                refractive_index_imag.getLinearValue(wavelength_list[w]));
+                }
 #endif
-	    if(refractive_index.imag() < 0 || refractive_index.real() < 0) {
-		error = true;
-		nk_error = true;
-		continue;
-	    }
+                if(refractive_index.imag() < 0)
+                {
+                    error = true;
+                    nk_error = true;
+                    continue;
+                }
 
-	    // Calculate Mie-scattering
-	    if(!CMathFunctions::calcWVMie(x,
-					  scat_angle_start,
-					  refractive_index,
-					  Qext1[a][w],
-					  Qabs1[a][w],
-					  Qsca1[a][w],
-					  HGg[a][w],
-					  S11_start,
-					  S12_start,
-					  S33_start,
-					  S34_start))
-		error = true;
+                if(refractive_index.real() < 0)
+                {
+                    error = true;
+                    nk_error = true;
+                    continue;
+                }
 
-	    dlist S11_final(1), S12_final(1), S33_final(1), S34_final(1), scat_angle_final(1);
-	    S11_final[0] = S11_start[0];
-	    S12_final[0] = S12_start[0];
-	    S33_final[0] = S33_start[0];
-	    S34_final[0] = S34_start[0];
-	    scat_angle_final[0] = scat_angle_start[0];
+                // Calculate Mie-scattering
+                if(!CMathFunctions::calcWVMie(x,
+                                              scat_angle_start,
+                                              refractive_index,
+                                              Qext1[a][w],
+                                              Qabs1[a][w],
+                                              Qsca1[a][w],
+                                              HGg[a][w],
+                                              S11_start,
+                                              S12_start,
+                                              S33_start,
+                                              S34_start))
+                    error = true;
 
-	    double current_S11_rel_diff;
+                dlist S11_final(1), S12_final(1), S33_final(1), S34_final(1), scat_angle_final(1);
+                S11_final[0] = S11_start[0];
+                S12_final[0] = S12_start[0];
+                S33_final[0] = S33_start[0];
+                S34_final[0] = S34_start[0];
+                scat_angle_final[0] = scat_angle_start[0];
 
-	    for(uint i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start - 1; i_scat_ang++) {
-		dlist S11_tmp(1), S12_tmp(1), S33_tmp(1), S34_tmp(1);
-		dlist scat_angle_tmp(2);
+                // set default HG values if optical properties are calcualted with Mie-scattering
+                HGg2[a][w] = 0.0;
+                HGg3[a][w] = 1.0;
 
-		S11_tmp[0] = S11_start[i_scat_ang+1];
-		S12_tmp[0] = S12_start[i_scat_ang+1];
-		S33_tmp[0] = S33_start[i_scat_ang+1];
-		S34_tmp[0] = S34_start[i_scat_ang+1];
-		scat_angle_tmp[0] = scat_angle_start[i_scat_ang+1];
-		scat_angle_tmp[1] = 0.5 * (scat_angle_final.back() + scat_angle_start[i_scat_ang+1]);
+                double current_S11_rel_diff;
 
-		while(true) {
-		    current_S11_rel_diff = abs( S11_tmp.back() - S11_final.back() ) / max( S11_tmp.back(), S11_final.back() );
+                for(uint i_scat_ang=0; i_scat_ang < nr_of_scat_theta_start -1; i_scat_ang++)
+                {
+                    dlist S11_tmp(1), S12_tmp(1), S33_tmp(1), S34_tmp(1);
+                    dlist scat_angle_tmp(2);
 
-		    // Subdivide scattering angles only if size parameter x is not too large.
-		    // Large x lead to extrem forward scattering and the subdivision criterion will
-		    // get almost impossible to achive for small scattering angles.
-		    // The limit of x=100 is somewhat arbitrary.
-		    while(x < 100.0 && current_S11_rel_diff > MAX_MIE_SCA_REL_DIFF) {
-			double pointer_s11_tmp, pointer_s12_tmp, pointer_s33_tmp, pointer_s34_tmp;
+                    S11_tmp[0] = S11_start[i_scat_ang+1];
+                    S12_tmp[0] = S12_start[i_scat_ang+1];
+                    S33_tmp[0] = S33_start[i_scat_ang+1];
+                    S34_tmp[0] = S34_start[i_scat_ang+1];
+                    scat_angle_tmp[0] = scat_angle_start[i_scat_ang+1];
+                    scat_angle_tmp[1] = 0.5 * (scat_angle_final.back() + scat_angle_start[i_scat_ang+1]);
 
-			if(!CMathFunctions::calcWVMie(x,
-						      scat_angle_tmp.back(),
-						      refractive_index,
-						      Qext1[a][w],
-						      Qabs1[a][w],
-						      Qsca1[a][w],
-						      HGg[a][w],
-						      pointer_s11_tmp,
-						      pointer_s12_tmp,
-						      pointer_s33_tmp,
-						      pointer_s34_tmp))
-			    error = true;
+                    while(true)
+                    {
+                        current_S11_rel_diff = abs( S11_tmp.back() - S11_final.back() ) / max( S11_tmp.back(), S11_final.back() );
 
-			S11_tmp.push_back(pointer_s11_tmp);
-			S12_tmp.push_back(pointer_s12_tmp);
-			S33_tmp.push_back(pointer_s33_tmp);
-			S34_tmp.push_back(pointer_s34_tmp);
-			scat_angle_tmp.push_back( 0.5 * (scat_angle_final.back() + scat_angle_tmp.back()) );
+                        // Subdivide scattering angles only if size parameter x is not too large.
+                        // Large x lead to extrem forward scattering and the subdivision criterion will
+                        // get almost impossible to achive for small scattering angles.
+                        // The limit of x=100 is somewhat arbitrary.
+                        while(x < 100.0 && current_S11_rel_diff > MAX_MIE_SCA_REL_DIFF)
+                        {
+                            double *pointer_s11_tmp, *pointer_s12_tmp, *pointer_s33_tmp, *pointer_s34_tmp;
+                            pointer_s11_tmp = new double[1];
+                            pointer_s12_tmp = new double[1];
+                            pointer_s33_tmp = new double[1];
+                            pointer_s34_tmp = new double[1];
 
+                            dlist scat_angle_calc(1);
+                            scat_angle_calc[0] = scat_angle_tmp.back();
 
-			current_S11_rel_diff = abs( S11_tmp.back() - S11_final.back() ) / max( S11_tmp.back(), S11_final.back() );
-		    }
-		    scat_angle_tmp.pop_back();
+                            if(!CMathFunctions::calcWVMie(x,
+                                                          scat_angle_calc,
+                                                          refractive_index,
+                                                          Qext1[a][w],
+                                                          Qabs1[a][w],
+                                                          Qsca1[a][w],
+                                                          HGg[a][w],
+                                                          pointer_s11_tmp,
+                                                          pointer_s12_tmp,
+                                                          pointer_s33_tmp,
+                                                          pointer_s34_tmp))
+                                error = true;
 
-		    S11_final.push_back(S11_tmp.back());
-		    S12_final.push_back(S12_tmp.back());
-		    S33_final.push_back(S33_tmp.back());
-		    S34_final.push_back(S34_tmp.back());
-		    scat_angle_final.push_back(scat_angle_tmp.back());
+                            S11_tmp.push_back(pointer_s11_tmp[0]);
+                            S12_tmp.push_back(pointer_s12_tmp[0]);
+                            S33_tmp.push_back(pointer_s33_tmp[0]);
+                            S34_tmp.push_back(pointer_s34_tmp[0]);
+                            scat_angle_tmp.push_back( 0.5 * (scat_angle_final.back() + scat_angle_tmp.back()) );
 
-		    S11_tmp.pop_back();
-		    S12_tmp.pop_back();
-		    S33_tmp.pop_back();
-		    S34_tmp.pop_back();
-		    scat_angle_tmp.pop_back();
+                            delete[] pointer_s11_tmp;
+                            delete[] pointer_s12_tmp;
+                            delete[] pointer_s33_tmp;
+                            delete[] pointer_s34_tmp;
 
-		    if(S11_tmp.size() < 1)
-			break;
-		    else
-			scat_angle_tmp.push_back( 0.5 * (scat_angle_final.back() + scat_angle_tmp.back()) );
-		}
-		S11_tmp.clear();
-		S12_tmp.clear();
-		S33_tmp.clear();
-		S34_tmp.clear();
-		scat_angle_tmp.clear();
-	    }
+                            current_S11_rel_diff = abs( S11_tmp.back() - S11_final.back() ) / max( S11_tmp.back(), S11_final.back() );
+                        }
+                        scat_angle_tmp.pop_back();
 
-	    scat_angle_start.clear();
+                        S11_final.push_back(S11_tmp.back());
+                        S12_final.push_back(S12_tmp.back());
+                        S33_final.push_back(S33_tmp.back());
+                        S34_final.push_back(S34_tmp.back());
+                        scat_angle_final.push_back(scat_angle_tmp.back());
 
-	    uint nr_of_scat_theta_final = scat_angle_final.size();
+                        S11_tmp.pop_back();
+                        S12_tmp.pop_back();
+                        S33_tmp.pop_back();
+                        S34_tmp.pop_back();
+                        scat_angle_tmp.pop_back();
 
-	    // Set missing Efficiencies for other axis
-	    Qext2[a][w] = Qext1[a][w];
-	    Qabs2[a][w] = Qabs1[a][w];
-	    Qsca2[a][w] = Qsca1[a][w];
+                        if(S11_tmp.size() < 1)
+                            break;
+                        else
+                            scat_angle_tmp.push_back( 0.5 * (scat_angle_final.back() + scat_angle_tmp.back()) );
+                    }
+                    S11_tmp.clear();
+                    S12_tmp.clear();
+                    S33_tmp.clear();
+                    S34_tmp.clear();
+                    scat_angle_tmp.clear();
+                }
+                scat_angle_start.clear();
+                delete[] S11_start;
+                delete[] S12_start;
+                delete[] S33_start;
+                delete[] S34_start;
 
-	    delete[] scat_theta[a][w];
+                uint nr_of_scat_theta_final = scat_angle_final.size();
 
-	    for(uint sth = 1; sth < nr_of_scat_theta_final; sth++) {
-		const double diff_tmp = abs(S11_final[sth-1] - S11_final[sth]) / max(S11_final[sth-1], S11_final[sth]);
-		max_rel_diff = max(diff_tmp, max_rel_diff);
-	    }
+                // Set missing Efficiencies for other axis
+                Qext2[a][w] = Qext1[a][w];
+                Qabs2[a][w] = Qabs1[a][w];
+                Qsca2[a][w] = Qsca1[a][w];
+                Qcirc[a][w] = 0;
 
-	    scat_theta[a][w] = new double[nr_of_scat_theta_final];
+                if(scat_theta[a][w] != 0){
+                    delete[] scat_theta[a][w];
+                }
 
-	    for(uint inc = 0; inc < nr_of_incident_angles; inc++) {
-		sca_mat[a][w][inc] = new Matrix2D*[nr_of_scat_phi];
-		for(uint sph = 0; sph < nr_of_scat_phi; sph++) {
-		    sca_mat[a][w][inc][sph] = new Matrix2D[nr_of_scat_theta_final];
-		    for(uint sth = 0; sth < nr_of_scat_theta_final; sth++) {
-			sca_mat[a][w][inc][sph][sth].resize(4, 4);
+                double diff_tmp;
+                for(uint sth = 1; sth < nr_of_scat_theta_final; sth++)
+                {
+                    diff_tmp = abs(S11_final[sth-1] - S11_final[sth]) / max(S11_final[sth-1], S11_final[sth]);
+                    max_rel_diff = max(diff_tmp, max_rel_diff);
+                }
 
-			sca_mat[a][w][inc][sph][sth](0, 0) = S11_final[sth]; // S11
-			sca_mat[a][w][inc][sph][sth](1, 1) = S11_final[sth]; // S22
+                scat_theta[a][w] = new double[nr_of_scat_theta_final];
 
-			sca_mat[a][w][inc][sph][sth](0, 1) = S12_final[sth]; // S12
-			sca_mat[a][w][inc][sph][sth](1, 0) = S12_final[sth]; // S21
+                for(uint inc = 0; inc < nr_of_incident_angles; inc++)
+                {
+                    sca_mat[a][w][inc] = new Matrix2D*[nr_of_scat_phi];
+                    for(uint sph = 0; sph < nr_of_scat_phi; sph++)
+                    {
+                        sca_mat[a][w][inc][sph] = new Matrix2D[nr_of_scat_theta_final];
+                        for(uint sth = 0; sth < nr_of_scat_theta_final; sth++)
+                        {
+                            sca_mat[a][w][inc][sph][sth].resize(4, 4);
 
-			sca_mat[a][w][inc][sph][sth](2, 2) = S33_final[sth]; // S33
-			sca_mat[a][w][inc][sph][sth](3, 3) = S33_final[sth]; // S44
+                            sca_mat[a][w][inc][sph][sth](0, 0) = S11_final[sth]; // S11
+                            sca_mat[a][w][inc][sph][sth](1, 1) = S11_final[sth]; // S22
 
-			sca_mat[a][w][inc][sph][sth](2, 3) = S34_final[sth]; // S34
-			sca_mat[a][w][inc][sph][sth](3, 2) = -S34_final[sth]; // S43
+                            sca_mat[a][w][inc][sph][sth](0, 1) = S12_final[sth]; // S12
+                            sca_mat[a][w][inc][sph][sth](1, 0) = S12_final[sth]; // S21
 
-			scat_theta[a][w][sth] = scat_angle_final[sth];
-		    }
-		}
-	    }
+                            sca_mat[a][w][inc][sph][sth](2, 2) = S33_final[sth]; // S33
+                            sca_mat[a][w][inc][sph][sth](3, 3) = S33_final[sth]; // S44
 
-	    S11_final.clear();
-	    S12_final.clear();
-	    S33_final.clear();
-	    S34_final.clear();
+                            sca_mat[a][w][inc][sph][sth](2, 3) = S34_final[sth]; // S34
+                            sca_mat[a][w][inc][sph][sth](3, 2) = -S34_final[sth]; // S43
 
-	    nr_of_scat_theta[a][w] = nr_of_scat_theta_final;
+                            scat_theta[a][w][sth] = scat_angle_final[sth];
+                        }
+                    }
+                }
+
+                S11_final.clear();
+                S12_final.clear();
+                S33_final.clear();
+                S34_final.clear();
+
+                nr_of_scat_theta[a][w] = nr_of_scat_theta_final;
+            }
+            else
+            {
+                Qext1[a][w] = 0;
+                Qext2[a][w] = 0;
+                Qabs1[a][w] = 0;
+                Qabs2[a][w] = 0;
+                Qsca1[a][w] = 0;
+                Qsca2[a][w] = 0;
+                Qcirc[a][w] = 0;
+                HGg[a][w] = 0;
+                HGg2[a][w] = 0;
+                HGg3[a][w] = 1;
+            }
 
             // Activate the splines of Qtrq and HG g factor
             Qtrq[w * nr_of_dust_species + a].createSpline();
@@ -999,17 +1020,10 @@ bool CDustComponent::readDustRefractiveIndexFile(
             CabsMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qabs1[a][w] + Qabs2[a][w]) / 3.0;
             CscaMean[a][w] = PI * a_eff_squared[a] * (2.0 * Qsca1[a][w] + Qsca2[a][w]) / 3.0;
         } // end of wavelength loop
-
-	delete[] S11_start;
-	delete[] S12_start;
-	delete[] S33_start;
-	delete[] S34_start;
     } // end of grain size loop
-
-    cout << "after calculation" << endl;
-
-    refractive_index_imag.unshare();
+    
     refractive_index_real.unshare();
+    refractive_index_imag.unshare();
 
     delete[] result.wavelengths;
     delete[] result.real_part;
@@ -1018,11 +1032,13 @@ bool CDustComponent::readDustRefractiveIndexFile(
     // Set that the scattering matrix was successfully read
     scat_loaded = true;
 
-    if(nk_error) {
+    if(nk_error)
+    {
         cout << ERROR_LINE << "Either the real or the complex part of the refractive index is negative." << endl;
     }
 
-    if(error) {
+    if(error)
+    {
         cout << ERROR_LINE << "Problem with optical properties calculation" << endl;
         return false;
     }

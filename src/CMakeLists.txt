@@ -9,11 +9,15 @@ PROJECT (POLARIS
 SET (CMAKE_CXX_STANDARD 23)
 SET (CXX_STANDARD_REQUIRED ON)
 
+MESSAGE (${CMAKE_SOURCE_DIR})
 #begin Branch specific definitions
 set (BUILD_TESTING OFF)
 set (TEST_REWRITE ON)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set (CMAKE_PREFIX_PATH "bin/zlib" "bin/cfitsio" "bin/CCfits")
+list (APPEND CMAKE_PREFIX_PATH
+    "${CMAKE_SOURCE_DIR}/../bin/zlib/"
+    "${CMAKE_SOURCE_DIR}/../bin/cfitsio/"
+    "${CMAKE_SOURCE_DIR}/../bin/CCfits/")
 #end
 
 SET (PROJECT_PATH ${CMAKE_CURRENT_LIST_DIR}/../)
