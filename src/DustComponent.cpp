@@ -621,6 +621,19 @@ bool CDustComponent::readDustRefractiveIndexFile(
 
     const auto result = parser.get_result();
 
+    if(wavelength_list[0] < result.wavelengths[0]
+	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
+        cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
+            << "         wavelength range          : " << wavelength_list[0] << " [m] to "
+            << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
+            << "         wavelength range (catalog): " << result.wavelengths[0] << " [m] to "
+            << result.wavelengths[result.nr_wavelengths - 1] << " [m]" << endl;
+        if constexpr (!IGNORE_WAVELENGTH_RANGE) {
+            cout << "         To continue, set 'IGNORE_WAVELENGTH_RANGE' to 'true' in src/Typedefs.h and recompile!" << endl;
+            return false;
+        }
+    }
+
     // The first line contains the name of the dust component
     stringID = result.stringID;
 
@@ -647,10 +660,6 @@ bool CDustComponent::readDustRefractiveIndexFile(
     // Calculate the GOLD alignment g factor
     gold_g_factor = 0.5 * (aspect_ratio * aspect_ratio - 1);
 
-    // Init splines for wavelength interpolation of the dust optical properties
-    refractive_index_real.resizeShared(result.nr_wavelengths, result.wavelengths, result.real_part);
-    refractive_index_imag.resizeShared(result.nr_wavelengths, result.wavelengths, result.imag_part);
-
     // Set size parameters
     a_eff = new double[nr_of_dust_species];
     a_eff_squared = new double[nr_of_dust_species];
@@ -669,21 +678,12 @@ bool CDustComponent::readDustRefractiveIndexFile(
     }
 
     // Check if size limits are inside grain sizes and set global ones
-    if(!checkGrainSizeLimits(a_min, a_max))
+    if (!checkGrainSizeLimits(a_min, a_max))
 	return false;
 
-    if(wavelength_list[0] < result.wavelengths[0]
-	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
-        cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
-            << "         wavelength range          : " << wavelength_list[0] << " [m] to "
-            << wavelength_list[nr_of_wavelength - 1] << " [m]\n"
-            << "         wavelength range (catalog): " << refractive_index_real.getX(0) << " [m] to "
-            << result.wavelengths[result.nr_wavelengths - 1] << " [m]" << endl;
-        if constexpr (!IGNORE_WAVELENGTH_RANGE) {
-            cout << "         To continue, set 'IGNORE_WAVELENGTH_RANGE' to 'true' in src/Typedefs.h and recompile!" << endl;
-            return false;
-        }
-    }
+    // Init splines for wavelength interpolation of the dust optical properties
+    refractive_index_real.resizeShared(result.nr_wavelengths, result.wavelengths, result.real_part);
+    refractive_index_imag.resizeShared(result.nr_wavelengths, result.wavelengths, result.imag_part);
 
     // At the last wavelength, activate the splines
     refractive_index_real.createSpline();

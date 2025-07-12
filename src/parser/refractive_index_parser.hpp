@@ -29,6 +29,11 @@ namespace rewrite {
 	double		*real_part{nullptr};
 	double		*imag_part{nullptr};
 
+	// ~RefractiveIndexFile() {
+	//     delete[] wavelengths;
+	//     delete[] real_part;
+	//     delete[] imag_part;
+	// }
     };
 
     class RefractiveIndexFileParser: public BasicParser {

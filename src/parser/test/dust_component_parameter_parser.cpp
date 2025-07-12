@@ -31,7 +31,7 @@ namespace rewrite::testing {
     //
     // }
     
-    class TestDustComponent: public ::testing::Test {
+    class TestDustComponent: public ::testing::TestWithParam<std::string> {
     protected:
 	std::filesystem::path	current_path;
 	parameters		param;
@@ -89,7 +89,7 @@ namespace rewrite::testing {
 	}
     };
 
-    TEST_F(TestDustComponent, ReadDustRefractiveIndexFile) {
+    TEST_P(TestDustComponent, ReadDustRefractiveIndexFile) {
 
 	std::mt19937				gen(std::random_device{}());
 	std::uniform_real_distribution<>	rdist;
@@ -107,7 +107,7 @@ namespace rewrite::testing {
 	//1.00000000e-09-1.00000000e-02
 	CMathFunctions::LogList(WL_MIN, WL_MAX, wavelengths, 10);
 
-	generate_nk_file();
+	// generate_nk_file();
 
 	double a_min_global = rdist(gen);
 	double a_max_global = a_min_global;
@@ -116,7 +116,8 @@ namespace rewrite::testing {
 	param.addDustComponent(
 	    // current_path.string(),	// dust_path
 	    // keywords[idist(gen)],	// size_keyword
-	    "input/dust_nk/iron_p94.nk",
+	    GetParam(),
+	    // "input/dust_nk/iron_p94.nk",
 	    "plaw",
 	    // rdist(gen),			// dust_fractions
 	    0.25, //0.625
@@ -131,24 +132,19 @@ namespace rewrite::testing {
 	init_dust_component(0, comp_new);
 	init_dust_component(0, comp_old);
 
-	cout << "start test" << endl;
-
-	if (!comp_old.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0)))
-	    FAIL() << "Error running old loader";
-
-	cout << "old done" << endl;
-
-	if (!comp_new.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0)))
-	    FAIL() << "Error running new loader";
+	bool p_new_res = comp_new.readDustRefractiveIndexFile(param, 0,
+	    param.getSizeMin(0), param.getSizeMax(0));
 
 	cout << "new (new) done" << endl;
 
+	bool p_old_res = comp_old.readDustRefractiveIndexFile(param, 0,
+	    param.getSizeMin(0), param.getSizeMax(0));
 
-	std::filesystem::remove(current_path);
+	cout << "old done" << endl;
 
-	cout << "start compare" << endl;
+	// std::filesystem::remove(current_path);
+
+	ASSERT_EQ(p_old_res, p_new_res);
 
 	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
 	ASSERT_EQ(comp_old.nr_of_wavelength, comp_new.nr_of_wavelength);
@@ -207,4 +203,17 @@ namespace rewrite::testing {
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
     }
     
+    std::vector<std::string> get_dir() {
+	std::vector<std::string>	result;
+
+	for (auto& dir: std::filesystem::directory_iterator("input/dust_nk/")) {
+	    if (dir.path().extension() != ".nk")
+		continue;
+	    result.push_back(dir.path().string());
+	}
+
+	return result;
+    }
+
+    INSTANTIATE_TEST_SUITE_P(DustNkFiles, TestDustComponent, ::testing::ValuesIn(get_dir()));
 }
