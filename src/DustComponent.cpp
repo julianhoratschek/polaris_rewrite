@@ -621,7 +621,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 
     const auto result = parser.get_result();
 
-    if(wavelength_list[0] < result.wavelengths[0]
+    if (wavelength_list[0] < result.wavelengths[0]
 	|| wavelength_list[nr_of_wavelength - 1] > result.wavelengths[result.nr_wavelengths - 1]) {
         cout << WARNING_LINE << "The wavelength range is out of the limits of the catalog. This may cause problems!\n"
             << "         wavelength range          : " << wavelength_list[0] << " [m] to "

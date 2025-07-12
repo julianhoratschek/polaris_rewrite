@@ -1,4 +1,3 @@
-#include "gmock/gmock.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -168,7 +167,6 @@ namespace rewrite::testing {
 	    EXPECT_DOUBLE_EQ(comp_old.mass[i], comp_new.mass[i]);
 
 	    for (auto w = 0; w < comp_old.nr_of_wavelength; w++) {
-		// cout << "wl " << w << endl;
 		EXPECT_DOUBLE_EQ(comp_old.Qext1[i][w], comp_new.Qext1[i][w]);
 		EXPECT_DOUBLE_EQ(comp_old.Qext2[i][w], comp_new.Qext2[i][w]);
 		EXPECT_DOUBLE_EQ(comp_old.Qabs1[i][w], comp_new.Qabs1[i][w]);
@@ -202,6 +200,7 @@ namespace rewrite::testing {
 
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
     }
+
     
     std::vector<std::string> get_dir() {
 	std::vector<std::string>	result;
@@ -214,6 +213,7 @@ namespace rewrite::testing {
 
 	return result;
     }
+
 
     INSTANTIATE_TEST_SUITE_P(DustNkFiles, TestDustComponent, ::testing::ValuesIn(get_dir()));
 }

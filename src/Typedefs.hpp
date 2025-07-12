@@ -29,7 +29,7 @@ using namespace std;
 #define TRUST 2
 #define PINTE 3
 // should be NONE, CAMPS, TRUST or PINTE
-#define BENCHMARK NONE
+// #define BENCHMARK NONE
 
 // use pre-calculated values (per cell) for mean cross-sections,
 // number densities, cell emission. This saves a lot of time if

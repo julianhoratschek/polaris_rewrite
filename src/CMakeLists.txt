@@ -75,12 +75,19 @@ INSTALL (TARGETS polaris)
 if (TEST_REWRITE)
     include(FetchContent)
     FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+	googletest
+	URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
     )
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
     FetchContent_MakeAvailable(googletest)
+
+    FetchContent_Declare(
+	benchmark
+	URL https://github.com/google/benchmark/archive/refs/heads/main.zip
+    )
+    FetchContent_MakeAvailable(benchmark)
 
     add_executable (test_dust_component
 	parser/test/dust_component_parameter_parser.cpp
@@ -104,6 +111,23 @@ if (TEST_REWRITE)
 	GTest::gtest_main
     )
     target_include_directories (test_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
+
+    add_executable (bm_dust_component
+	parser/benchmark/dust_component_parameter_parser.cpp
+	DustComponent_1.cpp
+	${SRC_FILES}
+	parser/basic_parser.cpp
+	parser/polaris_commands.cpp
+	parser/parsed_line.cpp
+	parser/polaris_parser.cpp
+    )
+    target_link_libraries (bm_dust_component
+	${CCFITS_LIBRARY}
+	${CFITSIO_LIBRARY}
+	OpenMP::OpenMP_CXX
+	benchmark::benchmark
+    )
+    target_include_directories (bm_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
 
 	#    target_link_libraries (test_parser
 	# OpenMP::OpenMP_CXX)
