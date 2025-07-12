@@ -3126,7 +3126,7 @@ void CGridBasic::updateSpecLength(cell_basic * cell, uint i_offset, StokesVector
 
 double CGridBasic::getSpecLength(const cell_basic & cell, uint wID) const
 {
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
     // To perform Camps et. al (2015) benchmark.
     double res = 0, wavelength = wl_list[wID], mult = 1e6;
     res = mult * CMathFunctions::mathis_isrf(wavelength);
@@ -3183,7 +3183,7 @@ void CGridBasic::saveRadiationField()
 
 double CGridBasic::getRadiationField(const cell_basic & cell, uint wID) const
 {
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
     // To perform Camps et. al (2015) benchmark.
     double res = 0, wavelength = wl_list[wID], mult = 1e6;
     res = mult * CMathFunctions::mathis_isrf(wavelength);

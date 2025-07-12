@@ -159,7 +159,7 @@ void CSourceStar::createNextRay(photon_package * pp, CRandomGenerator * rand_gen
     double energy;
     uint wID;
 
-    #if BENCHMARK == TRUST
+    #if BENCHMARK_POL == TRUST
         // cos(th) should be between -1 and -0.5, thus only a quarter of the sphere
         pp->setRandomDirectionTRUST(rand_gen->getRND(), rand_gen->getRND());
     #else
@@ -210,7 +210,7 @@ void CSourceStar::createNextRay(photon_package * pp, CRandomGenerator * rand_gen
         pp->setWavelength(wavelength_list[wID + 1], wID + 1);
     }
 
-    #if BENCHMARK == TRUST
+    #if BENCHMARK_POL == TRUST
         // the photon direction was restricted to a quarter of the sphere
         // thus the energy of each photon must be reduced by the same factor
         tmp_stokes_vector /= 4.0;

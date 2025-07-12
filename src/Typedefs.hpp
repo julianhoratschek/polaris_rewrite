@@ -29,7 +29,7 @@ using namespace std;
 #define TRUST 2
 #define PINTE 3
 // should be NONE, CAMPS, TRUST or PINTE
-// #define BENCHMARK NONE
+#define BENCHMARK_POL NONE
 
 // use pre-calculated values (per cell) for mean cross-sections,
 // number densities, cell emission. This saves a lot of time if
@@ -78,18 +78,18 @@ using namespace std;
 #define con_epsilon_0 8.854187817620389e-12           // Vacuum permittivity [F / m]
 #define con_eps (con_h * con_c / PIx4)                // h * c / (4 * PI)
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
     // Part to perform Camps et. al (2015) benchmark (adjust definition below, if
     // necessary!!!)
     #define WL_MIN 1e-9
     #define WL_MAX 1e-2
     #define WL_STEPS 1201
-#elif BENCHMARK == TRUST
+#elif BENCHMARK_POL == TRUST
     // TRUST benchmark with the BASIC wavelength grid; see Gordon et al. (2017)
     #define WL_MIN 0.1e-6
     #define WL_MAX 1000e-6
     #define WL_STEPS 45
-#elif BENCHMARK == PINTE
+#elif BENCHMARK_POL == PINTE
     // TRUST benchmark with the BASIC wavelength grid; see Gordon et al. (2017)
     #define WL_MIN 0.1e-6
     #define WL_MAX 3000e-6
@@ -340,7 +340,7 @@ using namespace std;
 #define MIN_MIE_SIZE_PARAM 1e-6
 #define MIE_ACCURACY 1e-15
 
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
     // Minimum number of scattering angles between 0° and 90°
     // Actual number might be larger due to adaptive refinement
     #define NANG 181

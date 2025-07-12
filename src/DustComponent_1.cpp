@@ -1202,7 +1202,7 @@ bool CDustComponent::readDustRefractiveIndexFile(parameters & param,
                 // Set size index and refractive index as complex number
                 double x = 2.0 * PI * a_eff[a] / wavelength_list[w];
                 dcomplex refractive_index;
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
                 refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
                                             refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
 #else
@@ -1992,7 +1992,7 @@ bool CDustComponent::writeComponentData(string path_data)
 
     if(is_mixture)
     {
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
         string path_mueller = path_data + "dust_mixture_" + str_mix_ID_end + "_mueller.dat";
 
         ofstream mueller_matrix_file(path_mueller.c_str());
@@ -2149,7 +2149,7 @@ bool CDustComponent::writeComponentPlot(string path_plot)
 
     if(is_mixture)
     {
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
         string path_mueller = path_data + "dust_mixture_" + str_mix_ID_end + "_mueller.dat";
 
         ofstream mueller_matrix_file(path_mueller.c_str());
@@ -4931,7 +4931,7 @@ StokesVector CDustComponent::calcEmissivityEmi(CGridBasic * grid,
                         // Get relative Planck emission
                         pl *= rel_weight[a] * getPlanck(w, temp_dust);
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
                         // To perform Camps et. al (2015) benchmark.
                         tmp_stokes[a].addI(cs.Cabs * pl);
 #else
@@ -4955,7 +4955,7 @@ StokesVector CDustComponent::calcEmissivityEmi(CGridBasic * grid,
 
                 double pl = rel_weight[a] * tmp_planck;
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
                 // To perform Camps et. al (2015) benchmark.
                 tmp_stokes[a].addI(cs.Cabs * pl);
 #else
@@ -4999,7 +4999,7 @@ StokesVector CDustComponent::calcEmissivityEmi(CGridBasic * grid,
                 // Rotate Stokes Vector to be in agreement with the detector plane
                 scatter_stokes.rot(phi_map);
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
                 // Add scattered light to the Stokes vector
                 tmp_stokes[a].addS(scatter_stokes);
 #endif

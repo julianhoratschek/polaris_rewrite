@@ -779,18 +779,12 @@ bool CDustComponent::readDustRefractiveIndexFile(
         cout << "(When the wavelength list in the input .nk-file has gaps that are too large compared with the change of the complex refractive index n+ik, using Splines can cause large errors and negative values of n or k.)" << endl;
     }
 
-    // TODO: only need used indices
-    std::vector<size_t>		used_indices, unused_indices;
-
-    {
-	std::vector<size_t>	size_indices(nr_of_dust_species);
-	std::ranges::iota(size_indices, 0);
-
-	std::partition_copy(size_indices.begin(), size_indices.end(),
-	    std::back_inserter(used_indices),
-	    std::back_inserter(unused_indices),
-	    [this](auto a) { return sizeIndexUsed(a); });
-    }
+    std::vector<size_t>	size_indices(nr_of_dust_species);
+    std::ranges::iota(size_indices, 0);
+    const auto used_indices_end = std::partition(
+	size_indices.begin(),
+	size_indices.end(),
+	[this](auto a) { return sizeIndexUsed(a); });
 
     // Initialize global values
     const double pival = PI / (nr_of_scat_theta_start - 1);
@@ -820,13 +814,13 @@ bool CDustComponent::readDustRefractiveIndexFile(
     std::atomic<bool> nk_error(false);
     
 #pragma omp parallel for schedule(dynamic) collapse(2) shared(error, nk_error)
-    for(int ai = 0; ai < static_cast<int>(used_indices.size()); ai++) {
+    for(int ai = 0; ai < static_cast<int>(std::distance(size_indices.begin(), used_indices_end)); ai++) {
         for(int w = 0; w < nr_of_wavelength; w++) {
             // Skip everything else if error was found
 	    if (error.load(std::memory_order_relaxed))
 		continue;
 
-	    const size_t 	a = used_indices[ai];
+	    const size_t 	a = size_indices[ai];
 
 	    // TODO: percentage?
 
@@ -840,7 +834,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	    // Set size index and refractive index as complex number
 	    const double x = 2.0 * PI * a_eff[a] / wavelength_list[w];
 	    dcomplex refractive_index;
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
 	    refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
 					refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
 #else
@@ -1310,7 +1304,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 // 	    const double x = 2.0 * PI * a_eff[a] / wavelength_list[w];
 // 	    std::complex<double> refractive_index;
 //
-// #if BENCHMARK == PINTE
+// #if BENCHMARK_POL == PINTE
 // 	    refractive_index = dcomplex(refractive_index_real.getValue(wavelength_list[w], LOGLINEAR),
 // 					refractive_index_imag.getValue(wavelength_list[w], LOGLINEAR));
 // #else
@@ -1603,7 +1597,7 @@ bool CDustComponent::writeComponentData(string path_data)
 
     if(is_mixture)
     {
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
         string path_mueller = path_data + "dust_mixture_" + str_mix_ID_end + "_mueller.dat";
 
         ofstream mueller_matrix_file(path_mueller.c_str());
@@ -1760,7 +1754,7 @@ bool CDustComponent::writeComponentPlot(string path_plot)
 
     if(is_mixture)
     {
-#if BENCHMARK == PINTE
+#if BENCHMARK_POL == PINTE
         string path_mueller = path_data + "dust_mixture_" + str_mix_ID_end + "_mueller.dat";
 
         ofstream mueller_matrix_file(path_mueller.c_str());
@@ -4542,7 +4536,7 @@ StokesVector CDustComponent::calcEmissivityEmi(CGridBasic * grid,
                         // Get relative Planck emission
                         pl *= rel_weight[a] * getPlanck(w, temp_dust);
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
                         // To perform Camps et. al (2015) benchmark.
                         tmp_stokes[a].addI(cs.Cabs * pl);
 #else
@@ -4566,7 +4560,7 @@ StokesVector CDustComponent::calcEmissivityEmi(CGridBasic * grid,
 
                 double pl = rel_weight[a] * tmp_planck;
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
                 // To perform Camps et. al (2015) benchmark.
                 tmp_stokes[a].addI(cs.Cabs * pl);
 #else
@@ -4610,7 +4604,7 @@ StokesVector CDustComponent::calcEmissivityEmi(CGridBasic * grid,
                 // Rotate Stokes Vector to be in agreement with the detector plane
                 scatter_stokes.rot(phi_map);
 
-#if BENCHMARK == CAMPS
+#if BENCHMARK_POL == CAMPS
                 // Add scattered light to the Stokes vector
                 tmp_stokes[a].addS(scatter_stokes);
 #endif
