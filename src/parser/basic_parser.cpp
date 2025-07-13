@@ -7,7 +7,7 @@ namespace rewrite {
 	    -> std::expected<double, Message> {
 
 	const auto	tmp_string = read_while<is_number>();
-	double val = 0;
+	double 		val = 0;
 
 	try {
 	    std::from_chars(tmp_string.begin(), tmp_string.end(), val);
@@ -29,6 +29,8 @@ namespace rewrite {
 	auto res = read_while<is_string>();
 	if (pos >= current_line.end())
 	    return std::unexpected{ Message { "Missing '\"'" } };
+
+	// Remove '"' in result
 	return res.substr(1, res.size() - 1);
     }
 
@@ -48,7 +50,9 @@ namespace rewrite {
 		0, error_distance(), err.message,
 		current_line, error_pointer()),
 	    err.type,
-	    err.sender
+	    err.sender,
+	    line_nr,
+	    error_distance()
 	};
     }
 }

@@ -48,7 +48,7 @@ public:
             m_data[i] = data[i];
     }
 
-    Matrix2D(uint m, uint n, vector<double> data)
+    Matrix2D(uint m, uint n, const vector<double>& data)
     {
         m_n = n;
         m_m = m;
@@ -146,6 +146,12 @@ public:
     Matrix2D & operator=(const Matrix2D & rhs);
 
     Matrix2D & operator=(Matrix2D * rhs);
+
+    template<size_t N>
+    Matrix2D& operator=(const std::array<double, N>& rhs) {
+	std::copy_n(rhs.begin(), N, m_data);
+	return *this;
+    }
 
     bool operator==(const Matrix2D & rhs) const;
 

@@ -1,6 +1,7 @@
 #ifndef RW_MESSAGE
 #define RW_MESSAGE
 
+#include <cstddef>
 #include <expected>
 #include <string>
 #include <array>
@@ -24,43 +25,19 @@ namespace rewrite {
 	std::string		message;
 	Type			type;
 	Sender			sender;
+	size_t			line, col;
 
 
-	explicit Message(const std::string& msg, const Type tp = Type::Error, const Sender snd = Sender::Processor)
-	    : message{msg}, type{tp}, sender{ snd } {}
+	explicit Message(const std::string& msg, const Type tp = Type::Error, const Sender snd = Sender::Processor, size_t in_line = 0, size_t in_col = 0)
+	    : message{msg}, type{tp}, sender{snd}, line{in_line}, col{in_col} {}
 
 	Message(const std::string& msg, const Sender snd)
-	    : message{msg}, sender{ snd } {}
+	    : message{msg}, sender{snd} {}
     };
 
 
     /// Return value for most POLARIS cmd methods
     using t_ret = std::expected<void, Message>;
-
-    /**
-     * Return Escape coded coloured text depending on `color` value.
-     */
-    template<typename T>
-    std::string msg_color(const Message::Type color, const T& msg) {
-	std::string	col;
-
-	switch (color) {
-	    case Message::Type::Warning:
-		col = "\033[1m\033[33m";
-		break;
-
-	    case Message::Type::Error:
-		col = "\033[1m\033[31m";
-		break;
-
-	    case Message::Type::Info:
-		col = "\033[1m\033[32m";
-		break;
-	}
-
-	return std::format("{}{}{}", col, msg, "\033[0m");
-    }
-
 
     inline bool default_error_handler(const Message& msg) {
 	constexpr auto	senders = std::array{ "", "Parser", "Processor" };
@@ -70,7 +47,12 @@ namespace rewrite {
 	    "ERROR ", "WARNING ", "INFO " };
 	const auto 		label = labels[std::to_underlying(msg.type)];
 
-	std::cout << rewrite::msg_color(msg.type, label) << sender << ' ' << msg.message << std::endl;
+	constexpr auto colors = std::array{
+	    "\033[1m\033[31m", "\033[1m\033[33m", "\033[1m\033[32m"
+	};
+	const auto color = colors[std::to_underlying(msg.type)];
+
+	std::cout << color << label << "\033[1m[0m" << sender << ' ' << msg.message << std::endl;
 
 	// Abort processing if message type was an error
 	return msg.type != rewrite::Message::Type::Error;

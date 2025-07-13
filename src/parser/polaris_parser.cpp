@@ -8,37 +8,32 @@ namespace rewrite {
 	// Look for closing tag, if present
 	if (expect_next<is_slash>()) {
 	    parsed_line.type = ParsedLine::Type::ClosingTag;
-	    expect_next<is_identifier>();
+	    expect_next<is_identifier_start>();
 	}
 	else
 	    parsed_line.type = ParsedLine::Type::Command;
 
-	if (!is_identifier(*pos))
+	if (!is_identifier_start(*pos))
 	    return std::unexpected { Message { "Expected Polaris command after '<[/]'" } };
 
-	// --pos is needed between read_while and expect_next, to look at
-	// the current character
 	parsed_line.command = read_while<is_identifier>();
-	--pos;
 
 	// Read named parameters
-	while (expect_next<is_identifier>()) {
+	while (is_or_next<is_identifier>()) {
 	    const auto param_name = read_while<is_identifier>();
-	    --pos;
 
-	    if (!expect_next<is_equals>())
+	    if (!is_or_next<is_equals>())
 		return std::unexpected{ Message { "Expected '=' after named parameter", } };
 
 	    if (!expect_next<is_quote>())
 		return std::unexpected { Message { "Expected String after named parameter", } };
 
 	    std::vector<double>	named_params;
-	    while (expect_next<is_number>()) {
+	    while (is_or_next<is_number>()) {
 		const auto num = get_number();
 		if (!num.has_value())
 		    return std::unexpected{ num.error() };
 		named_params.push_back(num.value());
-		--pos;
 	    }
 
 	    parsed_line.named_params[param_name] = std::move(named_params);
@@ -138,21 +133,6 @@ namespace rewrite {
 	return {};
     }
 
-
-    auto PolarisParser::set_line(const std::string& line)
-	-> std::string::iterator {
-	parsed_line.clear();
-
-	current_line = line;
-	pos = current_line.begin();
-
-	++parsed_line.line_nr;
-	parsed_line.line = current_line;
-
-	return pos;
-    }
-
-
     auto PolarisParser::parse_line()
 	-> std::expected<void, Message> {
 
@@ -175,7 +155,7 @@ namespace rewrite {
 		// Get commands (tags)
 		case '<':
 		    if (const auto e = get_command();
-			not e) return std::unexpected{ e.error() };
+			!e.has_value()) return std::unexpected{ e.error() };
 		    break;
 
 		// Get whitespace, numbers or identifiers

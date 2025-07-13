@@ -3,6 +3,7 @@
 
 #include "message.hpp"
 
+#include <cstddef>
 #include <string_view>
 #include <string>
 #include <expected>
@@ -70,6 +71,8 @@ namespace rewrite {
 	/// Current position in current_line
 	std::string::iterator			pos;
 
+	size_t					line_nr{0};
+
 
 	/**
 	 * Reads text while `check` returns true.
@@ -127,6 +130,7 @@ namespace rewrite {
 
 	bool next_line(std::ifstream& in_file) {
 	    while (std::getline(in_file, current_line)) {
+		++line_nr;
 		pos = current_line.begin();
 		if (!is_comment_line() && pos < current_line.end())
 		    return true;

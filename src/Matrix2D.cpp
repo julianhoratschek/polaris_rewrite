@@ -26,15 +26,14 @@ uint Matrix2D::get_m()
     return m_m;
 }
 
-void Matrix2D::resize(uint m, uint n)
+void Matrix2D::resize(const uint m, const uint n)
 {
-    if(m_data != 0)
-        delete[] m_data;
+    delete[] m_data;
     m_n = n;
     m_m = m;
     m_size = n * m;
     m_data = new double[m_size];
-    for(uint i = 0; i < m_size; i++)
+    for(size_t i = 0; i < m_size; i++)
         m_data[i] = 0;
 }
 

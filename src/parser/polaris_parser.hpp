@@ -94,12 +94,6 @@ namespace rewrite {
 
 
 	/**
-	 */
-	auto set_line(const std::string& line)
-	    -> std::string::iterator;
-	
-
-	/**
 	 * Parses one singular line. On Success the parsed line object can be
 	 * retrieved with `get_last_line()`.
 	 */
@@ -139,14 +133,17 @@ namespace rewrite {
 		ErrorFn err_fn = nullptr) -> std::expected<void, Message> {
 
 	    std::ifstream	file(path);
-	    std::string		line;
 
 	    if (file.fail())
 		return std::unexpected{ Message{
 		    "Not a valid file", Message::Sender::Parser } };
 
-	    while (std::getline(file, line)) {
-		set_line(line);
+	    // while (std::getline(file, line)) {
+	    while (next_line(file)) {
+		parsed_line.clear();
+
+		parsed_line.line_nr = line_nr;
+		parsed_line.line = current_line;
 
 		// Parse Line
 		auto line_result = parse_line();
@@ -157,10 +154,12 @@ namespace rewrite {
 		    const auto err = line_result.error();
 		    const Message parser_error {
 			std::format("[{:04}:{}]: {}\n{}\n{}",
-			    parsed_line.line_nr, error_distance(), err.message,
+			    line_nr, error_distance(), err.message,
 			    current_line, error_pointer()),
 			err.type,
-			Message::Sender::Parser
+			Message::Sender::Parser,
+			line_nr,
+			error_distance()
 		    };
 
 		    if (!err_fn || !err_fn(parser_error))
@@ -175,9 +174,10 @@ namespace rewrite {
 		    const auto err = line_result.error();
 		    const Message parser_error {
 			std::format("[{:04}]: {}\n",
-			    parsed_line.line_nr, err.message),
+			    line_nr, err.message),
 			err.type,
-			Message::Sender::Processor
+			Message::Sender::Processor,
+			line_nr
 		    };
 
 		    if (!err_fn || !err_fn(parser_error))

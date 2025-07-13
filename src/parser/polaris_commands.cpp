@@ -40,8 +40,8 @@ namespace rewrite {
 	template<DetectorRegistration reg, size_t N>
 	t_ret register_detector(
 	    ParsedLine& line,
-	    std::array<double, N> defaults) {
-
+	    std::array<double, N> defaults)
+	{
 	    using namespace std::literals;
 	    
 	    const size_t 	sz = line.num_params.size();
@@ -77,7 +77,7 @@ namespace rewrite {
 		|| nr_of_pixel.size() > 2
 		|| std::ranges::any_of(nr_of_pixel, [](double d) { return d <= 0; }))
 		return std::unexpected { Message {
-		    comp_error("Could not recognize ", pixel_name) } };
+		    std::format("Could not recognize {}", pixel_name) } };
 
 	    // Test if nr_of_pixel is power of 2 for healpix detectors
 	    if constexpr (reg.flags.is_healpix) {
@@ -100,7 +100,7 @@ namespace rewrite {
 			"Number of velocity channels could not be recognized!" } };
 	    }
 
-	    // TODO: rather not is_healpix?
+	    // TODO: rather "not is_healpix"?
 	    if constexpr (reg.param.add_360_begin != 0) {
 		constexpr auto a = reg.param.add_360_begin;
 		constexpr auto b = a + 1;
@@ -150,7 +150,8 @@ namespace rewrite {
 	 */
 	template<typename SetterFn>
 	    requires std::is_invocable_v<SetterFn, parameters, double>
-	t_ret param_set_number(ParsedLine& line, parameters& param, SetterFn setter) {
+	t_ret param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
+	{
 	    if (const auto e = line.get_num(0); !e)
 		return std::unexpected{ e.error() };
 	    else std::invoke(setter, param, e.value());
@@ -166,8 +167,8 @@ namespace rewrite {
 		  || std::is_invocable_v<Fn, parameters, std::vector<double>&>
 	t_ret add_source(
 	    ParsedLine& line, parameters& param,
-	    Fn add_function, const std::string& source_name, const size_t nr_of_sources) {
-
+	    Fn add_function, const std::string& source_name, const size_t nr_of_sources)
+	{
 	    using namespace std::literals;
 
 	    constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
