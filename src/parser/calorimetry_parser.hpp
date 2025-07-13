@@ -42,8 +42,9 @@ namespace rewrite {
 
 	    size_t		column;
 
-	    file.open(path.parent_path() /
-		(path.stem().string() + "calorimetry.dat"));
+	    file.open(
+		path.parent_path() /
+		std::format("{}/calorimetry.dat", path.stem().string()));
 
 	    if (file.fail())
 		return safe_error( "Could not open calorimetry file" );
@@ -60,7 +61,7 @@ namespace rewrite {
 	    result.calorimetry_temperatures = new double[result.nr_of_calorimetry_temperatures];
 
 	    // Init 2D array for the enthalpy
-	    result.enthalpy = new double *[nr_of_dust_species];
+	    result.enthalpy = new double*[nr_of_dust_species];
 
 	    // Add second dimension
 	    // TODO: zero?
@@ -98,27 +99,25 @@ namespace rewrite {
 	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
-	    auto fact = result.calorimetry_type == CALO_HEAT_CAP ?
+	    const auto fact = result.calorimetry_type == CALO_HEAT_CAP ?
 		result.calorimetry_temperatures[0] : 1;
-	    double last_num = 0.0;
+	    double last_num;
 
-	    for (column = 0; column < nr_of_dust_species; column++) {
-		if (is_or_next<is_number>())
-		    last_num = get_number().value_or(0.0);
+	    for (column = 0; is_or_next<is_number>() && column < nr_of_dust_species; column++) {
+		last_num = get_number().value_or(0.0);
 		result.enthalpy[column][0] = last_num * fact;
 	    }
 
-	    size_t enthalpy_counter = 0;
-
-	    while (next_line(file)) {
-                // Get temperature index
-                // uint t = cmd_counter - 4;
-
-		++enthalpy_counter;
-
-                for(column = 0; column < nr_of_dust_species; column++) {
-		    if (is_or_next<is_number>())
-			last_num = get_number().value_or(0.0);
+		//    size_t enthalpy_counter = 0;
+		//
+		//    while (next_line(file)) {
+		//               // Get temperature index
+		//               // uint t = cmd_counter - 4;
+		//
+		// ++enthalpy_counter;
+	    for (size_t enthalpy_counter = 0; next_line(file); enthalpy_counter++) {
+                for(column = 0; is_or_next<is_number>() && column < nr_of_dust_species; column++) {
+		    last_num = get_number().value_or(0.0);
 
                     // If heat capacity, perform integration
                     if(result.calorimetry_type == CALO_HEAT_CAP) {

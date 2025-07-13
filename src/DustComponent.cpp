@@ -1102,6 +1102,7 @@ bool CDustComponent::readCalorimetryFile(parameters & param, uint dust_component
 
     auto data = parser.get_result();
 
+    nr_of_calorimetry_temperatures = data.nr_of_calorimetry_temperatures;
     calorimetry_temperatures = data.calorimetry_temperatures;
     enthalpy = data.enthalpy;
     calorimetry_type = data.calorimetry_type;
