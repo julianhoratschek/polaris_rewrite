@@ -4,7 +4,7 @@
 #include "../Typedefs.hpp"
 #include "../MathInterp.hpp"
 
-#include "basic_parser.hpp"
+#include "basic_loader.hpp"
 
 #include <cstddef>
 #include <expected>
@@ -24,16 +24,11 @@ namespace rewrite {
 	bool		disable_mie_scattering;
     };
     
-    class ScaMatrParser: public BasicParser {
-    private:
-	std::ifstream	inf_file;
+    class ScaMatrParser: public BasicLoader {
 	ScaMatrFile		result;
 
-	std::unexpected<Message> safe_error(const std::string& msg) {
+	void cleanup() override {
 	    delete[] result.sca_mat_wl;
-	    if (inf_file.is_open())
-		inf_file.close();
-	    return std::unexpected { Message { msg } };
 	}
 
 
@@ -55,16 +50,14 @@ namespace rewrite {
 	    size_t column = 0;
 	    std::vector<double>	values(5);
 
-	    inf_file.open(inf_path);
+	    file.open(inf_path);
 
 	    // Error message if the read does not work
-	    if(inf_file.fail())
-		return std::unexpected { Message {
-		"Cannot open scattering matrix info file:"
-	    } };
+	    if(file.fail())
+		return safe_error("Cannot open scattering matrix info file:");
 
 	    // The first line needs 5 values
-	    if (!next_line(inf_file))
+	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
 	    for (column = 0; is_or_next<is_number>() && column < 5; column++) {
@@ -97,7 +90,7 @@ namespace rewrite {
 	    // The number of theta angles (outgoing radiation)
 	    result.nr_of_scat_theta_tmp = static_cast<unsigned int>(values[4]);
 
-	    if (!next_line(inf_file))
+	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
 	    if (const auto num = get_number();
@@ -107,7 +100,7 @@ namespace rewrite {
 		result.nr_of_scat_mat_elements = num.value();
 
 	    // The third line needs 16 values
-	    if (!next_line(inf_file))
+	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
 	    // The relation which scattering matrix entry is used at which position in
@@ -120,7 +113,7 @@ namespace rewrite {
 
 
 	    // Close the file reader
-	    inf_file.close();
+	    file.close();
 
 	    // If scattering matrix is empty, disable mie scattering for the corresponding dust
 	    // component

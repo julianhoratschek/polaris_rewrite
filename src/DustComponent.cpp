@@ -12,14 +12,14 @@
 #include "Parameters.hpp"
 
 #include "parser/dust_parameter_parser.hpp"
-#include "parser/refractive_index_parser.hpp"
+#include "parser/refractive_index_loader.hpp"
 #include "parser/scamatr_parser.hpp"
-#include "parser/calorimetry_parser.hpp"
+#include "parser/calorimetry_loader.hpp"
 
 #include <cstring>
 #include <numeric>
 #include <omp.h>
-#include <atomic>
+
 
 void CDustComponent::initDustProperties()
 {
@@ -598,7 +598,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
     const double a_min_mixture,
     const double a_max_mixture) {
 
-    rewrite::RefractiveIndexFileParser	parser;
+    rewrite::RefractiveIndexFileLoader	parser;
 
     // temporary variables for wavelength interpolation
     spline refractive_index_real, refractive_index_imag;
@@ -805,16 +805,16 @@ bool CDustComponent::readDustRefractiveIndexFile(
     }
 
     // Init error check
-    std::atomic<bool> error(false);
+    bool error(false);
 
     // Init error in refractive index data check
-    std::atomic<bool> nk_error(false);
+    bool nk_error(false);
     
 #pragma omp parallel for schedule(dynamic) collapse(2) shared(error, nk_error)
     for(int ai = 0; ai < static_cast<int>(std::distance(size_indices.begin(), used_indices_end)); ai++) {
         for(int w = 0; w < nr_of_wavelength; w++) {
             // Skip everything else if error was found
-	    if (error.load(std::memory_order_relaxed))
+	    if (error)
 		continue;
 
 	    const size_t 	a = size_indices[ai];
@@ -845,8 +845,8 @@ bool CDustComponent::readDustRefractiveIndexFile(
 	    }
 #endif
 	    if (refractive_index.imag() < 0 || refractive_index.real() < 0) {
-		error.store(true);
-		nk_error.store(true);
+		error = true;
+		nk_error = true;
 		continue;
 	    }
 
@@ -856,7 +856,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 		scat_angle_start, refractive_index,
 		Qext1[a][w], Qabs1[a][w], Qsca1[a][w], HGg[a][w],
 		S11_start, S12_start, S33_start, S34_start)) {
-		error.store(true);
+		error = true;
 		continue;
 	    }
 
@@ -904,7 +904,7 @@ bool CDustComponent::readDustRefractiveIndexFile(
 						      pointer_s12_tmp,
 						      pointer_s33_tmp,
 						      pointer_s34_tmp))
-			    error.store(true);
+			    error = true;
 
 			S11_tmp.push_back(pointer_s11_tmp);
 			S12_tmp.push_back(pointer_s12_tmp);
@@ -1095,7 +1095,7 @@ bool CDustComponent::readScatteringMatrices(
 }
 
 bool CDustComponent::readCalorimetryFile(parameters& param, uint dust_component_choice) {
-    rewrite::CalorimetryParser	parser;
+    rewrite::CalorimetryLoader	parser;
 
     if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice), nr_of_dust_species);
 	not res) {

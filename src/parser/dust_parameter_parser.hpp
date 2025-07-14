@@ -1,7 +1,7 @@
 #ifndef RW_DUST_PARAMETER_PARSER
 #define RW_DUST_PARAMETER_PARSER
 
-#include "basic_parser.hpp"
+#include "basic_loader.hpp"
 
 #include <cstddef>
 #include <filesystem>
@@ -42,21 +42,16 @@ namespace rewrite {
     };
 
 
-    class DustParameterParser: public BasicParser {
-	std::ifstream		file;
+    class DustParameterParser: public BasicLoader {
 	DustParameterFile	result;
 
-	std::unexpected<Message> safe_error(const std::string& msg) {
-	    file.close();
+	void cleanup() override {
 	    delete[] result.wavelengths;
 	    delete[] result.eff_wl;
 	    delete[] result.Qtrq_wl;
 	    delete[] result.HG_g_factor_wl;
 	    delete[] result.HG_g2_factor_wl;
 	    delete[] result.HG_g3_factor_wl;
-	    return std::unexpected{ Message {
-		msg
-	    }};
 	}
 
     public:
