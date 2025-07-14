@@ -1094,7 +1094,7 @@ bool CDustComponent::readScatteringMatrices(
     return true;
 }
 
-bool CDustComponent::readCalorimetryFile(parameters & param, uint dust_component_choice) {
+bool CDustComponent::readCalorimetryFile(parameters& param, uint dust_component_choice) {
     rewrite::CalorimetryParser	parser;
 
     if (const auto res = parser.parse_file(param.getDustPath(dust_component_choice), nr_of_dust_species);
@@ -1103,8 +1103,6 @@ bool CDustComponent::readCalorimetryFile(parameters & param, uint dust_component
 	return false;
     }
 
-    cout << "parsed" << endl;
-
     auto data = parser.get_result();
 
     nr_of_calorimetry_temperatures = data.nr_of_calorimetry_temperatures;
@@ -1112,16 +1110,12 @@ bool CDustComponent::readCalorimetryFile(parameters & param, uint dust_component
     enthalpy = data.enthalpy;
     calorimetry_type = data.calorimetry_type;
 
-    cout << "copied" << endl;
-
     // Multiply the specific enthalpy with the grain size to get the enthalpy
     // TODO: move to loading
     for(uint a = 0; a < nr_of_dust_species; a++)
         for(uint t = 0; t < nr_of_calorimetry_temperatures; t++)
             enthalpy[a][t] *= 4.0 / 3.0 * PI * a_eff[a] * a_eff[a] * a_eff[a];
 
-
-    cout << "set" << endl;
     // Set that the calorimetry file was successfully loaded
     calorimetry_loaded = true;
 

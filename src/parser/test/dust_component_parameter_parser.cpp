@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <random>
+#include <expected>
 
 #ifndef TEST_REWRITE
 #define TEST_REWRITE
@@ -72,14 +73,22 @@ namespace rewrite::testing {
 	auto generate_calorimetry_file(
 	    const std::filesystem::path& filename,
 	    const size_t nr_of_dust_species)
+	    -> std::expected<std::filesystem::path, std::string>
 	{
 	    std::mt19937			gen(std::random_device{}());
 	    std::uniform_real_distribution<>	rdist;
 	    std::uniform_int_distribution<>	idist(0, 10000);
+	    std::error_code 			ec;
 
-	    auto current_path = filename.parent_path() / std::format("{}/calorimetry.dat", filename.stem().string());
+	    auto current_path = filename.parent_path() / filename.stem() / "calorimetry.dat";
+
+	    filesystem::create_directories(current_path.parent_path(), ec);
 
 	    std::ofstream			out(current_path);
+
+	    if (out.fail())
+		return "Failed file creation";
+
 	    int					nr_of_calorimetry_temperatures{idist(gen)};
 
 	    out << "# Comment lines" << endl;
@@ -101,7 +110,6 @@ namespace rewrite::testing {
 	    }
 
 	    out.close();
-
 	    return current_path;
 	}
 
@@ -126,8 +134,6 @@ namespace rewrite::testing {
     };
 
     TEST_P(TestDustComponent, ReadDustRefractiveIndexFile) {
-	GTEST_SKIP();
-
 	std::mt19937				gen(std::random_device{}());
 	std::uniform_real_distribution<>	rdist;
 	std::uniform_int_distribution<>		idist(0, 5);
@@ -172,16 +178,15 @@ namespace rewrite::testing {
 	bool p_new_res = comp_new.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0));
 
-	cout << "new (new) done" << endl;
-
 	bool p_old_res = comp_old.readDustRefractiveIndexFile(param, 0,
 	    param.getSizeMin(0), param.getSizeMax(0));
-
-	cout << "old done" << endl;
 
 	// std::filesystem::remove(current_path);
 
 	ASSERT_EQ(p_old_res, p_new_res);
+
+	if (!p_old_res)
+	    GTEST_SKIP() << "File not readable" << endl;
 
 	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
 	ASSERT_EQ(comp_old.nr_of_wavelength, comp_new.nr_of_wavelength);
@@ -239,7 +244,8 @@ namespace rewrite::testing {
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
     }
 
-    TEST_P(TestDustComponent, ReadCalorimetryFile) {
+    TEST_P(TestDustComponent, ReadCalorimetryFile)
+    {
 	std::vector<double>	size_param(14);
 	std::ranges::iota(size_param, 0);
 
@@ -264,24 +270,21 @@ namespace rewrite::testing {
 	init_dust_component(0, comp_new);
 	init_dust_component(0, comp_old);
 
-	comp_new.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0));
-	cout << "read new parser" << endl;
-	comp_old.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0));
-	cout << "read old parser" << endl;
+	if (!comp_new.readDustRefractiveIndexFile(param, 0, param.getSizeMin(0), param.getSizeMax(0))
+	    || !comp_old.readDustRefractiveIndexFile(param, 0, param.getSizeMin(0), param.getSizeMax(0)))
+	    GTEST_SKIP() << "Files not readable" << endl;
 
 	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
 
-	auto cal_path = generate_calorimetry_file(param.getDustPath(0), comp_old.nr_of_dust_species);
+	std::filesystem::path cal_path;
+	if (const auto fgen = generate_calorimetry_file(param.getDustPath(0), comp_old.nr_of_dust_species);
+	    !fgen.has_value()) { FAIL(); return; }
+	else cal_path = fgen.value();
 
-	cout << "bgein cal loading" << endl;
-	bool p_new_res = comp_new.readCalorimetryFile(param, comp_new.nr_of_dust_species);
-	cout << "new (new) done" << endl;
-	bool p_old_res = comp_old.readCalorimetryFile(param, comp_old.nr_of_dust_species);
-	cout << "old done" << endl;
+	bool p_new_res = comp_new.readCalorimetryFile(param, 0);
+	bool p_old_res = comp_old.readCalorimetryFile(param, 0);
 
-	// filesystem::remove_all(cal_path.parent_path());
+	// std::filesystem::remove_all(cal_path.parent_path());
 
 	ASSERT_EQ(p_old_res, p_new_res);
 
@@ -299,7 +302,6 @@ namespace rewrite::testing {
 
 	EXPECT_EQ(comp_old.calorimetry_loaded, comp_new.calorimetry_loaded);
     }
-
 
     
     std::vector<std::string> get_nk_files() {

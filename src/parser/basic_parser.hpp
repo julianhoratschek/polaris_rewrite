@@ -110,9 +110,8 @@ namespace rewrite {
 
 	template<CharCheckFn check>
 	bool is_or_next() {
-	    if (check(*pos))
-		return true;
-	    return expect_next<check>();
+	    return pos < current_line.end()
+		&& (check(*pos) || expect_next<check>());
 	}
 
 
