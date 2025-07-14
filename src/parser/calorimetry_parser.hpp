@@ -38,9 +38,11 @@ namespace rewrite {
 
 	auto parse_file(const std::filesystem::path& path,
 	    const size_t nr_of_dust_species)
-		-> std::expected<void, Message> {
-
+	    -> std::expected<void, Message>
+	{
 	    size_t		column;
+
+	    cout << "in parse" << endl;
 
 	    file.open(
 		path.parent_path() /
@@ -116,8 +118,9 @@ namespace rewrite {
 		//
 		// ++enthalpy_counter;
 	    for (size_t enthalpy_counter = 0; next_line(file); enthalpy_counter++) {
-                for(column = 0; is_or_next<is_number>() && column < nr_of_dust_species; column++) {
-		    last_num = get_number().value_or(0.0);
+                for(column = 0; column < nr_of_dust_species; column++) {
+		    if (is_or_next<is_number>())
+			last_num = get_number().value_or(0.0);
 
                     // If heat capacity, perform integration
                     if(result.calorimetry_type == CALO_HEAT_CAP) {

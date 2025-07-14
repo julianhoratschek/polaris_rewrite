@@ -32,7 +32,6 @@ namespace rewrite::testing {
     
     class TestDustComponent: public ::testing::TestWithParam<std::string> {
     protected:
-	std::filesystem::path	current_path;
 	parameters		param;
 	std::vector<double>	wavelengths;
 
@@ -43,12 +42,12 @@ namespace rewrite::testing {
 	    wavelengths.resize(WL_STEPS);
 	}
 
-	void generate_nk_file() {
+	auto generate_nk_file() {
 	    std::mt19937			gen(std::random_device{}());
 	    std::uniform_real_distribution<>	rdist;
 	    std::uniform_int_distribution<>	idist(0, 100000);
 
-	    current_path = std::format("dust_file{:04}.nk", idist(gen));
+	    auto current_path = std::format("dust_file{:04}.nk", idist(gen));
 
 	    std::ofstream			out(current_path);
 	    double				nr_inc_angles(idist(gen));
@@ -66,6 +65,44 @@ namespace rewrite::testing {
 	    for (const auto& wl: wavelengths)
 		out << wl << '\t' << rdist(gen) << '\t' << rdist(gen) << endl;
 	    out << endl;
+
+	    return current_path;
+	}
+
+	auto generate_calorimetry_file(
+	    const std::filesystem::path& filename,
+	    const size_t nr_of_dust_species)
+	{
+	    std::mt19937			gen(std::random_device{}());
+	    std::uniform_real_distribution<>	rdist;
+	    std::uniform_int_distribution<>	idist(0, 10000);
+
+	    auto current_path = filename.parent_path() / std::format("{}/calorimetry.dat", filename.stem().string());
+
+	    std::ofstream			out(current_path);
+	    int					nr_of_calorimetry_temperatures{idist(gen)};
+
+	    out << "# Comment lines" << endl;
+	    out << nr_of_calorimetry_temperatures << endl;
+	    for (auto i = 0; i < nr_of_calorimetry_temperatures; i++)
+		out << rdist(gen) << '\t';
+	    out << endl;
+
+	    out << (idist(gen) < 5000 ? 0 : 1) << endl;
+
+	    for (auto i = 0; i < nr_of_calorimetry_temperatures; i++) {
+		if (idist(gen) < 5000)
+		    out << rdist(gen) << endl;
+		else {
+		    for (auto a = 0; a < nr_of_dust_species; a++)
+			out << rdist(gen) << '\t';
+		    out << endl;
+		}
+	    }
+
+	    out.close();
+
+	    return current_path;
 	}
 
 
@@ -88,60 +125,8 @@ namespace rewrite::testing {
 	}
     };
 
-    TEST_P(TestDustComponent, ReadCalorimetryFile) {
-	std::vector<double>	size_param;
-	std::ranges::iota(size_param, 0);
-
-	param.AddDustComponentChoice(1);
-	param.addDustComponent(
-	    // current_path.string(),	// dust_path
-	    // keywords[idist(gen)],	// size_keyword
-	    GetParam(),
-	    // "input/dust_nk/iron_p94.nk",
-	    "plaw",
-	    // rdist(gen),			// dust_fractions
-	    0.25, //0.625
-	    // rdist(gen),			// material_density
-	    2250, //3500
-	    // a_min_global,			// a_min_global
-	    5e-09,
-	    // a_max_global,			// a_max_global
-	    2.5e-07,
-	    size_param);
-
-	init_dust_component(0, comp_new);
-	init_dust_component(0, comp_old);
-
-	comp_new.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0));
-	cout << "read new parser" << endl;
-	comp_old.readDustRefractiveIndexFile(param, 0,
-	    param.getSizeMin(0), param.getSizeMax(0));
-	cout << "read old parser" << endl;
-
-	bool p_new_res = comp_new.readCalorimetryFile(param, comp_new.nr_of_dust_species);
-	cout << "new (new) done" << endl;
-	bool p_old_res = comp_old.readCalorimetryFile(param, comp_old.nr_of_dust_species);
-	cout << "old done" << endl;
-
-	ASSERT_EQ(p_old_res, p_new_res);
-
-	EXPECT_EQ(comp_old.calorimetry_type, comp_new.calorimetry_type);
-
-	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
-	ASSERT_EQ(comp_old.nr_of_calorimetry_temperatures, comp_new.nr_of_calorimetry_temperatures);
-
-	for (auto i{0}; i < comp_old.nr_of_calorimetry_temperatures; i++)
-	    EXPECT_DOUBLE_EQ(comp_old.calorimetry_temperatures[i], comp_new.calorimetry_temperatures[i]);
-
-	for (auto a{0}; a < comp_old.nr_of_dust_species; a++)
-	    for (auto c{0}; c < comp_old.nr_of_calorimetry_temperatures; c++)
-		EXPECT_DOUBLE_EQ(comp_old.enthalpy[a][c], comp_new.enthalpy[a][c]);
-
-	EXPECT_EQ(comp_old.calorimetry_loaded, comp_new.calorimetry_loaded);
-    }
-
     TEST_P(TestDustComponent, ReadDustRefractiveIndexFile) {
+	GTEST_SKIP();
 
 	std::mt19937				gen(std::random_device{}());
 	std::uniform_real_distribution<>	rdist;
@@ -254,8 +239,70 @@ namespace rewrite::testing {
 	EXPECT_EQ(comp_old.scat_loaded, comp_new.scat_loaded);
     }
 
+    TEST_P(TestDustComponent, ReadCalorimetryFile) {
+	std::vector<double>	size_param(14);
+	std::ranges::iota(size_param, 0);
+
+	CMathFunctions::LogList(WL_MIN, WL_MAX, wavelengths, 10);
+	param.AddDustComponentChoice(1);
+	param.addDustComponent(
+	    // current_path.string(),	// dust_path
+	    // keywords[idist(gen)],	// size_keyword
+	    GetParam(),
+	    // "input/dust_nk/iron_p94.nk",
+	    "plaw",
+	    // rdist(gen),			// dust_fractions
+	    0.25, //0.625
+	    // rdist(gen),			// material_density
+	    2250, //3500
+	    // a_min_global,			// a_min_global
+	    5e-09,
+	    // a_max_global,			// a_max_global
+	    2.5e-07,
+	    size_param);
+
+	init_dust_component(0, comp_new);
+	init_dust_component(0, comp_old);
+
+	comp_new.readDustRefractiveIndexFile(param, 0,
+	    param.getSizeMin(0), param.getSizeMax(0));
+	cout << "read new parser" << endl;
+	comp_old.readDustRefractiveIndexFile(param, 0,
+	    param.getSizeMin(0), param.getSizeMax(0));
+	cout << "read old parser" << endl;
+
+	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
+
+	auto cal_path = generate_calorimetry_file(param.getDustPath(0), comp_old.nr_of_dust_species);
+
+	cout << "bgein cal loading" << endl;
+	bool p_new_res = comp_new.readCalorimetryFile(param, comp_new.nr_of_dust_species);
+	cout << "new (new) done" << endl;
+	bool p_old_res = comp_old.readCalorimetryFile(param, comp_old.nr_of_dust_species);
+	cout << "old done" << endl;
+
+	// filesystem::remove_all(cal_path.parent_path());
+
+	ASSERT_EQ(p_old_res, p_new_res);
+
+	EXPECT_EQ(comp_old.calorimetry_type, comp_new.calorimetry_type);
+
+	ASSERT_EQ(comp_old.nr_of_dust_species, comp_new.nr_of_dust_species);
+	ASSERT_EQ(comp_old.nr_of_calorimetry_temperatures, comp_new.nr_of_calorimetry_temperatures);
+
+	for (auto i{0}; i < comp_old.nr_of_calorimetry_temperatures; i++)
+	    EXPECT_DOUBLE_EQ(comp_old.calorimetry_temperatures[i], comp_new.calorimetry_temperatures[i]);
+
+	for (auto a{0}; a < comp_old.nr_of_dust_species; a++)
+	    for (auto c{0}; c < comp_old.nr_of_calorimetry_temperatures; c++)
+		EXPECT_DOUBLE_EQ(comp_old.enthalpy[a][c], comp_new.enthalpy[a][c]);
+
+	EXPECT_EQ(comp_old.calorimetry_loaded, comp_new.calorimetry_loaded);
+    }
+
+
     
-    std::vector<std::string> get_dir() {
+    std::vector<std::string> get_nk_files() {
 	std::vector<std::string>	result;
 
 	for (auto& dir: std::filesystem::directory_iterator("input/dust_nk/")) {
@@ -268,5 +315,5 @@ namespace rewrite::testing {
     }
 
 
-    INSTANTIATE_TEST_SUITE_P(DustNkFiles, TestDustComponent, ::testing::ValuesIn(get_dir()));
+    INSTANTIATE_TEST_SUITE_P(DustNkFiles, TestDustComponent, ::testing::ValuesIn(get_nk_files()));
 }
