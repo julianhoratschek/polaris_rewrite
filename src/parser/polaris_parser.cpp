@@ -52,7 +52,7 @@ namespace rewrite {
 	using namespace literals;
 
 	// Do not read lines of skipped block until closing tag is encountered
-	if (flag_isset(flags, PolarisParserFlags::Skipping)
+	if (flag_isset(processing_mode, CommandProcessingMode::Skip)
 	    && parsed_line.type != ParsedLine::Type::ClosingTag)
 	    return {};
 
@@ -74,7 +74,7 @@ namespace rewrite {
 			    block_to_str(current_block)) } };
 
 		current_block = BlockType::None;
-		flag_unset(flags, PolarisParserFlags::Skipping);
+		flag_unset(processing_mode, CommandProcessingMode::Skip);
 		param = nullptr;
 		return {};
 
@@ -88,18 +88,17 @@ namespace rewrite {
 
 		    // Do we have a parameter to define skipping behaviour?
 		    if (const auto e = parsed_line.get_num(0);
-			e.has_value() && e.value() == 0) {
-			flags |= PolarisParserFlags::Skipping;
-		    }
+			e.has_value() && e.value() == 0)
+			processing_mode |= CommandProcessingMode::Skip;
 
 		    if (parsed_line.command == "common"sv) {
-			if (!flag_isset(flags, PolarisParserFlags::Skipping)
-			    && flag_isset(flags, PolarisParserFlags::CommonProcessed))
+			if (!flag_isset(processing_mode, CommandProcessingMode::Skip)
+			    && flag_isset(processing_mode, CommandProcessingMode::CommonProcessed))
 			    return std::unexpected { Message{
 				"<common> Blocks MUST now precede <task> Blocks" } };
 			
 			param = &common_params;
-			flags |= PolarisParserFlags::CommonProcessed;
+			processing_mode |= CommandProcessingMode::CommonProcessed;
 			current_block = BlockType::Common;
 			break;
 		    }

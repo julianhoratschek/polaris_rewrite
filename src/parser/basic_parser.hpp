@@ -16,6 +16,26 @@ namespace rewrite {
     concept ErrorHandlerFn = requires (Fn fn, const Message msg) {
 	{ fn(msg) } -> std::same_as<bool>;
     };
+
+    struct Token {
+
+	enum class Type: unsigned char {
+	    Number, Identifier, String, Comment, 
+	    Equals = '=', Slash = '/', CommandBegin = '<', CommandEnd = '>'
+	};
+
+	unsigned long long value;
+	
+	std::string_view get_text(const std::string_view& text) const {
+	    return text.substr(
+		value >> (sizeof(unsigned long long) / 2),
+		value & 0x11111111);
+	}
+
+	double get_number() const {
+	    return static_cast<double>(value);
+	}
+    };
     
     /**
      * This is a strict per-line parser. Parsed lines are invalidated as soon

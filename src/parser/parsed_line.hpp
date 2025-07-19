@@ -76,7 +76,7 @@ namespace rewrite {
 	 * Convert ParamType to string for debugging and messages
 	 */
 	// TODO test with consteval
-	static std::string param_type(ParamType pt) {
+	static std::string_view param_type(ParamType pt) {
 	    if (pt == ParamType::Identifier)
 		return "Identifier";
 	    else if (pt == ParamType::Number)

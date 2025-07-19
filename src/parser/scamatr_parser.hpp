@@ -48,7 +48,7 @@ namespace rewrite {
 	    const auto inf_path = path.parent_path() / (path.stem().string() + "scat.inf");
 	    // const size_t nr_of_scat_theta_tmp = 2 * NANG - 1;
 	    size_t column = 0;
-	    std::vector<double>	values(5);
+	    // std::vector<double>	values(5);
 
 	    file.open(inf_path);
 
@@ -60,27 +60,30 @@ namespace rewrite {
 	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
-	    for (column = 0; is_or_next<is_number>() && column < 5; column++) {
-		if (const auto num = get_number();
-		    not num.has_value()) return safe_error( num.error().message );
-		else values[column] = num.value();
-	    }
+	    if (const auto res = read_values();
+		!res) return safe_error( res.error().message );
 
-	    if (column != 5)
+		//    for (column = 0; is_or_next<is_number>() && column < 5; column++) {
+		// if (const auto num = get_number();
+		//     not num.has_value()) return safe_error( num.error().message );
+		// else values[column] = num.value();
+		//    }
+
+	    if (values.size() != 5)
 		return safe_error( "Expected 5 parameters in first line" );
 
 	    // The number of dust grain sizes
-	    if(values[0] != nr_of_dust_species)
+	    if (values[0] != nr_of_dust_species)
 		return safe_error(
 		    "Number of dust species does not match the number in the dust parameters file!");
 
 	    // The number of wavelength used by the dust catalog
-	    if(values[1] != nr_of_wavelength_dustcat) 
+	    if (values[1] != nr_of_wavelength_dustcat) 
 		return safe_error(
 		    "Number of wavelength does not match the number in the dust parameters file!");
 
 	    // The number of incident angles
-	    if(values[2] != nr_of_incident_angles) 
+	    if (values[2] != nr_of_incident_angles) 
 		return safe_error(
 		    "Number of incident angles does not match the number in the dust parameters file!");
 
@@ -94,8 +97,7 @@ namespace rewrite {
 		return safe_error( "Unexpected end of file" );
 
 	    if (const auto num = get_number();
-		not num.has_value())
-		return safe_error( "Wrong amount of scattering matrix elements" );
+		not num.has_value()) return safe_error( "Wrong amount of scattering matrix elements" );
 	    else
 		result.nr_of_scat_mat_elements = num.value();
 
@@ -105,12 +107,13 @@ namespace rewrite {
 
 	    // The relation which scattering matrix entry is used at which position in
 	    // the 4x4 matrix
-	    for (column = 0; column < 16; column++) {
-		if (const auto num = get_number();
-		    not num.has_value()) return safe_error( "Wrong amount of matrix elements" );
-		else result.elements[column] = num.value();
-	    }
+	    if (const auto res = read_values();
+		!res.has_value()) return safe_error( res.error().message );
 
+	    if (values.size() != 16)
+		return safe_error( "Wrong amount of Matrix elements" );
+
+	    std::copy(values.begin(), values.end(), result.elements);
 
 	    // Close the file reader
 	    file.close();

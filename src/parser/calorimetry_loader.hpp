@@ -37,8 +37,6 @@ namespace rewrite {
 	    const size_t nr_of_dust_species)
 	    -> std::expected<void, Message>
 	{
-	    size_t		column;
-
 	    file.open(path.parent_path() / path.stem() / "calorimetry.dat");
 
 	    if (file.fail())
@@ -67,14 +65,13 @@ namespace rewrite {
 	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
-	    for (column = 0; is_or_next<is_number>() && column < result.nr_of_calorimetry_temperatures; column++) {
-		if (const auto num = get_number();
-		    !num.has_value()) return safe_error( num.error().message );
-		else result.calorimetry_temperatures[column] = num.value();
-	    }
+	    if (const auto res = read_values();
+		!res.has_value()) return safe_error( res.error().message );
 
-	    if (column != result.nr_of_calorimetry_temperatures)
-		return safe_error( "Wrong calorimetry temperatures" );
+	    if (values.size() != result.nr_of_calorimetry_temperatures)
+		return safe_error( "Wrong amount of calorimetry temperatures" );
+
+	    std::copy(values.begin(), values.end(), result.calorimetry_temperatures);
 
 	    // The third line needs one value
 	    if (!next_line(file))
@@ -98,7 +95,7 @@ namespace rewrite {
 		result.calorimetry_temperatures[0] : 1;
 	    double last_num;
 
-	    for (column = 0; column < nr_of_dust_species; column++) {
+	    for (size_t column = 0; column < nr_of_dust_species; column++) {
 		if (is_or_next<is_number>())
 		    last_num = get_number().value_or(0.0);
 		result.enthalpy[column][0] = last_num * fact;
@@ -106,7 +103,7 @@ namespace rewrite {
 
 	    size_t enthalpy_counter;
 	    for (enthalpy_counter = 1; next_line(file) && is_or_next<is_number>(); enthalpy_counter++) {
-                for(column = 0; column < nr_of_dust_species; column++) {
+                for(size_t column = 0; column < nr_of_dust_species; column++) {
 		    if (is_or_next<is_number>())
 			last_num = get_number().value_or(0.0);
 
@@ -120,9 +117,6 @@ namespace rewrite {
                         // Enthalpy is already in the right unit
                         result.enthalpy[column][enthalpy_counter] = last_num;
 		}
-			//              if(values.size() != 1 && values.size() != nr_of_dust_species)
-			//    return safe_error (
-			// "Wrong amount of dust species in:" );
 	    }
 
 	    if (enthalpy_counter != result.nr_of_calorimetry_temperatures)

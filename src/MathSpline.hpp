@@ -83,6 +83,11 @@ public:
     void addValue(uint pos, double _x, double _y);
 
     void setDynValue(double _x, double _y);
+    void copyDynValue(const std::vector<double>& _x, std::vector<double>&& _y) {
+	dx.resize(_x.size());
+	std::copy(_x.begin(), _x.end(), dx.begin());
+	dy = std::move(_y);
+    }
 
     // void addYValueExt(uint pos, double _x, double _y);
 

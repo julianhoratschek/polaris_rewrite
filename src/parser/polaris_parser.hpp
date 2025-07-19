@@ -22,14 +22,14 @@ namespace rewrite {
     /**
      * Flags controlling parser processing
      */
-    enum class PolarisParserFlags {
+    enum class CommandProcessingMode {
 	None = 0,
 	CommonProcessed = 0x1,
-	Skipping = 0x2
+	Skip = 0x2
     };
 
     template<>
-    consteval bool enable_enum_flag<PolarisParserFlags>() { return true; }
+    consteval bool enable_enum_flag<CommandProcessingMode>() { return true; }
 
     /**
      * Per-line parser for POLARIS *.cmd-files
@@ -73,7 +73,7 @@ namespace rewrite {
 	command_map			commands;
 
 	/// Control flow of parser
-	PolarisParserFlags		flags{ PolarisParserFlags::None };
+	CommandProcessingMode		processing_mode{ CommandProcessingMode::None };
 
 	/// Result of currently parsed line (invalidated when a new line is read)
 	ParsedLine			parsed_line;

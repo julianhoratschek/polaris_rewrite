@@ -48,7 +48,6 @@ namespace rewrite {
 	    const std::filesystem::path& path)
 	    -> std::expected<void, Message>
 	{
-	    std::array<double, 7> 	values;
 	    std::size_t		column;
 
 	    file.open(path);
@@ -63,17 +62,13 @@ namespace rewrite {
 	    result.stringID = current_line;
 
 	    if (!next_line(file))
-		return safe_error( "Unexpected End of File" );
+		return safe_error( "Unexpected end of file" );
 
-	    for (column = 0; is_or_next<is_number>() && column < 7; column++) {
-		if (const auto num = get_number();
-		    not num.has_value()) return safe_error( num.error().message );
-		else values[column] = num.value();
-	    }
+	    if (const auto res = read_values();
+		!res) return safe_error( res.error().message );
 
-	    if (column != 7)
-		// TODO: Correct line
-		return safe_error( "Expected 7 Values in line 2" );
+	    if (values.size() != 7)
+		return safe_error( std::format( "Expected 7 Values in line {}", line_nr ));
 
 	    result.nr_wavelengths = values[0];
             result.nr_inc_angles = 1; // For non-spherical: (uint) values[1];
@@ -99,6 +94,9 @@ namespace rewrite {
 			++ptr[column];
 		    }
 		}
+
+		if (column != 3)
+		    return safe_error( "Expected 3 values per line" );
 	    }
 
 	    // If not a line per combination of grain size and wavelength was found in the

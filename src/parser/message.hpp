@@ -41,11 +41,11 @@ namespace rewrite {
 
     inline bool default_error_handler(const Message& msg) {
 	constexpr auto	senders = std::array{ "", "Parser", "Processor" };
-	const auto		sender = senders[std::to_underlying(msg.sender)];
+	const auto sender = senders[std::to_underlying(msg.sender)];
 
 	constexpr auto	labels = std::array{
 	    "ERROR ", "WARNING ", "INFO " };
-	const auto 		label = labels[std::to_underlying(msg.type)];
+	const auto label = labels[std::to_underlying(msg.type)];
 
 	constexpr auto colors = std::array{
 	    "\033[1m\033[31m", "\033[1m\033[33m", "\033[1m\033[32m"

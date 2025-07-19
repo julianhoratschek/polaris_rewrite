@@ -183,6 +183,7 @@ void spline::createSpline()
     }
 }
 
+// TODO: wth does dx and dy do? seems problematic
 void spline::createDynSpline()
 {
     if(dx.size() <= 4)
