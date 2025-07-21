@@ -102,7 +102,7 @@ bool CSourceStarField::setParameterFromFile(parameters & param, uint p)
     if (const auto res = loader.parse_file(filename); !res)
 	return rewrite::default_error_handler(res.error());
 
-    auto result = loader.get_result();
+    auto& result = loader.get_result();
 
     sp_ext.copyDynValue(result.x, std::move(result.sp_ext));
     sp_ext_q.copyDynValue(result.x, std::move(result.sp_ext_q));

@@ -86,7 +86,7 @@ public:
 
     virtual ullong getNrOfPhotons();
 
-    uint getNrOfWavelength();
+    uint getNrOfWavelength() const;
 
     virtual void setOrientation(Vector3D n1, Vector3D n2, double _theta, double _phi);
 

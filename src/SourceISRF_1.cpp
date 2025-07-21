@@ -4,8 +4,7 @@
 ************************************************************************************/
 
 #include "SourceISRF.hpp"
-#include "parser/isrf_loader.hpp"
-#include "parser/message.hpp"
+#include "CommandParser.hpp"
 
 bool CSourceISRF::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -64,40 +63,93 @@ bool CSourceISRF::initSource(uint id, uint max, bool use_energy_density)
 
 bool CSourceISRF::setParameterFromFile(parameters & param, uint p)
 {
-    rewrite::ISRFLoader		loader;
-
     nr_of_photons = param.getNrOfISRFPhotons();
+    string filename = param.getISRFPath();
     radius = param.getISRFRadius();
 
     spline sp_ext_wl;
 
+    ifstream reader(filename.c_str());
+    int line_counter = -2;
+    string line;
+    CCommandParser ps;
+
+    double w_min = 1e300;
+    double w_max = 0;
+
     cout << CLR_LINE << flush;
-    cout << "-> Loading spectrum for source ISRF...\r" << flush;
+    cout << "-> Loading spectrum for source ISRF ...           \r" << flush;
 
-    if (const auto res = loader.parse_file(param.getISRFPath()); !res)
-	return rewrite::default_error_handler(res.error());
+    if(reader.fail())
+    {
+        cout << ERROR_LINE << "Cannot open file: " << filename << endl;
+        return false;
+    }
 
-    auto& result = loader.get_result();
+    while(getline(reader, line))
+    {
+        ps.formatLine(line);
 
-    c_q = result.c_q;
-    c_u = result.c_u;
-    c_v = result.c_v;
-    sp_ext_wl.copyDynValue(result.x, std::move(result.sp_ext_wl));
+        if(line.size() == 0)
+            continue;
+
+        dlist value = ps.parseValues(line);
+
+        if(value.size() == 0)
+            continue;
+
+        line_counter++;
+
+        if(line_counter == -1)
+        {
+            if(value.size() != 3)
+            {
+                cout << ERROR_LINE << "In ISRF file:\n" << filename << endl;
+                cout << "Wrong amount of values in line " << line_counter + 1 << "!" << endl;
+                return false;
+            }
+
+            c_q = value[0];
+            c_u = value[1];
+            c_v = value[2];
+        }
+        else if(line_counter >= 0)
+        {
+            if(value.size() == 2)
+            {
+                sp_ext_wl.setDynValue(value[0], value[1]);
+
+                if(w_min > value[0])
+                    w_min = value[0];
+
+                if(w_max < value[0])
+                    w_max = value[0];
+            }
+            else
+            {
+                cout << ERROR_LINE << "In ISRF file:\n" << filename << endl;
+                cout << "Wrong amount of values in line " << line_counter + 1 << "!" << endl;
+                return false;
+            }
+        }
+    }
+
     sp_ext_wl.createDynSpline();
+    reader.close();
 
     sp_ext.resize(getNrOfWavelength());
-    for(size_t w = 0; w < getNrOfWavelength(); w++) {
+    for(uint w = 0; w < getNrOfWavelength(); w++)
+    {
         double rad_field = 0;
-
-	// Get radiation field from dynamic spline
-	// Divide by 4PI to get per steradian to match mathis_isrf
-        if(wavelength_list[w] > result.w_min && wavelength_list[w] < result.w_max)
+        if(wavelength_list[w] > w_min && wavelength_list[w] < w_max)
+        {
+            // Get radiation field from dynamic spline
+            // Divide by 4PI to get per steradian to match mathis_isrf
             rad_field = sp_ext_wl.getValue(wavelength_list[w]) / PIx4;
+        }
 
         // Calculate final emission
-        sp_ext.setValue(w,
-	    wavelength_list[w],
-	    rad_field * dust->getForegroundExtinction(wavelength_list[w]));
+        sp_ext.setValue(w, wavelength_list[w], rad_field * dust->getForegroundExtinction(wavelength_list[w]));
     }
     sp_ext.createSpline();
 

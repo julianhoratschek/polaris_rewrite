@@ -123,7 +123,7 @@ ullong CSourceBasic::getNrOfPhotons()
     return nr_of_photons;
 }
 
-uint CSourceBasic::getNrOfWavelength()
+uint CSourceBasic::getNrOfWavelength() const
 {
     return wavelength_list.size();
 }

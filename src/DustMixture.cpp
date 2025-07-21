@@ -807,6 +807,7 @@ double CDustMixture::getForegroundExtinction(double wavelength)
     // Get extinction optical depth at extinction_magnitude_wavelength
     double extinction_tau = (extinction_magnitude / 1.086);
 
+    // TODO: WTF??
     if(extinction_dust_mixture == MAX_UINT)
     {
         // Init extinction curve
