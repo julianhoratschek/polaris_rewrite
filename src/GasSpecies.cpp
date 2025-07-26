@@ -6,6 +6,8 @@
 #include "GasSpecies.hpp"
 #include "CommandParser.hpp"
 
+#include <cstring>
+
 // This function is based on
 // Mol3d: 3D line and dust continuum radiative transfer code
 // by Florian Ober 2015, Email: fober@astrophysik.uni-kiel.de
@@ -1486,19 +1488,7 @@ bool CGasSpecies::readZeemanParamaterFile(string _filename)
 
     // Init pointer array for the lande factor
     lande_factor = new double[nr_of_energy_level];
-    for(uint i_lvl = 0; i_lvl < nr_of_energy_level; i_lvl++)
-    {
-        lande_factor[i_lvl] = 0;
-    }
-    
-    //cout << "Landee:" << lande_factor[0] << "   " << lande_factor[1] << endl;
-
-    if(reader.fail())
-    {
-        cout << ERROR_LINE << "Cannot open Zeeman splitting catalog:" << endl;
-        cout << _filename << endl;
-        return false;
-    }
+    std::memset(lande_factor, 0, nr_of_energy_level * sizeof(double));
 
     uint line_counter = 0;
     uint cmd_counter = 0;
