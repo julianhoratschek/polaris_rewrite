@@ -415,7 +415,7 @@ bool CGasMixture::createGasSpecies(parameters & param)
     {
         single_species[i_species].setAbundance(param.getGasSpeciesAbundance(i_species));
         single_species[i_species].setLevelPopType(param.getGasSpeciesLevelPopType(i_species));
-        single_species[i_species].setNrOfSpectralLines(param.getNrOfSpectralLines(i_species));
+        // single_species[i_species].setNrOfSpectralLines(param.getNrOfSpectralLines(i_species));
         single_species[i_species].setSpectralLines(param.getSpectralLines(i_species));
 
         string path = param.getGasSpeciesCatalogPath(i_species);

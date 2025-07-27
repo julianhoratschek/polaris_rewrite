@@ -3,16 +3,19 @@
 
 #include "basic_loader.hpp"
 
+#include <cstddef>
 #include <filesystem>
 #include <cstring>
+#include <string>
 
 namespace rewrite {
 
     struct ZeemanFile {
+	std::string	stringID;
 	double*		lande_factor;
 	int*		nr_of_sublevel;
 	double		gas_species_radius;
-	double		nr_zeeman_spectral_lines;
+	size_t		nr_zeeman_spectral_lines;
     };
 
     class ZeemanFileLoader: public BasicLoader {
@@ -48,82 +51,56 @@ namespace rewrite {
 
 	    // Init variables
 	    std::vector<double> line_strength_pi, line_strength_sigma_p, line_strength_sigma_m;
-	    unsigned int i_trans_zeeman = 0;
 
 	    if (!next_line(file))
 		return safe_error( "Unexpected end of file" );
 
-	    if (current_line != stringID)
-		return safe_error( "Wrong Zeeman splitting catalog file chosen!" );
+	    result.stringID = current_line;
 
-	    if (!next_line(file) || !is_or_next<is_number>())
-		return safe_error( "Expected number (Zeeman file)" );
-
-	    if (const auto num = get_number(); !num.has_value())
-		return safe_error( num.error().message );
+	    if (const auto num = rdline_number<double>("Gas species Radius"); !num.has_value())
+		return std::unexpected{ num.error() };
 	    else result.gas_species_radius = num.value();
 
-	    if (!next_line(file) || !is_or_next<is_number>())
-		return safe_error( "Expected number (Zeeman file)" );
-
-	    if (const auto num = get_number(); !num.has_value())
-		return safe_error( num.error().message );
+	    if (const auto num = rdline_number<size_t>("Nr of Zeeman spectral lines"); !num.has_value())
+		return std::unexpected{ num.error() };
 	    else result.nr_zeeman_spectral_lines = num.value();
 
 	    while (next_line(file)) {
+		size_t i_trans = 0;
 
-		unsigned int i_trans = 0;
-		if (!is_or_next<is_number>())
-		    return safe_error( "Expected number (Zeeman file)" );
-
-		if (const auto num = get_number(); !num.has_value())
-		    return safe_error( num.error().message );
+		if (const auto num = rdline_number<size_t>("Transition Index"); !num.has_value())
+		    return std::unexpected{ num.error() };
 		else i_trans = num.value() - 1;
 
 		// TODO: what is is_zeeman_split, why do we need it?
 		// TODO: jump if not in nr_of_transitions?
 		// TODO: where does nr_of_transitions come from?
-		if (0 <= i_trans && i_trans < nr_of_transitions) {
-		    i_trans_zeeman = i_trans;
+		if (0 <= i_trans && i_trans < nr_of_transitions)
 		    trans_is_zeeman_split[i_trans] = true;
-		}
 
-		if (!next_line(file) || !is_or_next<is_number>())
-		    return safe_error( "Expected number (Zeeman file)" );
+		const auto 	ul = upper_level[i_trans],
+				ll = lower_level[i_trans];
 
-		// TODO: where does upper_level come from?
-		if (const auto num = get_number(); !num.has_value())
-		    return safe_error( num.error().message );
-		else result.lande_factor[upper_level[i_trans_zeeman]] = num.value();
+		if (const auto num = rdline_number<double>("Lande Factor Upper level"); !num.has_value())
+		    return std::unexpected{ num.error() };
+		else result.lande_factor[ul] = num.value();
 
-		if (!next_line(file) || !is_or_next<is_number>())
-		    return safe_error( "Expected number (Zeeman file)" );
+		if (const auto num = rdline_number<double>("Lande Factor Lower level"); !num.has_value())
+		    return std::unexpected{ num.error() };
+		else result.lande_factor[ll] = num.value();
 
-		// TODO: where does lower_level come from?
-		if (const auto num = get_number(); !num.has_value())
-		    return safe_error( num.error().message );
-		else result.lande_factor[lower_level[i_trans_zeeman]] = num.value();
+		if (const auto num = rdline_number<int>("Number of sublevel upper level"); !num.has_value())
+		    return std::unexpected{ num.error() };
+		else result.nr_of_sublevel[ul] = num.value();
 
-		if (!next_line(file) || !is_or_next<is_number>())
-		    return safe_error( "Expected number (Zeeman file)" );
-
-		// TODO: allocate nr_of_sublevel
-		if (const auto num = get_number(); !num.has_value())
-		    return safe_error( num.error().message );
-		else result.nr_of_sublevel[upper_level[i_trans_zeeman]] = num.value();
-
-		if (!next_line(file) || !is_or_next<is_number>())
-		    return safe_error( "Expected number (Zeeman file)" );
-
-		// Save the number of sublevel per energy level
-		if (const auto num = get_number(); !num.has_value())
-		    return safe_error( num.error().message );
-		else result.nr_of_sublevel[lower_level[i_trans_zeeman]] = num.value();
+		if (const auto num = rdline_number<int>("Number of sublevel lower level"); !num.has_value())
+		    return std::unexpected{ num.error() };
+		else result.nr_of_sublevel[ll] = num.value();
 
 		// TODO: switch with upper
 		// Set local number of sublevel for the involved energy levels
-		const size_t nr_of_sublevel_upper = result.nr_of_sublevel[upper_level[i_trans_zeeman]];
-		const size_t nr_of_sublevel_lower = result.nr_of_sublevel[lower_level[i_trans_zeeman]];
+		const size_t nr_of_sublevel_upper = result.nr_of_sublevel[ul];
+		const size_t nr_of_sublevel_lower = result.nr_of_sublevel[ll];
 
 		// Calculate the numbers of transitions possible for sigma and pi transitions
 		const size_t nr_pi_spectral_lines = std::min(nr_of_sublevel_upper, nr_of_sublevel_lower);
@@ -134,31 +111,22 @@ namespace rewrite {
 
 		line_strength_pi.resize(nr_pi_spectral_lines);
 		for (size_t i = 0; i < nr_pi_spectral_lines; i++) {
-		    if (!next_line(file) || !is_or_next<is_number>())
-			return safe_error( "Expected number (Zeeman file)" );
-
-		    if (const auto num = get_number(); !num.has_value())
-			return safe_error( num.error().message );
+		    if (const auto num = rdline_number<double>("Line strength pi"); !num.has_value())
+			return std::unexpected{ num.error() };
 		    else line_strength_pi[i] = num.value();
 		}
 
 		line_strength_sigma_p.resize(nr_sigma_spectral_lines);
 		for (size_t i = 0; i < nr_sigma_spectral_lines; i++) {
-		    if (!next_line(file) || !is_or_next<is_number>())
-			return safe_error( "Expected number (Zeeman file)" );
-
-		    if (const auto num = get_number(); !num.has_value())
-			return safe_error( num.error().message );
+		    if (const auto num = rdline_number<double>("Line strength sigma p"); !num.has_value())
+			return std::unexpected{ num.error() };
 		    else line_strength_sigma_p[i] = num.value();
 		}
 
 		line_strength_sigma_m.resize(nr_sigma_spectral_lines);
 		for (size_t i = 0; i < nr_sigma_spectral_lines; i++) {
-		    if (!next_line(file) || !is_or_next<is_number>())
-			return safe_error( "Expected number (Zeeman file)" );
-
-		    if (const auto num = get_number(); !num.has_value())
-			return safe_error( num.error().message );
+		    if (const auto num = rdline_number<double>("Line strength sigma m"); !num.has_value())
+			return std::unexpected{ num.error() };
 		    else line_strength_sigma_m[i] = num.value();
 		}
 
@@ -172,10 +140,6 @@ namespace rewrite {
 
             // Get maximum number of transitions between sublevel
             unsigned int nr_sublevel_trans = getNrOfTransBetweenSublevels(i_trans_zeeman);
-
-            // Get indices to involved energy level
-            unsigned int i_lvl_u = upper_level[i_trans_zeeman];
-            unsigned int i_lvl_l = lower_level[i_trans_zeeman];
 
 	    // TODO: can't we just count up and do all at once???
             // Save einstein coefficients of major level and extend pointer array for
@@ -279,27 +243,6 @@ namespace rewrite {
             cmd_counter = 4;
         }
 
-    reader.close();
-
-    for(uint i_line = 0; i_line < nr_of_spectral_lines; i_line++)
-    {
-        uint i_trans = getTransitionFromSpectralLine(i_line);
-        
-        if(getLandeUpper(i_trans) == 0) // || getLandeLower(i_trans) == 0
-        {
-            cout << SEP_LINE;
-            cout << ERROR_LINE << "For transition number " << uint(i_trans + 1)
-                 << " exists no Zeeman splitting data" << endl;
-            return false;
-        }
-        else
-        {
-            trans_is_zeeman_split[i_trans] = true;
-        }
-    }
-
-    return true;
-}
 
 	    file.close();
 	    return {};

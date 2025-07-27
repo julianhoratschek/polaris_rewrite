@@ -1862,17 +1862,14 @@ uint parameters::getNrOfSpectralLines(uint i_species)
     return uint(line_ray_detector_list[i_species].size() / NR_OF_LINE_DET);
 }
 
-int * parameters::getSpectralLines(uint i_species)
+std::vector<int> parameters::getSpectralLines(const uint i_species)
 {
-    uint nr_of_spectral_lines = getNrOfSpectralLines(i_species);
-    int * spectral_lines = new int[nr_of_spectral_lines];
-    dlist line_ray_detector = getLineRayDetector(i_species);
-    for(uint i = 0; i < line_ray_detector_list[i_species].size(); i += NR_OF_LINE_DET)
-    {
-        uint pos = i / NR_OF_LINE_DET;
+    size_t nr_of_spectral_lines = getNrOfSpectralLines(i_species);
+    std::vector<int>	spectral_lines(nr_of_spectral_lines);
+    const auto& line_ray_detector = getLineRayDetector(i_species);
 
-        spectral_lines[pos] = int(line_ray_detector[i]);
-    }
+    for (size_t i = 0; i < nr_of_spectral_lines; i++)
+	spectral_lines[i] = static_cast<int>(line_ray_detector[i * NR_OF_LINE_DET]);
     return spectral_lines;
 }
 

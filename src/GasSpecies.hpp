@@ -318,9 +318,9 @@ public:
 
     void setAbundance(double val);
 
-    void setNrOfSpectralLines(uint val);
+    // void setNrOfSpectralLines(uint val);
 
-    void setSpectralLines(int * lines);
+    void setSpectralLines(std::vector<int>&& lines);
 
     double getGamma(uint i_trans, double dens_gas, double dens_species, double temp_gas, double v_turb);
 
@@ -433,7 +433,7 @@ private:
     uint nr_of_transitions;
     uint nr_of_col_partner;
     uint nr_of_energy_level;
-    uint nr_of_spectral_lines;
+    // uint nr_of_spectral_lines;
     uint nr_zeeman_spectral_lines;
     uint lvl_pop_type;
 
@@ -447,7 +447,7 @@ private:
     int * nr_of_col_transition;
     int * nr_of_col_temp;
     int * nr_of_sublevel;
-    int * spectral_lines;
+    std::vector<int> spectral_lines;
     int *upper_level, *lower_level;
     int * orientation_H2;
 

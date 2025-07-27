@@ -4,9 +4,9 @@
 ************************************************************************************/
 
 #include "GasSpecies.hpp"
-#include "CommandParser.hpp"
+#include "parser/gas_parameter_loader.hpp"
+#include "parser/message.hpp"
 
-#include <cstring>
 
 // This function is based on
 // Mol3d: 3D line and dust continuum radiative transfer code
@@ -1156,319 +1156,48 @@ void CGasSpecies::calcEmissivityZeeman(CGridBasic * grid,
 
 bool CGasSpecies::readGasParamaterFile(string _filename, uint id, uint max)
 {
-    uint line_counter, cmd_counter;
-    uint pos_counter = 0;
-    uint row_offset, i_col_partner, i_col_transition;
-    CCommandParser ps;
-    fstream reader(_filename.c_str());
-    unsigned char ru[4] = { '|', '/', '-', '\\' };
-    string line;
-    dlist values;
+    rewrite::GasParameterLoader		loader;
 
-    cout << CLR_LINE;
-
-    if(reader.fail())
-    {
-        cout << ERROR_LINE << "Cannot open gas_species catalog:" << endl;
-        cout << _filename << endl;
-        return false;
+    if (const auto res = loader.parse_file(_filename, spectral_lines);
+	!res.has_value()) {
+	return rewrite::default_error_handler(res.error());
     }
 
-    line_counter = 0;
-    cmd_counter = 0;
+    const auto& file = loader.get_result();
 
-    row_offset = 0;
-    i_col_partner = 0;
-    i_col_transition = 0;
+    stringID = file.stringID;
+    molecular_weight = file.molecular_weight;
 
-    uint char_counter = 0;
+    nr_of_energy_level = file.nr_of_energy_level;
+    energy_level = file.energy_level;
+    g_level = file.g_level;
+    quantum_numbers = file.quantum_numbers;
+    nr_of_sublevel = file.nr_of_sublevel;
 
-    while(getline(reader, line))
-    {
-        line_counter++;
+    nr_of_transitions = file.nr_of_transitions;
+    upper_level = file.upper_level;
+    lower_level = file.lower_level;
+    trans_freq = file.trans_freq;
+    trans_inner_energy = file.trans_inner_energy;
 
-        if(line_counter % 20 == 0)
-        {
-            char_counter++;
-            cout << "-> Reading gas species file nr. " << id + 1 << " of " << max << " : "
-                 << ru[(uint)char_counter % 4] << "           \r";
-        }
+    trans_einstA = file.trans_einstA;
+    trans_einstB_ul = file.trans_einstB_ul;
+    trans_einstB_lu = file.trans_einstB_lu;
 
-        ps.formatLine(line);
+    trans_is_zeeman_split = file.trans_is_zeeman_split;
+    unique_spectral_lines = std::move(file.unique_spectral_lines);
 
-        if(line.size() == 0)
-            continue;
+    nr_of_col_partner = file.nr_of_col_partner;
 
-        if(cmd_counter != 0)
-        {
-            values = ps.parseValues(line);
-            if(values.size() == 0)
-                continue;
-        }
+    nr_of_col_transition = file.nr_of_col_transition;
+    nr_of_col_temp = file.nr_of_col_temp;
+    orientation_H2 = file.orientation_H2;
 
-        cmd_counter++;
+    collision_temp = file.collision_temp;
+    col_upper = file.col_upper;
+    col_lower = file.col_lower;
 
-        if(cmd_counter == 1)
-            stringID = line;
-        else if(cmd_counter == 2)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-            molecular_weight = values[0];
-        }
-        else if(cmd_counter == 3)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-            nr_of_energy_level = uint(values[0]);
-
-            // Init pointer array
-            energy_level = new double[nr_of_energy_level];
-            g_level = new double[nr_of_energy_level];
-            quantum_numbers = new double[nr_of_energy_level];
-
-            // Set number of sublevel to one and increase it in case of Zeeman
-            nr_of_sublevel = new int[nr_of_energy_level];
-            for(uint i_lvl = 0; i_lvl < nr_of_energy_level; i_lvl++)
-            {
-                nr_of_sublevel[i_lvl] = 1;
-            }
-        }
-        else if(cmd_counter < 4 + nr_of_energy_level && cmd_counter > 3)
-        {
-            if(values.size() < 4)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-
-            // ENERGIES(cm^-1)
-            energy_level[pos_counter] = values[1];
-            // WEIGHT
-            g_level[pos_counter] = values[2];
-            // Quantum numbers for corresponding energy level
-            quantum_numbers[pos_counter] = values[3];
-
-            // For each energy level
-            pos_counter++;
-        }
-        else if(cmd_counter == 4 + nr_of_energy_level)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-            nr_of_transitions = uint(values[0]);
-
-            // Reset and switch to transitions
-            pos_counter = 0;
-
-            // Init pointer arrays
-            upper_level = new int[nr_of_transitions];
-            lower_level = new int[nr_of_transitions];
-            trans_freq = new double[nr_of_transitions];
-            trans_inner_energy = new double[nr_of_transitions];
-
-            // Init pointer arrays for the einstein coefficients
-            trans_einstA = new double *[nr_of_transitions];
-            trans_einstB_ul = new double *[nr_of_transitions];
-            trans_einstB_lu = new double *[nr_of_transitions];
-
-            // Only one entry, but more if Zeeman sublevels are treated
-            for(uint i_trans = 0; i_trans < nr_of_transitions; i_trans++)
-            {
-                trans_einstA[i_trans] = new double[1];
-                trans_einstB_ul[i_trans] = new double[1];
-                trans_einstB_lu[i_trans] = new double[1];
-            }
-
-            // Init list if a transition is zeeman split
-            trans_is_zeeman_split = new bool[nr_of_transitions];
-            for(uint i_trans = 0; i_trans < nr_of_transitions; i_trans++)
-            {
-                trans_is_zeeman_split[i_trans] = false;
-            }
-        }
-        else if(cmd_counter < 5 + nr_of_energy_level + nr_of_transitions &&
-                cmd_counter > 4 + nr_of_energy_level)
-        {
-            if(values.size() != 6)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-
-            for(uint i_line = 0; i_line < nr_of_spectral_lines; i_line++)
-            {
-                if(spectral_lines[i_line] == int(values[0] - 1))
-                {
-                    unique_spectral_lines.push_back(i_line);
-                    break;
-                }
-            }
-
-            // UP (as index starting with 0)
-            upper_level[pos_counter] = int(values[1] - 1);
-            // LOW (as index starting with 0)
-            lower_level[pos_counter] = int(values[2] - 1);
-            // EINSTEIN A(s^-1)
-            trans_einstA[pos_counter][0] = values[3];
-            // FREQ(GHz -> Hz)
-            trans_freq[pos_counter] = values[4] * 1e9;
-            // E_u(K)
-            trans_inner_energy[pos_counter] = values[5];
-
-            // EINSTEIN B_ul(s^-1)
-            trans_einstB_ul[pos_counter][0] = getEinsteinA(pos_counter) *
-                                              pow(con_c / trans_freq[pos_counter], 2.0) /
-                                              (2.0 * con_h * trans_freq[pos_counter]);
-
-            // EINSTEIN B_lu(s^-1)
-            trans_einstB_lu[pos_counter][0] = g_level[upper_level[pos_counter]] /
-                                              g_level[lower_level[pos_counter]] * getEinsteinBul(pos_counter);
-
-            // For each transition
-            pos_counter++;
-        }
-        else if(cmd_counter == 5 + nr_of_energy_level + nr_of_transitions)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-            nr_of_col_partner = uint(values[0]);
-
-            nr_of_col_transition = new int[nr_of_col_partner];
-            nr_of_col_temp = new int[nr_of_col_partner];
-            orientation_H2 = new int[nr_of_col_partner];
-
-            collision_temp = new double *[nr_of_col_partner];
-            col_upper = new uint *[nr_of_col_partner];
-            col_lower = new uint *[nr_of_col_partner];
-
-            col_matrix = new double **[nr_of_col_partner];
-
-            for(uint i = 0; i < nr_of_col_partner; i++)
-            {
-                collision_temp[i] = 0;
-                col_upper[i] = 0;
-                col_lower[i] = 0;
-
-                nr_of_col_transition[i] = 0;
-                orientation_H2[i] = 0;
-                nr_of_col_temp[i] = 0;
-                col_matrix[i] = 0;
-            }
-        }
-        else if(cmd_counter == 6 + nr_of_energy_level + nr_of_transitions)
-        {
-            if(values[0] < 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter
-                     << " wrong orientation of H2 collision partner (gas species file)!" << endl;
-                return false;
-            }
-            orientation_H2[i_col_partner] = int(values[0]);
-        }
-        else if(cmd_counter == 7 + nr_of_energy_level + nr_of_transitions + row_offset)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-
-            nr_of_col_transition[i_col_partner] = int(values[0]);
-            col_upper[i_col_partner] = new uint[int(values[0])];
-            col_lower[i_col_partner] = new uint[int(values[0])];
-            col_matrix[i_col_partner] = new double *[int(values[0])];
-
-            for(uint i = 0; i < uint(values[0]); i++)
-            {
-                col_matrix[i_col_partner][i] = 0;
-                col_upper[i_col_partner][i] = 0;
-                col_lower[i_col_partner][i] = 0;
-            }
-        }
-        else if(cmd_counter == 8 + nr_of_energy_level + nr_of_transitions + row_offset)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-
-            nr_of_col_temp[i_col_partner] = int(values[0]);
-
-            collision_temp[i_col_partner] = new double[int(values[0])];
-
-            for(uint i = 0; i < uint(values[0]); i++)
-                collision_temp[i_col_partner][i] = 0;
-        }
-        else if(cmd_counter == 9 + nr_of_energy_level + nr_of_transitions + row_offset)
-        {
-            if(values.size() != uint(nr_of_col_temp[i_col_partner]))
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-
-            for(uint i = 0; i < uint(nr_of_col_temp[i_col_partner]); i++)
-                collision_temp[i_col_partner][i] = values[i];
-        }
-        else if(cmd_counter < 10 + nr_of_energy_level + nr_of_transitions +
-                                  nr_of_col_transition[i_col_partner] + row_offset &&
-                cmd_counter > 9 + nr_of_energy_level + row_offset)
-        {
-            if(values.size() != uint(nr_of_col_temp[i_col_partner] + 3))
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (gas species file)!"
-                     << endl;
-                return false;
-            }
-
-            i_col_transition = cmd_counter - 10 - nr_of_energy_level - nr_of_transitions - row_offset;
-            col_upper[i_col_partner][i_col_transition] = uint(values[1] - 1);
-            col_lower[i_col_partner][i_col_transition] = uint(values[2] - 1);
-
-            col_matrix[i_col_partner][i_col_transition] = new double[nr_of_col_temp[i_col_partner]];
-
-            for(uint i = 0; i < uint(nr_of_col_temp[i_col_partner]); i++)
-                col_matrix[i_col_partner][i_col_transition][i] = values[3 + i] * 1e-6;
-        }
-        else if(i_col_partner < nr_of_col_partner)
-        {
-            if(values[0] < 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter
-                     << " wrong orientation of H2 collision partner (gas species file)!" << endl;
-                return false;
-            }
-
-            i_col_partner++;
-            orientation_H2[i_col_partner] = int(values[0]);
-
-            row_offset = cmd_counter - (6 + nr_of_energy_level + nr_of_transitions);
-        }
-    }
-    reader.close();
+    col_matrix = file.col_matrix;
 
     return true;
 }
@@ -2354,14 +2083,14 @@ void CGasSpecies::setAbundance(double val)
     abundance = val;
 }
 
-void CGasSpecies::setNrOfSpectralLines(uint val)
-{
-    nr_of_spectral_lines = val;
-}
+// void CGasSpecies::setNrOfSpectralLines(uint val)
+// {
+//     nr_of_spectral_lines = val;
+// }
 
-void CGasSpecies::setSpectralLines(int * lines)
+void CGasSpecies::setSpectralLines(std::vector<int>&& lines)
 {
-    spectral_lines = lines;
+    spectral_lines = std::move(lines);
 }
 
 double CGasSpecies::getGamma(uint i_trans, double dens_gas, double dens_species, double temp_gas, double v_turb)

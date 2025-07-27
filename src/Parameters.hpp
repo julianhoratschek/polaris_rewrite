@@ -657,7 +657,7 @@ public:
 
     uint getNrOfSpectralLines(uint i_species);
 
-    int * getSpectralLines(uint i_species);
+    std::vector<int> getSpectralLines(uint i_species);
 
     uint getNrOfDustRayDetectors();
 

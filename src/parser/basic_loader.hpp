@@ -43,6 +43,46 @@ namespace rewrite {
 		return std::unexpected { val.error() };
 	    return {};
 	}
+
+
+	template<typename T>
+	auto rdline_number(
+	    const std::string& param_name)
+	    -> std::expected<T, Message>
+	{
+	    if (!next_line(file) || !is_or_next<is_number>())
+		return safe_error( 
+		    std::format( "Expected single numerical value for {}", param_name ) );
+
+	    if (const auto num = get_number(); !num.has_value())
+		return safe_error( 
+		    std::format( "Could not read {}: {}", param_name, num.error().message ) );
+	    else return static_cast<T>(num.value());
+	}
+
+
+	auto rdline_values(const size_t length, const std::string& param_names)
+	    -> std::expected<void, Message>
+	{
+	    if (!next_line(file) || !is_or_next<is_number>())
+		return safe_error(
+		    std::format(
+			"Expected {} values: {}",
+			length, param_names ) );
+
+	    if (const auto res = read_values(); !res.has_value())
+		return safe_error(
+		    std::format( "Could not read values {}: {}",
+			param_names, res.error().message ) );
+
+	    if (values.size() != length)
+		return safe_error(
+		    std::format(
+			"Expected {} values: {}",
+			length, param_names ) );
+
+	    return {};
+	}
     };
 
 }
