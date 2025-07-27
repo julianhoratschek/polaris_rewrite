@@ -67,7 +67,7 @@ namespace rewrite {
 	    if (!next_line(file) || !is_or_next<is_number>())
 		return safe_error(
 		    std::format(
-			"Expected {} values: {}",
+			"Expected {} numeric values: {}",
 			length, param_names ) );
 
 	    if (const auto res = read_values(); !res.has_value())
@@ -78,7 +78,7 @@ namespace rewrite {
 	    if (values.size() != length)
 		return safe_error(
 		    std::format(
-			"Expected {} values: {}",
+			"Expected {} numeric values: {}",
 			length, param_names ) );
 
 	    return {};

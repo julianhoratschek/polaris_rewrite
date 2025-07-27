@@ -61,14 +61,9 @@ namespace rewrite {
 
 	    result.stringID = current_line;
 
-	    if (!next_line(file))
-		return safe_error( "Unexpected end of file" );
-
-	    if (const auto res = read_values();
-		!res) return safe_error( res.error().message );
-
-	    if (values.size() != 7)
-		return safe_error( std::format( "Expected 7 Values in line {}", line_nr ));
+	    if (const auto res = rdline_values(7, 
+		"Nr of Wavelengths, Nr of inc. Angles, Aspect Ratio, Material Density, Sub Temperature, Delta, Align"); !res.has_value())
+		return res;
 
 	    result.nr_wavelengths = values[0];
             result.nr_inc_angles = 1; // For non-spherical: (uint) values[1];
@@ -81,28 +76,36 @@ namespace rewrite {
 	    result.wavelengths = new double[result.nr_wavelengths],
 	    result.real_part = new double[result.nr_wavelengths],
 	    result.imag_part = new double[result.nr_wavelengths];
-	    double *ptr[3]{result.wavelengths, result.real_part, result.imag_part};
+	    // double *ptr[3]{result.wavelengths, result.real_part, result.imag_part};
 
-	    std::size_t row;
+	    // std::size_t row;
 
-	    for (row = 0; next_line(file) && row < result.nr_wavelengths; row++) {
-		for (column = 0; is_or_next<is_number>() && column < 3; column++) {
-		    if (const auto num = get_number();
-			!num.has_value()) return safe_error(num.error().message);
-		    else {
-			*ptr[column] = num.value();
-			++ptr[column];
-		    }
-		}
+		//    for (row = 0; next_line(file) && row < result.nr_wavelengths; row++) {
+		// for (column = 0; is_or_next<is_number>() && column < 3; column++) {
+		//     if (const auto num = get_number();
+		// 	!num.has_value()) return safe_error(num.error().message);
+		//     else {
+		// 	*ptr[column] = num.value();
+		// 	++ptr[column];
+		//     }
+		// }
+		//
+		// if (column != 3)
+		//     return safe_error( "Expected 3 values per line" );
+		//    }
+	    for (size_t row = 0; row < result.nr_wavelengths; row++) {
+		if (const auto res = rdline_values(3, "Wavelength, Real Part, Imag Part"); !res.has_value())
+		    return res;
 
-		if (column != 3)
-		    return safe_error( "Expected 3 values per line" );
+		result.wavelengths[row] = values[0];
+		result.real_part[row] = values[1];
+		result.imag_part[row] = values[2];
 	    }
 
 	    // If not a line per combination of grain size and wavelength was found in the
 	    // catalog, show error
-	    if (row != result.nr_wavelengths)
-		return safe_error( "Wrong amount of efficiencies in file" );
+		//    if (row != result.nr_wavelengths)
+		// return safe_error( "Wrong amount of efficiencies in file" );
 
 	    // Close the text file reader for the dust catalog
 	    file.close();

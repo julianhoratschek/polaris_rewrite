@@ -14,6 +14,7 @@ namespace rewrite {
 
     struct CalorimetryFile {
 	size_t		nr_of_calorimetry_temperatures;
+	size_t		nr_of_dust_species;	// HACK: Only needed for cleanup
 	double		*calorimetry_temperatures;
 	double		**enthalpy;
 	unsigned int	calorimetry_type;
@@ -24,6 +25,8 @@ namespace rewrite {
 
 	void cleanup() override
 	{
+	    for (auto i = 0; i < result.nr_of_dust_species; i++)
+		delete[] result.enthalpy[i];
 	    delete[] result.enthalpy;
 	    delete[] result.calorimetry_temperatures;
 	}
@@ -39,16 +42,14 @@ namespace rewrite {
 	{
 	    file.open(path.parent_path() / path.stem() / "calorimetry.dat");
 
+	    result.nr_of_dust_species = 0;
+
 	    if (file.fail())
 		return safe_error( "Could not open calorimetry file" );
 
-	    if (!next_line(file))
-		return safe_error( "Unexpected end of file" );
-
-	    if (const auto num = get_number();
-		not num.has_value()) return safe_error( "Wrong amount of calorimetry temperatures");
-	    else
-		result.nr_of_calorimetry_temperatures = num.value();
+	    if (const auto num = rdline_number<size_t>("Nr of calorimetry temperatures"); !num.has_value())
+		return std::unexpected{ num.error() };
+	    else result.nr_of_calorimetry_temperatures = num.value();
 
 	    // Init array for the calorimetry temperatures
 	    result.calorimetry_temperatures = new double[result.nr_of_calorimetry_temperatures];
@@ -61,30 +62,22 @@ namespace rewrite {
 	    for(size_t a = 0; a < nr_of_dust_species; a++)
 		result.enthalpy[a] = new double[result.nr_of_calorimetry_temperatures];
 
+	    result.nr_of_dust_species = nr_of_dust_species;
+
 	    // The second line needs a value per calorimetric temperature
-	    if (!next_line(file))
-		return safe_error( "Unexpected end of file" );
-
-	    if (const auto res = read_values();
-		!res.has_value()) return safe_error( res.error().message );
-
-	    if (values.size() != result.nr_of_calorimetry_temperatures)
-		return safe_error( "Wrong amount of calorimetry temperatures" );
+	    if (const auto res = rdline_values(result.nr_of_calorimetry_temperatures, "Calorimetry temperatures");
+		!res.has_value()) return res;
 
 	    std::copy(values.begin(), values.end(), result.calorimetry_temperatures);
 
 	    // The third line needs one value
-	    if (!next_line(file))
-		return safe_error( "Unexpected end of file" );
-
-	    // The unit of the calorimetry data
-	    if (const auto num = get_number();
-		!num.has_value()) return safe_error( "Wrong calorimetry type" );
-	    else result.calorimetry_type = static_cast<unsigned int>(num.value());
+	    if (const auto num = rdline_number<unsigned int>("Calorimetry Type"); !num.has_value())
+		return std::unexpected{ num.error() };
+	    else result.calorimetry_type = num.value();
 
 	    // Only heat capacity or enthalpy are possible
 	    if(result.calorimetry_type != CALO_HEAT_CAP && result.calorimetry_type != CALO_ENTHALPY)
-		return safe_error( "Wrong calorimetry type" );
+		return safe_error( "Wrong calorimetry type: Only accept HEAT_CAP and ENTHALPY" );
 
 	    // Get special case: first line of temperatures
 

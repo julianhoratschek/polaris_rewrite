@@ -37,14 +37,8 @@ namespace rewrite {
 		    std::format(
 			"Could not open spectrum file: {}", path.string() ));
 
-	    if (!next_line(file))
-		return safe_error( "Unexpected end of file" );
-
-	    if (const auto res = read_values();
-		!res) return safe_error( res.error().message );
-
-	    if (values.size() != 3)
-		return safe_error("Wrong amount of values");
+	    if (const auto res = rdline_values(3, "Q, U, V"); !res)
+		return res;
 
 	    result.c_q = values[0];
 	    result.c_u = values[1];
