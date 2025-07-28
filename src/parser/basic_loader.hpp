@@ -83,6 +83,27 @@ namespace rewrite {
 
 	    return {};
 	}
+
+
+	auto rdlines_vector(const size_t size) 
+	    -> std::expected<std::vector<double>, Message> {
+	    std::expected<double, Message> num{0.0};
+	    std::vector<double>	res(size);
+	    size_t i = 0;
+
+	    while (num && next_line(file)) {
+		num = get_number();
+		res[i] = num.value_or(0.0);
+		++i;
+	    }
+
+	    if (!num)
+		return std::unexpected{ num.error() };
+	    if (i != size)
+		return safe_error(
+		    std::format( "Expected {} lines with single values", size) );
+	    return res;
+	}
     };
 
 }

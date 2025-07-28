@@ -74,7 +74,7 @@ namespace rewrite {
 
 		// TODO: what is is_zeeman_split, why do we need it?
 		// TODO: jump if not in nr_of_transitions?
-		// TODO: where does nr_of_transitions come from?
+		// TODO THis should probably be a warning: Old colde just overwrites last transition, if i_trans is not in range
 		if (0 <= i_trans && i_trans < nr_of_transitions)
 		    trans_is_zeeman_split[i_trans] = true;
 
@@ -89,6 +89,7 @@ namespace rewrite {
 		    return std::unexpected{ num.error() };
 		else result.lande_factor[ll] = num.value();
 
+		// TODO: where is nr of dublevel allocated?
 		if (const auto num = rdline_number<int>("Number of sublevel upper level"); !num.has_value())
 		    return std::unexpected{ num.error() };
 		else result.nr_of_sublevel[ul] = num.value();
@@ -99,15 +100,12 @@ namespace rewrite {
 
 		// TODO: switch with upper
 		// Set local number of sublevel for the involved energy levels
-		const size_t nr_of_sublevel_upper = result.nr_of_sublevel[ul];
-		const size_t nr_of_sublevel_lower = result.nr_of_sublevel[ll];
+		const auto nr_of_sublevel_upper = result.nr_of_sublevel[ul];
+		const auto nr_of_sublevel_lower = result.nr_of_sublevel[ll];
 
 		// Calculate the numbers of transitions possible for sigma and pi transitions
-		const size_t nr_pi_spectral_lines = std::min(nr_of_sublevel_upper, nr_of_sublevel_lower);
-		size_t nr_sigma_spectral_lines = nr_of_sublevel_upper - 1;
-
-		if (nr_of_sublevel_upper != nr_of_sublevel_lower)
-		    nr_sigma_spectral_lines = std::min(nr_of_sublevel_upper, nr_of_sublevel_lower);
+		const auto nr_pi_spectral_lines = std::min(nr_of_sublevel_upper, nr_of_sublevel_lower);
+		const auto nr_sigma_spectral_lines = nr_of_sublevel_lower == nr_of_sublevel_upper ? nr_of_sublevel_upper - 1 : nr_pi_spectral_lines;
 
 		line_strength_pi.resize(nr_pi_spectral_lines);
 		for (size_t i = 0; i < nr_pi_spectral_lines; i++) {
