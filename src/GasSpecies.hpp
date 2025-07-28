@@ -33,7 +33,6 @@ public:
         nr_of_energy_level = 0;
         nr_of_transitions = 0;
         nr_of_col_partner = 0;
-        nr_of_spectral_lines = 0;
 
         //tmp_counter=0;
 

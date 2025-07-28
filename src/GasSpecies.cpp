@@ -1496,7 +1496,7 @@ bool CGasSpecies::readZeemanParamaterFile(string _filename)
     }
     reader.close();
 
-    for(uint i_line = 0; i_line < nr_of_spectral_lines; i_line++)
+    for(uint i_line = 0; i_line < spectral_lines.size(); i_line++)
     {
         uint i_trans = getTransitionFromSpectralLine(i_line);
         
@@ -1653,7 +1653,7 @@ double CGasSpecies::getSpectralLineFrequency(uint i_line) const
 
 uint CGasSpecies::getNrOfSpectralLines() const
 {
-    return nr_of_spectral_lines;
+    return spectral_lines.size();
 }
 
 double CGasSpecies::getEinsteinA(uint i_trans) const
