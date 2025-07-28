@@ -26,7 +26,7 @@
  *	- `param` are the currently processed parameters (one instance per
  *	  <task> or in the <common> block)
  *
- *   - Return-value for `cmd_<your_command>` on succes should be
+ *   - Return-value for `cmd_<your_command>` on success should be
  *
  *        return {}
  *

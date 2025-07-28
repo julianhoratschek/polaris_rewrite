@@ -15,6 +15,9 @@
 #include "Photon.hpp"
 #include "Vector3D.hpp"
 
+#include "parser/gas_parameter_loader.hpp"
+#include <expected>
+
 #define TRANS_SIGMA_P +1
 #define TRANS_PI 0
 #define TRANS_SIGMA_M -1
@@ -403,8 +406,9 @@ public:
     double getColPartnerDensity(CGridBasic * grid, cell_basic * cell, uint i_col_partner);
     dlist calcCollisionRate(uint i_col_partner, uint i_col_transition, uint hi_i, double temp_gas);
 
-    bool readGasParamaterFile(string filename, uint id, uint max);
-    bool readZeemanParamaterFile(string filename);
+    auto readGasParameterFile(string filename, uint id, uint max)
+	-> std::expected<rewrite::GasParameterFile, rewrite::Message>;
+    bool readZeemanParameterFile(string filename, rewrite::GasParameterFile& param_file);
 
     void applyRadiationFieldFactor(uint i_trans,
                                    double sin_theta,

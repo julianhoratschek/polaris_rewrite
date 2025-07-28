@@ -11,6 +11,7 @@
 
 namespace rewrite {
 
+    // TODO: do we need those?
 #ifndef TRANS_SIGMA_P
     constexpr auto TRANS_SIGMA_P = 1;
 #endif
@@ -23,7 +24,6 @@ namespace rewrite {
 
     struct ZeemanFile {
 	double*		lande_factor;
-	int*		nr_of_sublevel;
 	double		gas_species_radius;
 	size_t		nr_zeeman_spectral_lines;
     };
@@ -31,7 +31,8 @@ namespace rewrite {
     class ZeemanFileLoader: public BasicLoader {
 	ZeemanFile 	result;
 
-	void realloc_trans_einst(double*& trans_einst, const size_t new_size) {
+	void realloc_trans_einst(double*& trans_einst, const size_t new_size)
+	{
 	    const double tmp_einst = trans_einst[0];
 	    delete[] trans_einst;
 	    trans_einst = new double[new_size];
@@ -42,12 +43,15 @@ namespace rewrite {
 	void cleanup() override
 	{
 	    delete[] result.lande_factor;
-	    delete[] result.nr_of_sublevel;
 	}
 
     public:
 	ZeemanFile& get_result() { return result; }
 
+	// TODO: Mutable method!!!
+	// gas_param.trans_is_teeman_split
+	// gas_param.trans_einst...
+	// gas_param.nr_of_sublevel
 	std::expected<void, Message> parse_file(
 	    const std::filesystem::path& path, GasParameterFile& gas_param)
 	{
@@ -107,15 +111,15 @@ namespace rewrite {
 		// TODO: where is nr of dublevel allocated?
 		if (const auto num = rdline_number<int>("Number of sublevel upper level");
 		    !num) return std::unexpected { num.error() };
-		else result.nr_of_sublevel[ul] = num.value();
+		else gas_param.nr_of_sublevel[ul] = num.value();
 
 		if (const auto num = rdline_number<int>("Number of sublevel lower level");
 		    !num) return std::unexpected { num.error() };
-		else result.nr_of_sublevel[ll] = num.value();
+		else gas_param.nr_of_sublevel[ll] = num.value();
 
 		// Set local number of sublevel for the involved energy levels
-		const auto nr_of_sublevel_upper = result.nr_of_sublevel[ul];
-		const auto nr_of_sublevel_lower = result.nr_of_sublevel[ll];
+		const auto nr_of_sublevel_upper = gas_param.nr_of_sublevel[ul];
+		const auto nr_of_sublevel_lower = gas_param.nr_of_sublevel[ll];
 
 		// Calculate the numbers of transitions possible for sigma and pi transitions
 		const auto nr_pi_spectral_lines = std::min(

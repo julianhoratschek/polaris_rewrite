@@ -5,6 +5,7 @@
 
 #include "GasSpecies.hpp"
 #include "parser/gas_parameter_loader.hpp"
+#include "parser/zeeman_file_loader.hpp"
 #include "parser/message.hpp"
 
 
@@ -1154,13 +1155,14 @@ void CGasSpecies::calcEmissivityZeeman(CGridBasic * grid,
     delete tmp_matrix;
 }
 
-bool CGasSpecies::readGasParamaterFile(string _filename, uint id, uint max)
+auto CGasSpecies::readGasParameterFile(string _filename, uint id, uint max)
+    -> std::expected<rewrite::GasParameterFile, rewrite::Message>
 {
     rewrite::GasParameterLoader		loader;
 
     if (const auto res = loader.parse_file(_filename, spectral_lines);
 	!res.has_value()) {
-	return rewrite::default_error_handler(res.error());
+	return std::unexpected { res.error() };
     }
 
     const auto& file = loader.get_result();
@@ -1199,317 +1201,33 @@ bool CGasSpecies::readGasParamaterFile(string _filename, uint id, uint max)
 
     col_matrix = file.col_matrix;
 
-    return true;
+    return file;
 }
 
-bool CGasSpecies::readZeemanParamaterFile(string _filename)
+bool CGasSpecies::readZeemanParameterFile(
+    string _filename, rewrite::GasParameterFile& param_file)
 {
-    // Init basic variables
-    fstream reader(_filename.c_str());
-    CCommandParser ps;
-    string line;
-    dlist values;
+    rewrite::ZeemanFileLoader	loader;
 
-    // Init variables
-    dlist line_strength_pi, line_strength_sigma_p, line_strength_sigma_m;
-    uint nr_pi_spectral_lines = 0, nr_sigma_spectral_lines = 0;
-    uint i_trans_zeeman = 0;
+    if (const auto res = loader.parse_file(_filename, param_file);
+	!res) return rewrite::default_error_handler(res.error());
+
+    const auto file = loader.get_result();
 
     // Init pointer array for the lande factor
-    lande_factor = new double[nr_of_energy_level];
-    std::memset(lande_factor, 0, nr_of_energy_level * sizeof(double));
+    // TODO: Do we need ANYTHING from the zeeman file except the stuff
+    // in spectral_lines? Then this could be greatly sped up...
+    lande_factor = file.lande_factor;
+    gas_species_radius = file.gas_species_radius;
 
-    uint line_counter = 0;
-    uint cmd_counter = 0;
-
-    while(getline(reader, line))
-    {
-        line_counter++;
-
-        ps.formatLine(line);
-
-        if(line.size() == 0)
-            continue;
-
-        if(cmd_counter != 0)
-        {
-            values = ps.parseValues(line);
-            if(values.size() == 0)
-                continue;
-        }
-
-        cmd_counter++;
-
-        if(cmd_counter == 1)
-        {
-            if(line != stringID)
-            {
-                cout << "wrong Zeeman splitting catalog file chosen!" << endl;
-                return false;
-            }
-        }
-        else if(cmd_counter == 2)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            gas_species_radius = values[0];
-        }
-        else if(cmd_counter == 3)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            nr_zeeman_spectral_lines = uint(values[0]);
-        }
-        else if(cmd_counter == 4)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            for(uint i_trans = 0; i_trans < nr_of_transitions; i_trans++)
-            {
-                if(i_trans == int(values[0] - 1))
-                {
-                    // Set current zeeman transition index
-                    i_trans_zeeman = int(values[0] - 1);
-                    trans_is_zeeman_split[i_trans] = true;
-                    break;
-                }
-            }
-        }
-        else if(cmd_counter == 5)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            // Save the lande factor of the upper energy level
-            lande_factor[getUpperEnergyLevel(i_trans_zeeman)] = values[0];
-            //cout << "Landee:" << lande_factor[0] << "   " << lande_factor[1] << endl;
-        }
-        else if(cmd_counter == 6)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            // Save the lande factor of the lower energy level
-            lande_factor[getLowerEnergyLevel(i_trans_zeeman)] = values[0];
-            //cout << "Landee:" << lande_factor[0] << "   " << lande_factor[1] << endl;
-        }
-        else if(cmd_counter == 7)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            // Save the number of sublevel per energy level
-            nr_of_sublevel[getUpperEnergyLevel(i_trans_zeeman)] = int(values[0]);
-        }
-        else if(cmd_counter == 8)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            // Save the number of sublevel per energy level
-            nr_of_sublevel[getLowerEnergyLevel(i_trans_zeeman)] = int(values[0]);
-
-            // Set local number of sublevel for the involved energy levels
-            uint nr_of_sublevel_upper = nr_of_sublevel[getUpperEnergyLevel(i_trans_zeeman)];
-            uint nr_of_sublevel_lower = nr_of_sublevel[getLowerEnergyLevel(i_trans_zeeman)];
-
-            // Calculate the numbers of transitions possible for sigma and pi transitions
-            nr_pi_spectral_lines = min(nr_of_sublevel_upper, nr_of_sublevel_lower);
-            nr_sigma_spectral_lines = nr_of_sublevel_upper - 1;
-            if(nr_of_sublevel_upper != nr_of_sublevel_lower)
-            {
-                nr_sigma_spectral_lines = min(nr_of_sublevel_upper, nr_of_sublevel_lower);
-            }
-
-            // Clear the line strenth lists
-            line_strength_pi.clear();
-            line_strength_sigma_p.clear();
-            line_strength_sigma_m.clear();
-        }
-        else if(cmd_counter <= 8 + nr_pi_spectral_lines && cmd_counter > 8)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            line_strength_pi.push_back(values[0]);
-        }
-        else if(cmd_counter <= 8 + nr_pi_spectral_lines + nr_sigma_spectral_lines &&
-                cmd_counter > 8 + nr_pi_spectral_lines)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            line_strength_sigma_p.push_back(values[0]);
-        }
-        else if(cmd_counter <= 8 + nr_pi_spectral_lines + 2 * nr_sigma_spectral_lines &&
-                cmd_counter > 8 + nr_pi_spectral_lines + nr_sigma_spectral_lines)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            line_strength_sigma_m.push_back(values[0]);
-        }
-        else if(cmd_counter == 9 + nr_pi_spectral_lines + 2 * nr_sigma_spectral_lines)
-        {
-            if(values.size() != 1)
-            {
-                cout << ERROR_LINE << "Line " << line_counter << " wrong amount of numbers (Zeeman file)!" << endl;
-                return false;
-            }
-            for(uint i_trans = 0; i_trans < nr_of_transitions; i_trans++)
-            {
-                if(i_trans == int(values[0] - 1))
-                {
-                    // Set current zeeman transition index
-                    i_trans_zeeman = int(values[0] - 1);
-                    trans_is_zeeman_split[i_trans] = true;
-                    break;
-                }
-            }
-
-            cmd_counter = 4;
-        }
-
-        // After each Zeeman transition, adjust einstein coefficients
-        if(cmd_counter == 8 + nr_pi_spectral_lines + 2 * nr_sigma_spectral_lines)
-        {
-            // Init indices
-            uint i_pi = 0, i_sigma_p = 0, i_sigma_m = 0;
-
-            // Init variables
-            double line_strength;
-
-            // Get maximum number of transitions between sublevel
-            uint nr_sublevel_trans = getNrOfTransBetweenSublevels(i_trans_zeeman);
-
-            // Get indices to involved energy level
-            uint i_lvl_u = getUpperEnergyLevel(i_trans_zeeman);
-            uint i_lvl_l = getLowerEnergyLevel(i_trans_zeeman);
-
-            // Save einstein coefficients of major level and extend pointer array for
-            // the Zeeman transition
-            // Take also into account that the sublevels are treated separately
-            double tmp_einst_A = getEinsteinA(i_trans_zeeman);
-            delete[] trans_einstA[i_trans_zeeman];
-            trans_einstA[i_trans_zeeman] = new double[nr_sublevel_trans + 1];
-            
-
-            double tmp_einst_Bul = getEinsteinBul(i_trans_zeeman);
-            delete[] trans_einstB_ul[i_trans_zeeman];
-            trans_einstB_ul[i_trans_zeeman] = new double[nr_sublevel_trans + 1];
-            
-
-            double tmp_einst_Blu = getEinsteinBlu(i_trans_zeeman);
-            delete[] trans_einstB_lu[i_trans_zeeman];
-            trans_einstB_lu[i_trans_zeeman] = new double[nr_sublevel_trans + 1];
-            
-            for(uint ie=0;ie<nr_sublevel_trans + 1;ie++)
-            {
-                trans_einstA[i_trans_zeeman][ie] = 0;
-                trans_einstB_ul[i_trans_zeeman][ie] = 0;
-                trans_einstB_lu[i_trans_zeeman][ie] = 0;
-            }
-            
-            trans_einstA[i_trans_zeeman][0] = tmp_einst_A;
-            trans_einstB_ul[i_trans_zeeman][0] = tmp_einst_Bul;
-            trans_einstB_lu[i_trans_zeeman][0] = tmp_einst_Blu;
-            
-            //cout << CLR_LINE;
-            //cout << "Here A\n" << trans_einstB_lu[i_trans_zeeman][0] << "  " << i_trans_zeeman <<  "  " << nr_sublevel_trans + 1 << endl;
-
-            // Calculate the contribution of each allowed transition between Zeeman sublevels
-            for(uint i_sublvl_u = 0; i_sublvl_u < nr_of_sublevel[i_lvl_u]; i_sublvl_u++)
-            {
-                // Calculate the quantum number of the upper energy level
-                float sublvl_u = -getMaxM(i_lvl_u) + i_sublvl_u;
-
-                for(uint i_sublvl_l = 0; i_sublvl_l < nr_of_sublevel[i_lvl_l]; i_sublvl_l++)
-                {
-                    // Calculate the quantum number of the lower energy level
-                    float sublvl_l = -getMaxM(i_lvl_l) + i_sublvl_l;
-                    uint i_sublvl = getSublevelIndex(i_trans_zeeman, i_sublvl_u, i_sublvl_l);
-
-
-                    switch(int(sublvl_l - sublvl_u))
-                    {
-                        // Factor 2/3 or 1/3 comes from normalization in the Larsson paper
-                        // See Deguchi & Watson 1984 as well!
-                        case TRANS_SIGMA_P:
-                            // Get the relative line strength from Zeeman file
-                            line_strength = line_strength_sigma_p[i_sigma_p] * (2.0 / 3.0);
-
-                            // Increase the sigma_+ counter to circle through the line strengths
-                            i_sigma_p++;
-                            break;
-                        case TRANS_PI:
-                            // Get the relative line strength from Zeeman file
-                            line_strength = line_strength_pi[i_pi] * (1.0 / 3.0);
-
-                            // Increase the pi counter to circle through the line strengths
-                            i_pi++;
-                            break;
-                        case TRANS_SIGMA_M:
-                            // Get the relative line strength from Zeeman file
-                            line_strength = line_strength_sigma_m[i_sigma_m] * (2.0 / 3.0);
-
-                            // Increase the sigma_- counter to circle through the line strengths
-                            i_sigma_m++;
-                            break;
-                        default:
-                            // Forbidden line
-                            line_strength = 0;
-                            break;
-                    }
-
-                    // Set the einstein coefficients for the sublevels
-                    trans_einstA[i_trans_zeeman][i_sublvl + 1] =
-                        tmp_einst_A * line_strength * nr_of_sublevel[i_lvl_u];
-                    trans_einstB_ul[i_trans_zeeman][i_sublvl + 1] =
-                        tmp_einst_Bul * line_strength * nr_of_sublevel[i_lvl_u];
-                    trans_einstB_lu[i_trans_zeeman][i_sublvl + 1] = tmp_einst_Blu * line_strength * nr_of_sublevel[i_lvl_l];
-                }
-            }
-        }
-    }
-    reader.close();
-
-    for(uint i_line = 0; i_line < spectral_lines.size(); i_line++)
-    {
-        uint i_trans = getTransitionFromSpectralLine(i_line);
-        
-        if(getLandeUpper(i_trans) == 0) // || getLandeLower(i_trans) == 0
+    // TODO: what do we need zeeman split for??
+    for (auto& i_trans: spectral_lines) {
+	if (lande_factor[upper_level[i_trans]] == 0) // also lower level?
         {
             cout << SEP_LINE;
             cout << ERROR_LINE << "For transition number " << uint(i_trans + 1)
                  << " exists no Zeeman splitting data" << endl;
             return false;
-        }
-        else
-        {
-            trans_is_zeeman_split[i_trans] = true;
         }
     }
 

@@ -144,7 +144,7 @@ namespace rewrite {
 	    const auto param = sequence[idx];
 	    if (param.first != pt)
 		return std::unexpected{ Message {
-		    comp_error("Expected ", param_type(pt), " at position ", idx) } };
+		    std::format("Expected {} at position {}", param_type(pt), idx) } };
 
 	    auto pv = get_vector<pt>();
 	    return pv->at(param.second);

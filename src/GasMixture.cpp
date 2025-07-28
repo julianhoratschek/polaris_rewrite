@@ -5,6 +5,7 @@
 
 #include "GasMixture.hpp"
 #include "CommandParser.hpp"
+#include "parser/message.hpp"
 
 // This function is based on
 // Mol3d: 3D line and dust continuum radiative transfer code
@@ -419,12 +420,14 @@ bool CGasMixture::createGasSpecies(parameters & param)
         single_species[i_species].setSpectralLines(param.getSpectralLines(i_species));
 
         string path = param.getGasSpeciesCatalogPath(i_species);
-        if(!single_species[i_species].readGasParamaterFile(path, i_species, nr_of_species))
-            return false;
+        auto gas_param_res = single_species[i_species].readGasParameterFile(path, i_species, nr_of_species);
+
+	if (!gas_param_res)
+	    return rewrite::default_error_handler(gas_param_res.error());
 
         if(param.getZeemanCatalog(i_species) != "")
         {
-            if(!single_species[i_species].readZeemanParamaterFile(param.getZeemanCatalog(i_species)))
+            if(!single_species[i_species].readZeemanParameterFile(param.getZeemanCatalog(i_species), gas_param_res.value()))
                 return false;
         }
 

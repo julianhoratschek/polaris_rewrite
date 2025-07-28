@@ -273,8 +273,8 @@ namespace rewrite {
 	for (const auto& id: line.num_params) {
 	    if (id < minGRID || id > maxGRID)
 		return std::unexpected{ Message{
-		    comp_error( "Unknown grid ID!\n",
-			"A plot ID of ", id, " is not a valid POLARIS grid ID (see manual, Table 3.3)!\n") } };
+		    std::format(
+			"Unknown grid ID!\nA plot Id of {} if not a valid POLARIS grid ID (see manual, Table 3.3)!\n", id ) } };
 	    param.addToPlotList(id);
 	}
 
@@ -294,7 +294,7 @@ namespace rewrite {
 
 	if (dust_component_choice < 0)
 	    return std::unexpected{ Message {
-		comp_error( "ID ", dust_component_choice, " is not valid!") } };
+		std::format( "ID {} is not valid!", dust_component_choice ) } };
 
 	const auto e = line.get_id(0);
 	if (!e.has_value())
