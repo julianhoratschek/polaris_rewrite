@@ -5,7 +5,6 @@
 
 #include "SourceAGN.hpp"
 #include "CommandParser.hpp"
-#include "parser/agn_source_loader.hpp"
 
 bool CSourceAGN::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -81,11 +80,16 @@ bool CSourceAGN::initSource(uint id, uint max, bool use_energy_density)
 
 bool CSourceAGN::setParameterFromFile(parameters & param, uint p)
 {
-    // TODO: This is exactly StarSourceLoader
-    std::vector<double> values = param.getPointSources();
-    std::string filename = param.getPointSourceString(p / NR_OF_POINT_SOURCES);
+    dlist values = param.getPointSources();
+    string filename = param.getPointSourceString(p / NR_OF_POINT_SOURCES);
 
-    rewrite::AGNSourceLoader	loader;
+    ifstream reader(filename.c_str());
+    int line_counter = 0;
+    string line;
+    CCommandParser ps;
+
+    double w_min = 1e300;
+    double w_max = 0;
 
     is_ext = true;
 
@@ -93,21 +97,57 @@ bool CSourceAGN::setParameterFromFile(parameters & param, uint p)
     R = values[p + 3];
     T = values[p + 4];
 
-    nr_of_photons = static_cast<unsigned long long>(values[p + NR_OF_POINT_SOURCES - 1]);
+    nr_of_photons = ullong(values[p + NR_OF_POINT_SOURCES - 1]);
     cout << CLR_LINE << flush;
-    cout << "-> Loading spectrum for source star...\r" << flush;
+    cout << "-> Loading spectrum for source star...           \r" << flush;
 
-    if (const auto res = loader.parse_file(filename); !res)
-	return rewrite::default_error_handler(res.error());
+    if(reader.fail())
+    {
+        cout << ERROR_LINE << "Cannot open spectrum file: \n" << filename << "  \n" << endl;
+        return false;
+    }
 
-    auto& result = loader.get_result();
+    while(getline(reader, line))
+    {
+        ps.formatLine(line);
 
-    sp_ext.copyDynValue(result.x, std::move(result.sp_ext));
-    sp_ext_q.copyDynValue(result.x, std::move(result.sp_ext_q));
-    sp_ext_u.copyDynValue(result.x, std::move(result.sp_ext_u));
+        if(line.size() == 0)
+            continue;
+
+        dlist value = ps.parseValues(line);
+
+        if(value.size() != 4 && value.size() != 2)
+        {
+            cout << ERROR_LINE << "In spectrum file:\n" << filename << endl;
+            cout << "Wrong amount of values in line " << line_counter + 1 << "!" << endl;
+            return false;
+        }
+
+        line_counter++;
+        sp_ext.setDynValue(value[0], value[1]);
+
+        if(value.size() == 4)
+        {
+            sp_ext_q.setDynValue(value[0], value[2]);
+            sp_ext_u.setDynValue(value[0], value[3]);
+        }
+        else
+        {
+            sp_ext_q.setDynValue(value[0], 0);
+            sp_ext_u.setDynValue(value[0], 0);
+        }
+
+        if(w_min > value[0])
+            w_min = value[0];
+
+        if(w_max < value[0])
+            w_max = value[0];
+    }
+
     sp_ext.createDynSpline();
     sp_ext_q.createDynSpline();
     sp_ext_u.createDynSpline();
+    reader.close();
 
     return true;
 }

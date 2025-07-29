@@ -4,7 +4,7 @@
 ************************************************************************************/
 
 #include "SourceBackground.hpp"
-#include "parser/background_source_loader.hpp"
+#include "CommandParser.hpp"
 
 bool CSourceBackground::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -126,27 +126,90 @@ bool CSourceBackground::initSource(uint id, uint max, bool use_energy_density)
 bool CSourceBackground::setParameterFromFile(parameters & param, uint p)
 {
     dlist values = param.getDiffuseSources();
+    string filename = param.getBackgroundSourceString(p / NR_OF_BG_SOURCES);
 
-    rewrite::BackgroundSourceLoader	loader;
-
-    if (const auto res = loader.parse_file(param.getBackgroundSourceString(p / NR_OF_BG_SOURCES));
-	!res) return rewrite::default_error_handler( res.error() );
-
-    auto& file = loader.get_result();
+    ifstream reader(filename.c_str());
+    int line_counter = -2;
+    string line;
+    CCommandParser ps;
 
     rot_angle1 = values[p + 5];
     rot_angle2 = values[p + 6];
     nr_of_photons = ullong(values[p + 7]);
 
-    bins = file.bins;
-    max_len = bins * bins;
+    if(reader.fail())
+    {
+        cout << ERROR_LINE << "Cannot open file:\n" << filename << endl;
+        return false;
+    }
 
-    temp.set_to(bins, bins, file.tmp);
-    f.set_to(bins, bins, file.f);
-    q.set_to(bins, bins, file.q);
-    u.set_to(bins, bins, file.u);
-    v.set_to(bins, bins, file.v);
+    while(getline(reader, line))
+    {
+        ps.formatLine(line);
+
+        if(line.size() == 0)
+            continue;
+
+        dlist value = ps.parseValues(line);
+
+        if(value.size() == 0)
+            continue;
+
+        line_counter++;
+
+        if(line_counter == -1)
+        {
+            if(value.size() != 1)
+            {
+                cout << ERROR_LINE << "Wrong amount of values in:\n " << filename << endl;
+                cout << "1 value expected in line " << line_counter + 5 << " !" << endl;
+                return false;
+            }
+
+            bins = uint(value[0]);
+            max_len = bins * bins;
+
+            temp.resize(bins, bins);
+            f.resize(bins, bins);
+            q.resize(bins, bins);
+            u.resize(bins, bins);
+            v.resize(bins, bins);
+        }
+        else
+        {
+            if(line_counter > (int)max_len)
+            {
+                cout << ERROR_LINE << "To many background values in : " << filename << endl;
+                cout << max_len << " lines expected!" << endl;
+                return false;
+            }
+
+            if(value.size() == 5)
+            {
+                f.set(uint(line_counter), value[0]);
+                temp.set(uint(line_counter), value[1]);
+                q.set(uint(line_counter), value[2]);
+                u.set(uint(line_counter), value[3]);
+                v.set(uint(line_counter), value[4]);
+            }
+            else
+            {
+                cout << ERROR_LINE << "File : " << filename << endl;
+                cout << " 5 values in line " << line_counter + 1 << " expected!" << endl;
+                return false;
+            }
+        }
+    }
+
+    if(line_counter + 1 < (int)max_len)
+    {
+        cout << ERROR_LINE << "Not enough background values in : " << filename << endl;
+        cout << max_len << " lines expected!" << endl;
+        return false;
+    }
+
     constant = false;
+    reader.close();
 
     return true;
 }

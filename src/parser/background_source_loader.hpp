@@ -10,18 +10,25 @@ namespace rewrite {
 
     struct BackgroundSourceFile {
 	size_t			bins;
-	std::vector<double>	tmp;
-	std::vector<double>	f;
-	std::vector<double>	q;
-	std::vector<double>	u;
-	std::vector<double>	v;
+	double*			tmp;
+	double*			f;
+	double*			q;
+	double*			u;
+	double*			v;
     };
 
     class BackgroundSourceLoader: public BasicLoader {
 	BackgroundSourceFile		result;
 
     protected:
-	void cleanup() override { }
+	void cleanup() override
+	{
+	    delete[] result.tmp;
+	    delete[] result.f;
+	    delete[] result.q;
+	    delete[] result.u;
+	    delete[] result.v;
+	}
 
 
     public:
@@ -41,11 +48,11 @@ namespace rewrite {
 	    else result.bins = num.value();
 
 	    const size_t size = result.bins * result.bins;
-	    result.tmp.resize(size);
-	    result.f.resize(size);
-	    result.q.resize(size);
-	    result.u.resize(size);
-	    result.v.resize(size);
+	    result.tmp = new double[size];
+	    result.f = new double[size];
+	    result.q = new double[size];
+	    result.u = new double[size];
+	    result.v = new double[size];
 
 	    size_t i = 0;
 

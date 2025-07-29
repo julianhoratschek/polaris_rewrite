@@ -84,6 +84,7 @@ public:
     uint get_m();
 
     void resize(uint m, uint n);
+    void set_to(size_t m, size_t n, double* ownerless_values);
 
     void replace(double o_val, double n_val);
 
