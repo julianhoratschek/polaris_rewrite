@@ -5,6 +5,7 @@
 
 #include "SourceBackground.hpp"
 #include "parser/background_source_loader.hpp"
+#include "parser/message.hpp"
 
 bool CSourceBackground::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -123,14 +124,13 @@ bool CSourceBackground::initSource(uint id, uint max, bool use_energy_density)
     return true;
 }
 
-bool CSourceBackground::setParameterFromFile(parameters & param, uint p)
+bool CSourceBackground::setParameterFromFile(parameters& param, uint p)
 {
     dlist values = param.getDiffuseSources();
 
     rewrite::BackgroundSourceLoader	loader;
-
     if (const auto res = loader.parse_file(param.getBackgroundSourceString(p / NR_OF_BG_SOURCES));
-	!res) return rewrite::default_error_handler( res.error() );
+	!res) return rewrite::default_error_handler(res.error());
 
     auto& file = loader.get_result();
 
@@ -140,7 +140,6 @@ bool CSourceBackground::setParameterFromFile(parameters & param, uint p)
 
     bins = file.bins;
     max_len = bins * bins;
-
     temp.set_to(bins, bins, file.tmp);
     f.set_to(bins, bins, file.f);
     q.set_to(bins, bins, file.q);

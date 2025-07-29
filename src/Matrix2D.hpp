@@ -89,6 +89,7 @@ public:
     void replace(double o_val, double n_val);
 
     void resize(uint m, uint n, double val);
+    void set_to(size_t m, size_t n, double *ownerless);
 
     void printMatrix();
 
