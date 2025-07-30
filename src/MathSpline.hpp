@@ -132,6 +132,14 @@ public:
 	for (size_t i = 0; i < N; i++)
 	    if (x[i] != other.x[i] || y[i] != other.y[i])
 		return false;
+
+	// TODO: After createDySpline not necessary...
+	if (dx.size() != other.dx.size())
+	    return false;
+
+	for (size_t i = 0; i < dx.size(); i++)
+	    if (dx[i] != other.dx[i] || dy[i] != other.dy[i])
+		return false;
 	return true;
     }
 

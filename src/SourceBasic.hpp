@@ -94,7 +94,11 @@ public:
 
     virtual uint getBins();
 
+#ifdef TEST_REWRITE
+public:
+#else
 protected:
+#endif
     CDustMixture * dust;
     CGridBasic * grid;
 
