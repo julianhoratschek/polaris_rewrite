@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CGAS_SPECIES_1_H
-#define CGAS_SPECIES_1_H
+#ifndef CGAS_SPECIES_LEGACY_H
+#define CGAS_SPECIES_LEGACY_H
 
 #include "Faddeeva.hh"
 #include "GridBasic.hpp"
@@ -415,7 +415,11 @@ public:
                                    double energy,
                                    double * J_nu) const;
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     double ** collision_temp;
     uint **col_upper, **col_lower;
     double **trans_einstA, **trans_einstB_lu, **trans_einstB_ul;

@@ -416,7 +416,12 @@ public:
                                    double energy,
                                    double * J_nu) const;
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
+
     double ** collision_temp;
     uint **col_upper, **col_lower;
     double **trans_einstA, **trans_einstB_lu, **trans_einstB_ul;
