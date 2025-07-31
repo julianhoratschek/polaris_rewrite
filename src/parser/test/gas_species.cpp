@@ -75,8 +75,6 @@ namespace rewrite::testing {
 		ASSERT_THAT(lc_data.col_matrix[i][j], ::testing::ElementsAreArray(rw_data.col_matrix[i][j], rw_data.nr_of_col_temp[i]));
 	}
 
-
-
     }
     
 
