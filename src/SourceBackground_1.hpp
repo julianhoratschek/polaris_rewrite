@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CSOURCE_BACKGROUND_H
-#define CSOURCE_BACKGROUND_H
+#ifndef CSOURCE_BACKGROUND_LEGACY_H
+#define CSOURCE_BACKGROUND_LEGACY_H
 
 #include "DustMixture.hpp"
 #include "Vector3D.hpp"
@@ -14,6 +14,8 @@
 #include "SourceBasic.hpp"
 #include "Stokes.hpp"
 #include "Typedefs.hpp"
+
+namespace rewrite::legacy {
 
 class CSourceBackground : public CSourceBasic
 {
@@ -73,7 +75,11 @@ public:
 
     void setOrientation(Vector3D n1, Vector3D n2, double _rot_angle1, double _rot_angle2);
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     Matrix2D temp, f, q, u, v;
     Vector3D ex, ey, ez;
     uint bins;
@@ -90,5 +96,7 @@ private:
     spline * lam_pf;
     double * L;
 };
+
+}
 
 #endif /* CSOURCE_BACKGROUND_H */

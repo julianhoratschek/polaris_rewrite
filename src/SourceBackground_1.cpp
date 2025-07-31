@@ -3,8 +3,10 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#include "SourceBackground.hpp"
+#include "SourceBackground_1.hpp"
 #include "CommandParser.hpp"
+
+namespace rewrite::legacy {
 
 bool CSourceBackground::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -331,4 +333,6 @@ void CSourceBackground::setOrientation(Vector3D n1, Vector3D n2, double _rot_ang
     ex.normalize();
     ey.normalize();
     ez.normalize();
+}
+
 }

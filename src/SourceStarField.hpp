@@ -36,7 +36,11 @@ public:
     bool setParameterFromFile(parameters & param, uint p);
     void setParameter(parameters & param, uint p);
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     double var;
 };
 

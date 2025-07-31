@@ -3,8 +3,10 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#include "SourceISRF.hpp"
+#include "SourceISRF_1.hpp"
 #include "CommandParser.hpp"
+
+namespace rewrite::legacy {
 
 bool CSourceISRF::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -281,4 +283,6 @@ void CSourceISRF::setParameter(parameters & param, uint p)
     }
 
     sp_ext.createSpline();
+}
+
 }

@@ -73,7 +73,11 @@ public:
 
     void setOrientation(Vector3D n1, Vector3D n2, double _rot_angle1, double _rot_angle2);
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     Matrix2D temp, f, q, u, v;
     Vector3D ex, ey, ez;
     uint bins;

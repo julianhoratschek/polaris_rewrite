@@ -94,8 +94,8 @@ bool CSourceAGN::setParameterFromFile(parameters & param, uint p)
     T = values[p + 4];
 
     nr_of_photons = static_cast<unsigned long long>(values[p + NR_OF_POINT_SOURCES - 1]);
-    cout << CLR_LINE << flush;
-    cout << "-> Loading spectrum for source star...\r" << flush;
+    std::cout << CLR_LINE << std::flush;
+    std::cout << "-> Loading spectrum for source star...\r" << std::flush;
 
     if (const auto res = loader.parse_file(filename); !res)
 	return rewrite::default_error_handler(res.error());

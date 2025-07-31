@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CSOURCE_STARFIELD_H
-#define CSOURCE_STARFIELD_H
+#ifndef CSOURCE_STARFIELD_LEGACY_H
+#define CSOURCE_STARFIELD_LEGACY_H
 
 #include "DustMixture.hpp"
 #include "Vector3D.hpp"
@@ -14,6 +14,9 @@
 #include "SourceBasic.hpp"
 #include "Stokes.hpp"
 #include "Typedefs.hpp"
+
+
+namespace rewrite::legacy {
 
 class CSourceStarField : public CSourceBasic
 {
@@ -36,8 +39,14 @@ public:
     bool setParameterFromFile(parameters & param, uint p);
     void setParameter(parameters & param, uint p);
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     double var;
 };
+
+}
 
 #endif /* CSOURCE_STARFIELD_H */

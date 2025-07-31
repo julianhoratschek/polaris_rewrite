@@ -56,7 +56,11 @@ public:
 
     void createDirectRay(photon_package * pp, CRandomGenerator * rand_gen, Vector3D dir_obs);
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     Vector3D e, l;
 
     int kill_count;

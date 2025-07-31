@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CSOURCE_STAR_H
-#define CSOURCE_STAR_H
+#ifndef CSOURCE_STAR_LEGACY_H
+#define CSOURCE_STAR_LEGACY_H
 
 #include "DustMixture.hpp"
 #include "Vector3D.hpp"
@@ -14,6 +14,8 @@
 #include "SourceBasic.hpp"
 #include "Stokes.hpp"
 #include "Typedefs.hpp"
+
+namespace rewrite::legacy {
 
 class CSourceStar : public CSourceBasic
 {
@@ -37,5 +39,7 @@ public:
 
     void setParameter(parameters & param, uint p);
 };
+
+}
 
 #endif /* CSOURCE_STAR_H */

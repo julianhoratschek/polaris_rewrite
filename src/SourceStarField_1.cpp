@@ -3,8 +3,10 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#include "SourceStarField.hpp"
+#include "SourceStarField_1.hpp"
 #include "CommandParser.hpp"
+
+namespace rewrite::legacy {
 
 bool CSourceStarField::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -262,4 +264,6 @@ void CSourceStarField::setParameter(parameters & param, uint p)
     nr_of_photons = ullong(values[p + NR_OF_DIFF_SOURCES - 1]);
 
     L = R * T * T * T * T;
+}
+
 }

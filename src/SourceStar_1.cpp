@@ -3,8 +3,10 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#include "SourceStar.hpp"
+#include "SourceStar_1.hpp"
 #include "CommandParser.hpp"
+
+namespace rewrite::legacy {
 
 bool CSourceStar::initSource(uint id, uint max, bool use_energy_density)
 {
@@ -297,4 +299,6 @@ void CSourceStar::setParameter(parameters & param, uint p)
     nr_of_photons = (ullong)values[p + NR_OF_POINT_SOURCES - 1];
 
     L = PIx4 * con_sigma * (R * R_sun) * (R * R_sun) * T * T * T * T;
+}
+
 }

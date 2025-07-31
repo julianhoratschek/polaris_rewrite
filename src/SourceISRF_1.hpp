@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CSOURCE_ISRF_H
-#define CSOURCE_ISRF_H
+#ifndef CSOURCE_ISRF_LEGACY_H
+#define CSOURCE_ISRF_LEGACY_H
 
 #include "DustMixture.hpp"
 #include "Vector3D.hpp"
@@ -14,6 +14,8 @@
 #include "SourceBasic.hpp"
 #include "Stokes.hpp"
 #include "Typedefs.hpp"
+
+namespace rewrite::legacy {
 
 class CSourceISRF : public CSourceBasic
 {
@@ -56,7 +58,11 @@ public:
 
     void createDirectRay(photon_package * pp, CRandomGenerator * rand_gen, Vector3D dir_obs);
 
+#ifdef TEST_REWRITE
+public:
+#else
 private:
+#endif
     Vector3D e, l;
 
     int kill_count;
@@ -65,5 +71,7 @@ private:
     double radius, g_zero;
     double *c_w, *c_f;
 };
+
+}
 
 #endif /* CSOURCE_ISRF_H */

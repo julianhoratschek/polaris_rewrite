@@ -3,8 +3,8 @@
 *                         Copyright (C) 2018 Stefan Reissl                          *
 ************************************************************************************/
 
-#ifndef CSOURCE_AGN_H
-#define CSOURCE_AGN_H
+#ifndef CSOURCE_AGN_LEGACY_H
+#define CSOURCE_AGN_LEGACY_H
 
 #include "DustMixture.hpp"
 #include "Vector3D.hpp"
@@ -14,6 +14,8 @@
 #include "SourceBasic.hpp"
 #include "Stokes.hpp"
 #include "Typedefs.hpp"
+
+namespace rewrite::legacy {
 
 class CSourceAGN : public CSourceBasic
 {
@@ -35,5 +37,7 @@ public:
     bool setParameterFromFile(parameters & param, uint p);
     void setParameter(parameters & param, uint p);
 };
+
+}
 
 #endif /* CSOURCE_AGN_H */
