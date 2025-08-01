@@ -47,7 +47,8 @@ namespace rewrite {
 	    const size_t 	sz = line.num_params.size();
 	    if (sz < reg.param.min_cnt)
 		return std::unexpected{ Message { 
-		    comp_error("Too few parameters, expected at least ", reg.param.min_cnt) } };
+		    std::format(
+			"Too few parameters, expected at least {}", reg.param.min_cnt) } };
 	    
 	    if constexpr (reg.flags.check_wavelength) {
 		if (sz < 4) [[unlikely]]
@@ -68,7 +69,8 @@ namespace rewrite {
 
 	    if (!line.named_params.contains(pixel_name))
 		return std::unexpected{ Message {
-		    comp_error("Expected ", pixel_name, " named parameter") } };
+		    std::format(
+			"Expected {} named parameter", pixel_name ) } };
 	    
 	    std::vector<double>	nr_of_channels;
 	    std::vector<double>	nr_of_pixel = std::move(line.named_params[pixel_name]);
@@ -100,7 +102,6 @@ namespace rewrite {
 			"Number of velocity channels could not be recognized!" } };
 	    }
 
-	    // TODO: rather "not is_healpix"?
 	    if constexpr (reg.param.add_360_begin != 0) {
 		constexpr auto a = reg.param.add_360_begin;
 		constexpr auto b = a + 1;
@@ -136,7 +137,7 @@ namespace rewrite {
 	    if constexpr (reg.flags.with_vel_channels)
 		line.num_params.push_back(static_cast<uint>(nr_of_channels[0]));
 
-	    if(line.num_params.size() != reg.param.check_cnt) 
+	    if (line.num_params.size() != reg.param.check_cnt) 
 		return std::unexpected { Message {
 		    "Number of parameters could not be recognized" } };
 
@@ -184,17 +185,19 @@ namespace rewrite {
 
 	    if (nr_of_photons <= 0)
 		return std::unexpected{ Message {
-		    comp_error("Number of ", source_name, " photons could not be recognized!") } };
+		    std::format(
+			"Number of {} photons could not be recognized!", source_name ) } };
 
 	    std::string ps_path;
 
-	    // TODO: consteval?
 	    if constexpr (with_path) {
 		if (!line.str_params.empty()) {
 		    ps_path = line.str_params[0];
 		    if (line.num_params.size() != nr_of_sources - 5)
 			return std::unexpected{ Message {
-			    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 5, ')') } };
+			    std::format(
+				"False amount of parameters for source {} (expected {})",
+				source_name, nr_of_sources - 5 ) } };
 		    line.num_params.resize(nr_of_sources - 1, 0);
 		}
 	    }
@@ -204,7 +207,9 @@ namespace rewrite {
 
 	    if (line.num_params.size() != nr_of_sources - 1)
 		return std::unexpected{ Message {
-		    comp_error("False amount of parameters for source ", source_name, " (expected ", nr_of_sources - 3, " or ", nr_of_sources - 1, ')')} };
+		    std::format(
+			"False amount of parameters for source {} (expected {} or {})",
+			source_name, nr_of_sources - 3, nr_of_sources - 1 ) } };
 
 	    const auto	q = line.num_params[nr_of_sources - 3],
 			    u = line.num_params[nr_of_sources - 2];
@@ -594,11 +599,10 @@ namespace rewrite {
 
 	using namespace std::literals;
 
-	if (line.named_params.contains("id"sv)) try {
-	    dust_component_choice = line.named_params["id"sv].at(0);
-	}
-	catch(...) {
-	    return std::unexpected{ Message{ "Invalid dust component ID"} };
+	if (line.named_params.contains("id"sv)) {
+	    if (line.named_params["id"sv].empty())
+		return std::unexpected { Message { "Invalid dust component ID" } };
+	    dust_component_choice = line.named_params["id"sv][0];
 	}
 
 	const auto 	path_param = line.get_str(0);
@@ -608,16 +612,12 @@ namespace rewrite {
 		"Expected path as first parameter" } };
 
 	const std::string 	path{ path_param.value() };
-	const auto 		sz_keyword_param = line.get_str(1);
 
 	uint 			nr_size_parameter = 0;
-	std::string 		size_keyword;
+	std::string 		size_keyword = "plaw";
 
-	if (!sz_keyword_param.has_value())
-	    size_keyword = "plaw";
-
-	else {
-	    size_keyword = sz_keyword_param.value();
+	if (const auto res = line.get_str(1); res.has_value()) {
+	    size_keyword = res.value();
 
 	    // TODO make this better
 	    if (size_keyword.contains("plaw")) {
@@ -681,7 +681,8 @@ namespace rewrite {
 	}
 
         return std::unexpected{ Message{
-	    comp_error("Wrong number of size parameters (expected ", nr_size_parameter, ')') } };
+	    std::format(
+		"Wrong number of size parameters (expected {})", nr_size_parameter ) } };
     }
 
 
@@ -755,7 +756,7 @@ namespace rewrite {
 
 	const auto e = line.get_num(0);
 
-	if (!e.has_value())
+	if (!e)
 	    return std::unexpected{ e.error() };
 
 	const auto value = e.value();

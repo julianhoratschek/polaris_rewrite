@@ -47,37 +47,25 @@ bool CPipeline::Init(int argc, char** argv) {
 			// because random values later on are also determined
 			// by id of the current thread.
     
-	   cout <<
+    cout <<
 	"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-	       "┃                                         ┃\n"
+	"┃                                         ┃\n"
 	"┃                 POLARIS                 ┃\n"
 	"┃    ~ polarized radiation simulator ~    ┃\n"
 	"┃                                         ┃\n"
-	       "┃                 4.13.01                 ┃\n"
-	       "┃                                         ┃\n"
-	       "┃                                         ┃\n"
-	       "┃                                         ┃\n"
-	       "┃           © 2018 Stefan Reissl          ┃\n"
-	       "┃                                         ┃\n"
+	"┃                 4.13.01                 ┃\n"
+	"┃                                         ┃\n"
+	"┃                                         ┃\n"
+	"┃                                         ┃\n"
+	"┃           © 2018 Stefan Reissl          ┃\n"
+	"┃                                         ┃\n"
 	"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n" << endl;
-
-	//    cout << 
-	// "\t+-----------------------------------------+\n"
-	// "\t|                 POLARIS                 |\n"
-	// "\t|    ~ polarized radiation simulator ~    |\n"
-	// "\t|                                         |\n"
-	// "\t|                 4.13.01                 |\n"
-	// "\t|                                         |\n"
-	// "\t|                                         |\n"
-	// "\t|          (c)2018 Stefan Reissl          |\n"
-	// "\t|                                         |\n"
-	// "\t+-----------------------------------------+\n\n" << endl;
-
 
     if(argc != 2) 
 	return error_handler( rewrite::Message {
 	    "Wrong amount of arguments!\n"
-	    "\tPOLARIS requires only the path of a command file!\n"
+	    "\tPOLARIS requires only the path of a command file!\n",
+	    rewrite::Message::Sender::None
 	});
 
     rewrite::PolarisParser	parser;
@@ -87,9 +75,10 @@ bool CPipeline::Init(int argc, char** argv) {
 
     param_list = std::move(parser.get_param_list());
 
-    if(param_list.empty())
+    if (param_list.empty())
 	return error_handler(rewrite::Message {
-	    "No tasks defined"});
+	    "No tasks defined",
+	    rewrite::Message::Sender::None});
 
     return true;
 }

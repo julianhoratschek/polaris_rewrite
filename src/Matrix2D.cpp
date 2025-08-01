@@ -65,15 +65,6 @@ void Matrix2D::resize(uint m, uint n, double val)
         m_data[i] = val;
 }
 
-void Matrix2D::set_to(const size_t m, const size_t n, double* ownerless)
-{
-    m_n = n;
-    m_m = m;
-    m_size = m * n;
-    delete[] m_data;
-    m_data = ownerless;
-}
-
 void Matrix2D::printMatrix()
 {
     for(uint i = 0; i < m_m; i++)

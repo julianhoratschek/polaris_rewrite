@@ -19,6 +19,8 @@
 
 namespace rewrite {
 
+    // TODO: Maybe do a tokenizer? Parse first, interpret later?
+
     /**
      * Flags controlling parser processing
      */
@@ -150,6 +152,7 @@ namespace rewrite {
 
 		// Handle errors from parsing
 		// Here, Parser errors are marked as "sender: Parser"
+		// TODO: Correct format parameter for lines
 		if (!line_result) {
 		    const auto err = line_result.error();
 		    const Message parser_error {

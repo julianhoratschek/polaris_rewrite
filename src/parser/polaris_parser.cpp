@@ -147,14 +147,14 @@ namespace rewrite {
 		// Get Strings
 		case '"':
 		    if (const auto str = get_string();
-			!str.has_value()) return std::unexpected{ str.error() };
+			!str) return std::unexpected{ str.error() };
 		    else parsed_line.push_param<ParsedLine::ParamType::String>(str.value());
 		    break;
 
 		// Get commands (tags)
 		case '<':
 		    if (const auto e = get_command();
-			!e.has_value()) return std::unexpected{ e.error() };
+			!e) return std::unexpected{ e.error() };
 		    break;
 
 		// Get whitespace, numbers or identifiers
@@ -168,7 +168,7 @@ namespace rewrite {
 
 		    else if (is_number(c)) {
 			const auto num = get_number();
-			if (!num.has_value())
+			if (!num)
 			    return std::unexpected{ num.error() };
 
 			parsed_line.push_param<ParsedLine::ParamType::Number>(num.value());

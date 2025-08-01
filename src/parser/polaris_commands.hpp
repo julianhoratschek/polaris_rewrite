@@ -4,6 +4,9 @@
 #include "parsed_line.hpp"
 #include "../Parameters.hpp"
 
+// Write your own polaris cmds and include them here
+// #include "my_polaris_cmds.hpp"
+
 #include <map>
 #include <string_view>
 
@@ -11,6 +14,7 @@
  * HOW-TO...
  * ...add a new POLARIS-Command?
  *   - Define a new function in "polaris_commands.hpp" with the signature
+ *   	(Or in any header/cpp file, but include it into polaris_commands.hpp)
  *
  *   	  t_ret cmd_<your_command>(ParsedLine& line, parameters& param)
  *
