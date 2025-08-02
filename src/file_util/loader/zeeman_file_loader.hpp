@@ -26,11 +26,14 @@ namespace rewrite {
 	double*		lande_factor;
 	double		gas_species_radius;
 	size_t		nr_zeeman_spectral_lines;
+
+	void cleanup()
+	{
+	    delete[] lande_factor;
+	}
     };
 
-    class ZeemanFileLoader: public BasicLoader {
-	ZeemanFile 	result;
-
+    class ZeemanFileLoader: public BasicLoader<ZeemanFile> {
 	void realloc_trans_einst(double*& trans_einst, const size_t new_size)
 	{
 	    const double tmp_einst = trans_einst[0];
@@ -39,15 +42,7 @@ namespace rewrite {
 	    trans_einst[0] = tmp_einst;
 	}
 
-    protected:
-	void cleanup() override
-	{
-	    delete[] result.lande_factor;
-	}
-
     public:
-	ZeemanFile& get_result() { return result; }
-
 	// TODO: Mutable method!!!
 	// gas_param.trans_is_teeman_split
 	// gas_param.trans_einst...

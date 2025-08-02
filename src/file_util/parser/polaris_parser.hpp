@@ -1,8 +1,10 @@
 #ifndef RW_POLARIS_PARSER
 #define RW_POLARIS_PARSER
 
-#include "../Parameters.hpp"
-#include "basic_parser.hpp"
+#include "../../Parameters.hpp"
+#include "../basic_parser.hpp"
+#include "../util.hpp"
+
 #include "parsed_line.hpp"
 #include "polaris_commands.hpp"
 

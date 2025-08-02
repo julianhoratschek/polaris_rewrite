@@ -14,17 +14,12 @@ namespace rewrite {
 	std::vector<double>	sp_ext;
 	std::vector<double>	sp_ext_q;
 	std::vector<double>	sp_ext_u;
+
+	void cleanup() { }
     };
 
-    class AGNSourceLoader: public BasicLoader {
-	AGNSourceFile		result;
-
-    protected:
-	void cleanup() override { }
-
+    class AGNSourceLoader: public BasicLoader<AGNSourceFile> {
     public:
-	AGNSourceFile& get_result() { return result; }
-
 	std::expected<void, Message> parse_file(
 	    const std::filesystem::path& path)
 	{

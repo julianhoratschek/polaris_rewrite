@@ -14,20 +14,12 @@ namespace rewrite {
 	std::vector<double>	sp_ext;
 	std::vector<double>	sp_ext_q;
 	std::vector<double>	sp_ext_u;
+
+	void cleanup() {}
     };
 
-    class StarSourceLoader: public BasicLoader {
-	StarSourceFile		result;
-
-    protected:
-	void cleanup() override
-	{
-
-	}
-
+    class StarSourceLoader: public BasicLoader<StarSourceFile> {
     public:
-	StarSourceFile& get_result() { return result; }
-
 	std::expected<void, Message> parse_file(
 	    const std::filesystem::path& path)
 	{

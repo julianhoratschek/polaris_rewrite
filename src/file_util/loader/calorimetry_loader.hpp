@@ -1,7 +1,7 @@
 #ifndef RW_CALORIMETRY_LOADER
 #define RW_CALORIMETRY_LOADER
 
-#include "../Typedefs.hpp"
+#include "../../Typedefs.hpp"
 
 #include "basic_loader.hpp"
 #include <cstddef>
@@ -18,23 +18,18 @@ namespace rewrite {
 	double		*calorimetry_temperatures;
 	double		**enthalpy;
 	unsigned int	calorimetry_type;
+
+	void cleanup()
+	{
+	    for (auto i = 0; i < nr_of_dust_species; i++)
+		delete[] enthalpy[i];
+	    delete[] enthalpy;
+	    delete[] calorimetry_temperatures;
+	}
     };
 
-    class CalorimetryLoader: public BasicLoader {
-	CalorimetryFile	result;
-
-	void cleanup() override
-	{
-	    for (auto i = 0; i < result.nr_of_dust_species; i++)
-		delete[] result.enthalpy[i];
-	    delete[] result.enthalpy;
-	    delete[] result.calorimetry_temperatures;
-	}
-
-
+    class CalorimetryLoader: public BasicLoader<CalorimetryFile> {
     public:
-	CalorimetryFile& get_result() { return result; }
-
 	auto parse_file(
 	    const std::filesystem::path& path,
 	    const size_t nr_of_dust_species)

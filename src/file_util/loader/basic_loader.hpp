@@ -1,23 +1,29 @@
 #ifndef RW_BASIC_LOADER_HPP
 #define RW_BASIC_LOADER_HPP
 
-#include "basic_parser.hpp"
+#include "../basic_parser.hpp"
 #include <fstream>
 #include <vector>
 
 namespace rewrite {
 
+    template<typename T>
+    concept FileType = requires(T t) {
+	{ t.cleanup() };
+    };
+
+    template<FileType LoadFile>
     class BasicLoader: public BasicParser {
+
     protected:
 	std::ifstream		file;
 	std::vector<double>	values;
 
-	// TODO: use crtp instead?
-	virtual void cleanup() = 0;
+	LoadFile		result;
 
 	std::unexpected<Message> safe_error(const std::string& msg)
 	{
-	    cleanup();
+	    result.cleanup();
 	    file.close();
 
 	    return std::unexpected{ Message {
@@ -26,7 +32,7 @@ namespace rewrite {
 		Message::Sender::Processor,
 		line_nr,
 		error_distance()
-	    }};
+	    } };
 	}
 
 
@@ -86,8 +92,8 @@ namespace rewrite {
 
 
 	auto rdlines_vector(const size_t size, const std::string& param_name, std::vector<double>& out) 
-	    -> std::expected<void, Message> {
-
+	    -> std::expected<void, Message>
+	{
 	    std::expected<double, Message> num;
 	    size_t i;
 
@@ -107,6 +113,9 @@ namespace rewrite {
 			"Expected {} lines with single values for {}, got {}", size, param_name, i) );
 	    return {};
 	}
+
+    public:
+	LoadFile& get_result() { return result; }
     };
 
 }

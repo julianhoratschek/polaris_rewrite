@@ -15,7 +15,7 @@
 #include "Photon.hpp"
 #include "Vector3D.hpp"
 
-#include "parser/gas_parameter_loader.hpp"
+#include "file_util/loader/gas_parameter_loader.hpp"
 #include <expected>
 
 #define TRANS_SIGMA_P +1

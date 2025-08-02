@@ -13,20 +13,12 @@ namespace rewrite {
 	double			w_min, w_max;
 	std::vector<double>	x;
 	std::vector<double>	sp_ext_wl;
+
+	void cleanup() {}
     };
 
-    class ISRFLoader: public BasicLoader {
-	ISRFFile		result;
-
-    protected:
-	void cleanup() override {
-
-	}
-
+    class ISRFLoader: public BasicLoader<ISRFFile> {
     public:
-	ISRFFile& get_result() { return result; }
-
-
 	std::expected<void, Message> parse_file(
 	    const std::filesystem::path& path)
 	{

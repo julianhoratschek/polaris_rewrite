@@ -4,8 +4,7 @@
 ************************************************************************************/
 
 #include "SourceBackground.hpp"
-#include "parser/background_source_loader.hpp"
-#include "parser/message.hpp"
+#include "file_util/loader/background_source_loader.hpp"
 
 bool CSourceBackground::initSource(uint id, uint max, bool use_energy_density)
 {

@@ -4,8 +4,7 @@
 ************************************************************************************/
 
 #include "SourceAGN.hpp"
-#include "CommandParser.hpp"
-#include "parser/agn_source_loader.hpp"
+#include "file_util/loader/agn_source_loader.hpp"
 
 bool CSourceAGN::initSource(uint id, uint max, bool use_energy_density)
 {

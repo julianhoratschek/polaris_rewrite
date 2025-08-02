@@ -39,24 +39,20 @@ namespace rewrite {
 	double			*HG_g_factor_wl{nullptr};
 	double			*HG_g2_factor_wl{nullptr};
 	double			*HG_g3_factor_wl{nullptr};
+
+	void cleanup() {
+	    delete[] wavelengths;
+	    delete[] eff_wl;
+	    delete[] Qtrq_wl;
+	    delete[] HG_g_factor_wl;
+	    delete[] HG_g2_factor_wl;
+	    delete[] HG_g3_factor_wl;
+	}
     };
 
 
-    class DustParameterParser: public BasicLoader {
-	DustParameterFile	result;
-
-	void cleanup() override {
-	    delete[] result.wavelengths;
-	    delete[] result.eff_wl;
-	    delete[] result.Qtrq_wl;
-	    delete[] result.HG_g_factor_wl;
-	    delete[] result.HG_g2_factor_wl;
-	    delete[] result.HG_g3_factor_wl;
-	}
-
+    class DustParameterParser: public BasicLoader<DustParameterFile> {
     public:
-	DustParameterFile& get_result() { return result; }
-
 	// template<ErrorHandlerFn ErrorFn>
 	// auto parse_file(std::filesystem::path path, ErrorFn error_handler)
 	auto parse_file(std::filesystem::path path)

@@ -58,11 +58,6 @@ SET (SRC_FILES
     Stokes.cpp
     Synchrotron.cpp SyncParameters.cpp
     Vector3D.cpp
-
-    # parser/basic_parser.cpp
-    # parser/polaris_commands.cpp
-    # parser/parsed_line.cpp
-    # parser/polaris_parser.cpp
 )
 
 ADD_EXECUTABLE (polaris main.cpp ${SRC_FILES})
@@ -89,16 +84,19 @@ if (TEST_REWRITE)
     )
     FetchContent_MakeAvailable(benchmark)
 
+    set (RW_FILES
+	file_util/basic_parser.cpp
+	file_util/parser/polaris_commands.cpp
+	file_util/parser/parsed_line.cpp
+	file_util/parser/polaris_parser.cpp
+    )
+
     add_executable (test_dust_component
-	parser/test/dust_component_parameter_parser.cpp
+	file_util/test/dust_component_parameter_parser.cpp
 	DustComponent_1.cpp
 
 	${SRC_FILES}
-
-	parser/basic_parser.cpp
-	parser/polaris_commands.cpp
-	parser/parsed_line.cpp
-	parser/polaris_parser.cpp
+	${RW_FILES}
     )
 
     target_compile_definitions (test_dust_component PRIVATE TEST_REWRITE)
@@ -113,13 +111,10 @@ if (TEST_REWRITE)
     target_include_directories (test_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
 
     add_executable (bm_dust_component
-	parser/benchmark/dust_component_parameter_parser.cpp
+	file_util/benchmark/dust_component_parameter_parser.cpp
 	DustComponent_1.cpp
 	${SRC_FILES}
-	parser/basic_parser.cpp
-	parser/polaris_commands.cpp
-	parser/parsed_line.cpp
-	parser/polaris_parser.cpp
+	${RW_FILES}
     )
     target_link_libraries (bm_dust_component
 	${CCFITS_LIBRARY}
@@ -128,11 +123,6 @@ if (TEST_REWRITE)
 	benchmark::benchmark
     )
     target_include_directories (bm_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
-
-	#    target_link_libraries (test_parser
-	# OpenMP::OpenMP_CXX)
-	# GTest::gmock
-	# GTest::gtest_main)
 endif()
 
 if(BUILD_TESTING)

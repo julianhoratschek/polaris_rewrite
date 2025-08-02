@@ -10,7 +10,7 @@
 
 #include "basic_loader.hpp"
 
-#include "../Typedefs.hpp"
+#include "../../Typedefs.hpp"
 
 namespace rewrite {
 
@@ -43,52 +43,48 @@ namespace rewrite {
 	unsigned int**	col_upper;
 	unsigned int**	col_lower;
 	double***	col_matrix;
+
+	void cleanup() {
+	    delete[] energy_level;
+	    delete[] g_level;
+	    delete[] quantum_numbers;
+	    delete[] nr_of_sublevel;
+
+	    delete[] upper_level;
+	    delete[] lower_level;
+	    delete[] trans_freq;
+	    delete[] trans_inner_energy;
+	    delete[] trans_is_zeeman_split;
+	    for (auto i=0; i < nr_of_transitions; i++) {
+		delete[] trans_einstA[i];
+		delete[] trans_einstB_ul[i];
+		delete[] trans_einstB_lu[i];
+	    }
+	    delete[] trans_einstA;
+	    delete[] trans_einstB_ul;
+	    delete[] trans_einstB_lu;
+
+	    delete[] nr_of_col_transition;
+	    delete[] nr_of_col_temp;
+	    delete[] orientation_H2;
+	    for (auto i=0; i < nr_of_col_partner; i++) {
+		delete[] collision_temp[i];
+		delete[] col_upper[i];
+		delete[] col_lower[i];
+
+		for (auto j=0; j < nr_of_transitions; j++)
+		    delete[] col_matrix[i][j];
+		delete[] col_matrix[i];
+	    }
+	    delete[] collision_temp;
+	    delete[] col_upper;
+	    delete[] col_lower;
+	    delete[] col_matrix;
+	}
     };
 
-    class GasParameterLoader: public BasicLoader {
-	GasParameterFile result;
-
-	void cleanup() override {
-	    delete[] result.energy_level;
-	    delete[] result.g_level;
-	    delete[] result.quantum_numbers;
-	    delete[] result.nr_of_sublevel;
-
-	    delete[] result.upper_level;
-	    delete[] result.lower_level;
-	    delete[] result.trans_freq;
-	    delete[] result.trans_inner_energy;
-	    delete[] result.trans_is_zeeman_split;
-	    for (auto i=0; i < result.nr_of_transitions; i++) {
-		delete[] result.trans_einstA[i];
-		delete[] result.trans_einstB_ul[i];
-		delete[] result.trans_einstB_lu[i];
-	    }
-	    delete[] result.trans_einstA;
-	    delete[] result.trans_einstB_ul;
-	    delete[] result.trans_einstB_lu;
-
-	    delete[] result.nr_of_col_transition;
-	    delete[] result.nr_of_col_temp;
-	    delete[] result.orientation_H2;
-	    for (auto i=0; i < result.nr_of_col_partner; i++) {
-		delete[] result.collision_temp[i];
-		delete[] result.col_upper[i];
-		delete[] result.col_lower[i];
-
-		for (auto j=0; j < result.nr_of_transitions; j++)
-		    delete[] result.col_matrix[i][j];
-		delete[] result.col_matrix[i];
-	    }
-	    delete[] result.collision_temp;
-	    delete[] result.col_upper;
-	    delete[] result.col_lower;
-	    delete[] result.col_matrix;
-	}
-
+    class GasParameterLoader: public BasicLoader<GasParameterFile> {
     public:
-	GasParameterFile& get_result() { return result; }
-
 	auto parse_file(
 	    const std::filesystem::path& path,
 	    const std::vector<int>& spectral_lines)

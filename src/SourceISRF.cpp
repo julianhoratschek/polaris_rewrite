@@ -4,8 +4,7 @@
 ************************************************************************************/
 
 #include "SourceISRF.hpp"
-#include "parser/isrf_loader.hpp"
-#include "parser/message.hpp"
+#include "file_util/loader/isrf_loader.hpp"
 
 bool CSourceISRF::initSource(uint id, uint max, bool use_energy_density)
 {

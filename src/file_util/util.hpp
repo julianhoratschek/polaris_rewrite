@@ -1,28 +1,10 @@
 #ifndef RW_UTIL_HPP
 #define RW_UTIL_HPP
 
-#include <sstream>
 #include <utility>
 
 
 namespace rewrite {
-
-    /**
-     * Helper function to create error strings
-     * @tparam Args arguments to add to `msg`
-     * @param msg Start of the error message
-     * @param args... Arguments to add onto `msg`
-     * @returns `msg` and `args` as a continuous string
-     */
-    template<typename... Args>
-    std::string comp_error(const std::string& msg, Args... args) {
-	std::ostringstream os;
-	os << msg;
-
-	((os << args), ...);
-	return os.str();
-    }
-
 
     /**
      * Trigger-consteval method to enable flag-processing templates for an

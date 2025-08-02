@@ -27,23 +27,17 @@ namespace rewrite {
 	double 		*wavelengths{nullptr};
 	double		*real_part{nullptr};
 	double		*imag_part{nullptr};
+
+	void cleanup()
+	{
+	    delete[] wavelengths;
+	    delete[] real_part;
+	    delete[] imag_part;
+	}
     };
 
-    class RefractiveIndexFileLoader: public BasicLoader {
-	RefractiveIndexFile	result;
-	std::ifstream		file;
-
-	void cleanup() override
-	{
-	    delete[] result.wavelengths;
-	    delete[] result.real_part;
-	    delete[] result.imag_part;
-	}
-    
+    class RefractiveIndexFileLoader: public BasicLoader<RefractiveIndexFile> {
     public:
-
-	RefractiveIndexFile& get_result() { return result; }
-
 	auto parse_file(
 	    const std::filesystem::path& path)
 	    -> std::expected<void, Message>

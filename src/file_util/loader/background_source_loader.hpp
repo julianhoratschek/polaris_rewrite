@@ -15,26 +15,18 @@ namespace rewrite {
 	double*			q;
 	double*			u;
 	double*			v;
+
+	void cleanup() {
+	    delete[] tmp;
+	    delete[] f;
+	    delete[] q;
+	    delete[] u;
+	    delete[] v;
+	}
     };
 
-    class BackgroundSourceLoader: public BasicLoader {
-	BackgroundSourceFile		result;
-
-    protected:
-	void cleanup() override
-	{
-	    delete[] result.tmp;
-	    delete[] result.f;
-	    delete[] result.q;
-	    delete[] result.u;
-	    delete[] result.v;
-	}
-
-
+    class BackgroundSourceLoader: public BasicLoader<BackgroundSourceFile> {
     public:
-
-	BackgroundSourceFile& get_result() { return result; }
-
 	auto parse_file(const std::filesystem::path& filename)
 	    -> std::expected<void, Message>
 	{

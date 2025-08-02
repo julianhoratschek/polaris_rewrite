@@ -6,8 +6,7 @@
 #include "SourceStar.hpp"
 #include "CommandParser.hpp"
 
-#include "parser/message.hpp"
-#include "parser/star_source_loader.hpp"
+#include "file_util/loader/star_source_loader.hpp"
 
 bool CSourceStar::initSource(uint id, uint max, bool use_energy_density)
 {

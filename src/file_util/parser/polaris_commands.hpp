@@ -2,7 +2,7 @@
 #define RW_POLARIS_COMMANDS
 
 #include "parsed_line.hpp"
-#include "../Parameters.hpp"
+#include "../../Parameters.hpp"
 
 // Write your own polaris cmds and include them here
 // #include "my_polaris_cmds.hpp"

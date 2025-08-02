@@ -1033,7 +1033,7 @@ namespace rewrite {
         if(tr > max_t) {
 	    param.setNrOfThreads(max_t);
 	    return std::unexpected{ Message {
-		comp_error("Max. nr. of threads is:  ", max_t),
+		std::format("Max. nr. of threads is:  {}", max_t), 
 		Message::Type::Warning } };
         }
 

@@ -1,8 +1,7 @@
 #ifndef RW_PARSED_LINE
 #define RW_PARSED_LINE
 
-#include "util.hpp"
-#include "message.hpp"
+#include "../message.hpp"
 
 #include <vector>
 #include <string>

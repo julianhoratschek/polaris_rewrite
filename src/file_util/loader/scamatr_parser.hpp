@@ -1,8 +1,8 @@
 #ifndef RW_SCAMATR_PARSER
 #define RW_SCAMATR_PARSER
 
-#include "../Typedefs.hpp"
-#include "../MathInterp.hpp"
+#include "../../Typedefs.hpp"
+#include "../../MathInterp.hpp"
 
 #include "basic_loader.hpp"
 
@@ -10,7 +10,6 @@
 #include <expected>
 #include <filesystem>
 #include <fstream>
-#include <vector>
 
 namespace rewrite {
 
@@ -22,22 +21,15 @@ namespace rewrite {
 	unsigned int	phID;
 	interp*		sca_mat_wl;
 	bool		disable_mie_scattering;
+
+	void cleanup()
+	{
+	    delete[] sca_mat_wl;
+	}
     };
     
-    class ScaMatrParser: public BasicLoader {
-	ScaMatrFile		result;
-
-	void cleanup() override {
-	    delete[] result.sca_mat_wl;
-	}
-
-
+    class ScaMatrParser: public BasicLoader<ScaMatrFile> {
     public:
-	ScaMatrFile& get_result() {
-	    return result;
-	}
-
-	
 	auto parse_file(const std::filesystem::path& path,
 	    const size_t nr_of_dust_species,
 	    const size_t nr_of_wavelength_dustcat,
