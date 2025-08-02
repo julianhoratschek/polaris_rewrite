@@ -6,7 +6,6 @@
 #include "../util.hpp"
 
 #include "parsed_line.hpp"
-#include "polaris_commands.hpp"
 
 #include <filesystem>
 #include <vector>
@@ -74,7 +73,7 @@ namespace rewrite {
 	BlockType			current_block{ BlockType::None };
 
 	/// Maps "command name" -> command_function
-	command_map			commands;
+	// command_map			commands;
 
 	/// Control flow of parser
 	CommandProcessingMode		processing_mode{ CommandProcessingMode::None };
@@ -107,8 +106,8 @@ namespace rewrite {
 
     public:
 
-	PolarisParser()
-	    : commands{make_cmd_map()} {}
+	PolarisParser() = default;
+	    // : commands{make_cmd_map()} {}
 
 
 	/**

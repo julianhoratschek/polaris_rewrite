@@ -1,4 +1,5 @@
 #include "polaris_parser.hpp"
+#include "polaris_command_register.hpp"
 
 namespace rewrite {
 
@@ -62,15 +63,15 @@ namespace rewrite {
 	    // Includes empty and comment lines
 	    case ParsedLine::Type::ValueLine:
 		if (!parsed_line.empty())
-		    return std::unexpected{ Message{
-			"Missing <cmd>" } };
+		    return std::unexpected{ Message{ "Missing <cmd>" } };
 		return {};
 
 
 	    case ParsedLine::Type::ClosingTag:
 		if (block_to_str(current_block) != parsed_line.command)
 		    return std::unexpected{ Message{
-			std::format("Wrong closing tag, expected </{}>",
+			std::format(
+			    "Wrong closing tag, expected </{}>",
 			    block_to_str(current_block)) } };
 
 		current_block = BlockType::None;
@@ -117,20 +118,27 @@ namespace rewrite {
 		}
 
 		// Handle line commands inside blocks
-		try {
-		    if (const auto e = commands.at(parsed_line.command)(parsed_line, *param);
-			!e.has_value()) return e;
-		}
-		catch(const std::out_of_range&) {
-		    return std::unexpected { Message {
-			std::format("Unknown Command '{}'", parsed_line.command) } };
-		}
+		if (const auto fn = PolarisCommands::get_command(parsed_line.command);
+		    !fn) return std::unexpected { fn.error() };
+
+		else if (const auto res = fn.value()(parsed_line, *param);
+		    !res) return res;
+
+		// try {
+		//     if (const auto e = commands.at(parsed_line.command)(parsed_line, *param);
+		// 	!e.has_value()) return e;
+		// }
+		// catch(const std::out_of_range&) {
+		//     return std::unexpected { Message {
+		// 	std::format("Unknown Command '{}'", parsed_line.command) } };
+		// }
 
 		break;
 	}
 
 	return {};
     }
+
 
     auto PolarisParser::parse_line()
 	-> std::expected<void, Message> {

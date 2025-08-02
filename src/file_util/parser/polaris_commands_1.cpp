@@ -235,7 +235,7 @@ namespace rewrite {
 
     //---------------------------------------------------------------------
 
-    DEFINE_COMMAND(cmd) {
+    t_ret cmd_cmd(ParsedLine& line, parameters& param) {
 
 	constexpr auto commands = std::array {
 	    "CMD_TEMP", "CMD_DUST_EMISSION", "CMD_DUST_SCATTERING",
@@ -259,17 +259,17 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(delta0) {
+    t_ret cmd_delta0(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setDelta0);
     }
 
 
-    DEFINE_COMMAND(larm_f) {
+    t_ret cmd_larm_f(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setLarmF);
     }
 
 
-    DEFINE_COMMAND(plot_list) {
+    t_ret cmd_plot_list(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.empty())
 	    return std::unexpected{ Message{
@@ -287,7 +287,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(phase_function) {
+    t_ret cmd_phase_function(ParsedLine& line, parameters& param) {
 	constexpr auto phfn = std::array {
 	    "PH_ISO", "PH_HG", "PH_DHG", "PH_TTHG", "PH_MIE" };
 
@@ -315,14 +315,14 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(star_mass) {
+    t_ret cmd_star_mass(ParsedLine& line, parameters& param) {
 	for(const auto& mass: line.num_params)
 	    param.addStarMass(mass * M_sun);
 	return {};
     }
 
 
-    DEFINE_COMMAND(opiata_path_emi) {
+    t_ret cmd_opiata_path_emi(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else
@@ -331,7 +331,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(opiata_path_abs) {
+    t_ret cmd_opiata_path_abs(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else
@@ -340,7 +340,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(gas_species) {
+    t_ret cmd_gas_species(ParsedLine& line, parameters& param) {
 
 	constexpr auto pop = std::array{
 	    "POP_MC", "POP_LTE", "POP_FEP", "POP_LVG", "POP_DEGUCHI_LVG"
@@ -380,13 +380,13 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(source_star) {
+    t_ret cmd_source_star(ParsedLine& line, parameters& param) {
 	return add_source(
 	    line, param, &parameters::addPointSource, "star", NR_OF_POINT_SOURCES);
     }
 
 
-    DEFINE_COMMAND(source_starfield) {
+    t_ret cmd_source_starfield(ParsedLine& line, parameters& param) {
 	return add_source(
 	    line, param, &parameters::addDiffuseSource, "starfield", NR_OF_DIFF_SOURCES);
     }
@@ -394,7 +394,7 @@ namespace rewrite {
 
     // TODO very strange behavior: completely differs from other sources, params
     // seem in wrong order
-    DEFINE_COMMAND(source_background) {
+    t_ret cmd_source_background(ParsedLine& line, parameters& param) {
 
 	using namespace std::literals;
 	
@@ -436,13 +436,13 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(source_laser) {
+    t_ret cmd_source_laser(ParsedLine& line, parameters& param) {
 	return add_source(
 	    line, param, &parameters::addLaserSource, "laser", NR_OF_LASER_SOURCES);
     }
 
 
-    DEFINE_COMMAND(axis1) {
+    t_ret cmd_axis1(ParsedLine& line, parameters& param) {
 	if (line.num_params.size() != 3)
 	    return std::unexpected{ Message {
 		"Values for first axis are not a vector" } };
@@ -451,7 +451,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(axis2) {
+    t_ret cmd_axis2(ParsedLine& line, parameters& param) {
 	if (line.num_params.size() != 3)
 	    return std::unexpected{ Message {
 		"Values for second axis are not a vector" } };
@@ -460,7 +460,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(align) {
+    t_ret cmd_align(ParsedLine& line, parameters& param) {
 	constexpr auto alignments = std::array{
 	    "ALIG_INTERNAL", "ALIG_PA", "ALIG_IDG", "ALIG_RAT",
 	    "ALIG_GOLD", "ALIG_KRAT", "ALIG_NONPA"
@@ -479,12 +479,12 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(mu) {
+    t_ret cmd_mu(ParsedLine& line, parameters& param) {
 	    return param_set_number(line, param, &parameters::setMu);
     }
 
 
-    DEFINE_COMMAND(xy_min) {
+    t_ret cmd_xy_min(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -495,7 +495,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(xy_max) {
+    t_ret cmd_xy_max(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -506,7 +506,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(xy_steps) {
+    t_ret cmd_xy_steps(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -517,12 +517,12 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(xy_bins) {
+    t_ret cmd_xy_bins(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setXYBins);
     }
 
 
-    DEFINE_COMMAND(xy_label) {
+    t_ret cmd_xy_label(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else {
@@ -533,7 +533,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(healpix_orientation) {
+    t_ret cmd_healpix_orientation(ParsedLine& line, parameters& param) {
 	constexpr auto healpix = std::array{
 	    "HEALPIX_FIXED", "HEALPIX_YAXIS", "HEALPIX_CENTER" };
 
@@ -549,7 +549,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(path_grid) {
+    t_ret cmd_path_grid(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathGrid(std::string{e.value()});
@@ -557,7 +557,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(path_grid_cgs) {
+    t_ret cmd_path_grid_cgs(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathGrid(std::string{e.value()});
@@ -571,22 +571,22 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(sub_dust) {
+    t_ret cmd_sub_dust(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setSublimate);
     }
 
 
-    DEFINE_COMMAND(vel_maps) {
+    t_ret cmd_vel_maps(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setVelMaps);
     }
 
 
-    DEFINE_COMMAND(max_subpixel_lvl) {
+    t_ret cmd_max_subpixel_lvl(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMaxSubpixelLvl);
     }
 
 
-    DEFINE_COMMAND(path_input) {
+    t_ret cmd_path_input(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathInput(std::string{e.value()});
@@ -594,7 +594,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(dust_component) {
+    t_ret cmd_dust_component(ParsedLine& line, parameters& param) {
 	uint 		dust_component_choice = 0;
 
 	using namespace std::literals;
@@ -686,7 +686,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(path_out) {
+    t_ret cmd_path_out(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setPathOutput(std::string{e.value()});
@@ -694,65 +694,65 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(nr_plot_points) {
+    t_ret cmd_nr_plot_points(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setNrOfPlotPoints);
     }
 
 
-    DEFINE_COMMAND(nr_plot_vectors) {
+    t_ret cmd_nr_plot_vectors(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setnrOfPlotVectors);
     }
 
 
-    DEFINE_COMMAND(f_highJ) {
+    t_ret cmd_f_highJ(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setFhighJ);
     }
 
 
-    DEFINE_COMMAND(Q_ref) {
+    t_ret cmd_Q_ref(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setQref);
     }
 
 
-    DEFINE_COMMAND(alpha_Q) {
+    t_ret cmd_alpha_Q(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setAlphaQ);
     }
 
 
-    DEFINE_COMMAND(R_rayleigh) {
+    t_ret cmd_R_rayleigh(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setRayleighReductionFactor);
     }
 
 
-    DEFINE_COMMAND(f_c) {
+    t_ret cmd_f_c(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setFcorr);
     }
 
 
-    DEFINE_COMMAND(adj_tgas) {
+    t_ret cmd_adj_tgas(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setAdjTgas);
     }
 
 
-    DEFINE_COMMAND(max_plot_lines) {
+    t_ret cmd_max_plot_lines(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMaxPlotLines);
     }
 
-    DEFINE_COMMAND(start) {
+    t_ret cmd_start(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setStart(e.value() - 1);
 	return {};
     }
 
-    DEFINE_COMMAND(stop) {
+    t_ret cmd_stop(ParsedLine& line, parameters& param) {
 	if (const auto e = line.get_num(0); !e)
 	    return std::unexpected{ e.error() };
 	else param.setStop(e.value() - 1);
 	return {};
     }
 
-    DEFINE_COMMAND(conv_dens) {
+    t_ret cmd_conv_dens(ParsedLine& line, parameters& param) {
 
 	const auto e = line.get_num(0);
 
@@ -772,17 +772,17 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(conv_len) {
+    t_ret cmd_conv_len(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::updateSIConvLength);
     }
 
 
-    DEFINE_COMMAND(conv_mag) {
+    t_ret cmd_conv_mag(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::updateSIConvBField);
     }
 
 
-    DEFINE_COMMAND(conv_vel) {
+    t_ret cmd_conv_vel(ParsedLine& line, parameters& param) {
 
 	const auto e = line.get_num(0);
 
@@ -802,7 +802,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(mass_fraction) {
+    t_ret cmd_mass_fraction(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -821,21 +821,21 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(mrw) {
+    t_ret cmd_mrw(ParsedLine& line, parameters& param) {
 	const auto res = param_set_number(line, param, &parameters::setMRW);
 	return std::unexpected{ Message{
 	    "MRW currently unavailable", Message::Type::Warning } };
     }
 
 
-    DEFINE_COMMAND(pda) {
+    t_ret cmd_pda(ParsedLine& line, parameters& param) {
 	const auto res = param_set_number(line, param, &parameters::setPDA);
 	return std::unexpected{ Message{
 	    "PDA currently unavailable", Message::Type::Warning } };
     }
 
 
-    DEFINE_COMMAND(dust_offset) {
+    t_ret cmd_dust_offset(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	using namespace std::literals;
@@ -859,7 +859,7 @@ namespace rewrite {
     }
     
 
-    DEFINE_COMMAND(dust_gas_coupling) {
+    t_ret cmd_dust_gas_coupling(ParsedLine& line, parameters& param) {
 
 	using namespace std::literals;
 
@@ -884,27 +884,27 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(radiation_field) {
+    t_ret cmd_radiation_field(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setSaveRadiationField);
     }
 
 
-    DEFINE_COMMAND(rt_scattering) {
+    t_ret cmd_rt_scattering(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setScatteringToRay);
     }
 
 
-    DEFINE_COMMAND(split_dust_emission) {
+    t_ret cmd_split_dust_emission(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setSplitDustEmission);
     }
 
 
-    DEFINE_COMMAND(full_dust_temp) {
+    t_ret cmd_full_dust_temp(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setFullDustTemp);
     }
 
 
-    DEFINE_COMMAND(stochastic_heating) {
+    t_ret cmd_stochastic_heating(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 	if (!e.has_value())
 	    return std::unexpected{ e.error() };
@@ -919,7 +919,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(source_dust) {
+    t_ret cmd_source_dust(ParsedLine& line, parameters& param) {
 	using namespace std::literals;
 
 	if (line.named_params.contains("nr_photons"sv)) try {
@@ -937,7 +937,7 @@ namespace rewrite {
 
 
     // TODO: this behaves differently to old method
-    DEFINE_COMMAND(source_isrf) {
+    t_ret cmd_source_isrf(ParsedLine& line, parameters& param) {
 	using namespace std::literals;
 
 	if (!line.named_params.contains("nr_photons"sv))
@@ -974,7 +974,7 @@ namespace rewrite {
     }
     
 
-    DEFINE_COMMAND(foreground_extinction) {
+    t_ret cmd_foreground_extinction(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 3)
 	    return std::unexpected{ Message {
@@ -994,17 +994,17 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(enfsca) {
+    t_ret cmd_enfsca(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setEnfScattering);
     }
 
 
-    DEFINE_COMMAND(peel_off) {
+    t_ret cmd_peel_off(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setPeelOff);
     }
 
 
-    DEFINE_COMMAND(acceptance_angle) {
+    t_ret cmd_acceptance_angle(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 	if (!e.has_value())
 	    return std::unexpected{ e.error() };
@@ -1018,7 +1018,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(nr_threads) {
+    t_ret cmd_nr_threads(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -1049,32 +1049,32 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(vel_is_speed_of_sound) {
+    t_ret cmd_vel_is_speed_of_sound(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setIsSpeedOfSound);
     }
 
 
-    DEFINE_COMMAND(amira_inp_points) {
+    t_ret cmd_amira_inp_points(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setInpAMIRAPoints);
     }
 
 
-    DEFINE_COMMAND(amira_out_points) {
+    t_ret cmd_amira_out_points(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setOutAMIRAPoints);
     }
 
 
-    DEFINE_COMMAND(plot_inp_midplanes) {
+    t_ret cmd_plot_inp_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setInpMidPlot);
     }
 
 
-    DEFINE_COMMAND(plot_out_midplanes) {
+    t_ret cmd_plot_out_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setOutMidPlot);
     }
 
 
-    DEFINE_COMMAND(write_3d_midplanes) {
+    t_ret cmd_write_3d_midplanes(ParsedLine& line, parameters& param) {
 
 	if (line.num_params.size() < 1 || line.num_params.size() > 4)
 	    return std::unexpected{ Message{
@@ -1102,17 +1102,17 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(write_inp_midplanes) {
+    t_ret cmd_write_inp_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setInpMidDataPoints);
     }
 
 
-    DEFINE_COMMAND(write_out_midplanes) {
+    t_ret cmd_write_out_midplanes(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setOutMidDataPoints);
     }
 
 
-    DEFINE_COMMAND(write_radiation_field) {
+    t_ret cmd_write_radiation_field(ParsedLine& line, parameters& param) {
 	const auto e = line.get_num(0);
 
 	if (!e.has_value())
@@ -1130,49 +1130,49 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(write_full_radiation_field) {
+    t_ret cmd_write_full_radiation_field(ParsedLine& line, parameters& param) {
         return std::unexpected{ Message{
 	    "Command <write_full_radiation_field> is no longer available!",
 	    Message::Type::Warning } };
     }
 
 
-    DEFINE_COMMAND(write_g_zero) {
+    t_ret cmd_write_g_zero(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setWriteGZero);
     }
 
 
-    DEFINE_COMMAND(write_dust_files) {
+    t_ret cmd_write_dust_files(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setWriteDustFiles);
     }
 
 
-    DEFINE_COMMAND(midplane_zoom) {
+    t_ret cmd_midplane_zoom(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMidplaneZoom);
     }
 
 
-    DEFINE_COMMAND(kepler_star_mass) {
+    t_ret cmd_kepler_star_mass(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setKeplerStarMass);
     }
 
 
-    DEFINE_COMMAND(turbulent_velocity) {
+    t_ret cmd_turbulent_velocity(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setTurbulentVelocity);
     }
 
 
-    DEFINE_COMMAND(mc_lvl_pop_photons) {
+    t_ret cmd_mc_lvl_pop_photons(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMCLvlPopNrOfPhotons);
     }
 
 
-    DEFINE_COMMAND(mc_lvl_pop_seed) {
+    t_ret cmd_mc_lvl_pop_seed(ParsedLine& line, parameters& param) {
 	return param_set_number(line, param, &parameters::setMCLvlPopSeed);
     }
 
 
-    DEFINE_COMMAND(detector_opiate) {
+    t_ret cmd_detector_opiate(ParsedLine& line, parameters& param) {
 	
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1215,7 +1215,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_opiate_healpix) {
+    t_ret cmd_detector_opiate_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1258,7 +1258,7 @@ namespace rewrite {
 	return {};
     }
 
-    DEFINE_COMMAND(detector_line) {
+    t_ret cmd_detector_line(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1298,7 +1298,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_line_healpix) {
+    t_ret cmd_detector_line_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1333,7 +1333,7 @@ namespace rewrite {
         return {};
     }
 
-    DEFINE_COMMAND(detector_line_polar) {
+    t_ret cmd_detector_line_polar(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1366,7 +1366,7 @@ namespace rewrite {
         return {};
     }
 
-    DEFINE_COMMAND(detector_line_slice) {
+    t_ret cmd_detector_line_slice(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1401,7 +1401,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_dust) {
+    t_ret cmd_detector_dust(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1436,7 +1436,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_dust_healpix) {
+    t_ret cmd_detector_dust_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1471,7 +1471,7 @@ namespace rewrite {
         return {};
     }
 
-    DEFINE_COMMAND(detector_dust_polar) {
+    t_ret cmd_detector_dust_polar(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1504,7 +1504,7 @@ namespace rewrite {
         return {};
     }
 
-    DEFINE_COMMAND(detector_dust_slice) {
+    t_ret cmd_detector_dust_slice(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1538,7 +1538,7 @@ namespace rewrite {
 	return {};
     }
 
-    DEFINE_COMMAND(detector_dust_mc) {
+    t_ret cmd_detector_dust_mc(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1570,7 +1570,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_sync) {
+    t_ret cmd_detector_sync(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1605,7 +1605,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_sync_slice) {
+    t_ret cmd_detector_sync_slice(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
@@ -1640,7 +1640,7 @@ namespace rewrite {
     }
 
 
-    DEFINE_COMMAND(detector_sync_healpix) {
+    t_ret cmd_detector_sync_healpix(ParsedLine& line, parameters& param) {
 
 	constexpr DetectorRegistration	reg{
 	    {
