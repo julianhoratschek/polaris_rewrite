@@ -16,6 +16,9 @@ projects/*
 !projects/disk/
 !projects/test/
 
+*.dat
+*.fits.gz
+
 .tags
 .tags1
 null.d
