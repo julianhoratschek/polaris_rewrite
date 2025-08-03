@@ -8,6 +8,7 @@
 
 #include "Typedefs.hpp"
 #include "Vector3D.hpp"
+#include <array>
 
 class parameters
 {
@@ -726,342 +727,348 @@ public:
 	return detectors[cmd];
     }
 
-    string compare(const parameters& other) const {
-	if (!(cmd == other.cmd)) return to_string(cmd) + " " + to_string(other.cmd);
-	if (!(path_grid == other.path_grid)) return "path_grid";
-	if (!(path_input == other.path_input)) return "path_input";
-	if (!(path_output == other.path_output)) return "path_output";
-
-	if (!(max_subpixel_lvl == other.max_subpixel_lvl)) return "max_subpixel_lvl";
-	if (!(nr_ofThreads == other.nr_ofThreads)) return "nr_ofThreads: " + to_string(nr_ofThreads) + " " + to_string(other.nr_ofThreads);
-	if (!(task_id == other.task_id)) return "task_id";
-
-	if (!(conv_l_in_SI == other.conv_l_in_SI)) return "conv_l_in_SI";
-	if (!(conv_dH_in_SI == other.conv_dH_in_SI)) return "conv_dH_in_SI";
-	if (!(conv_B_in_SI == other.conv_B_in_SI)) return "conv_B_in_SI";
-	if (!(conv_V_in_SI == other.conv_V_in_SI)) return "conv_V_in_SI";
-	if (!(conv_mass_fraction == other.conv_mass_fraction)) return "conv_mass_fraction";
-	if (!(mu == other.mu)) return "mu";
-
-	if (!(min_rot_angle_1 == other.min_rot_angle_1)) return "min_rot_angle_1";
-	if (!(max_rot_angle_1 == other.max_rot_angle_1)) return "max_rot_angle_1";
-	if (!(min_rot_angle_2 == other.min_rot_angle_2)) return "min_rot_angle_2";
-	if (!(max_rot_angle_2 == other.max_rot_angle_2)) return "max_rot_angle_2";
-
-	if (!(min_sidelength_x == other.min_sidelength_x)) return "min_sidelength_x";
-	if (!(max_sidelength_x == other.max_sidelength_x)) return "max_sidelength_x";
-	if (!(min_sidelength_y == other.min_sidelength_y)) return "min_sidelength_y";
-	if (!(max_sidelength_y == other.max_sidelength_y)) return "max_sidelength_y";
-	if (!(use_grid_sidelength_x == other.use_grid_sidelength_x)) return "use_grid_sidelength_x";
-	if (!(use_grid_sidelength_y == other.use_grid_sidelength_y)) return "use_grid_sidelength_y";
-
-	if (!(min_ray_map_shift_x == other.min_ray_map_shift_x)) return "min_ray_map_shift_x";
-	if (!(min_ray_map_shift_y == other.min_ray_map_shift_y)) return "min_ray_map_shift_y";
-	if (!(max_ray_map_shift_x == other.max_ray_map_shift_x)) return "max_ray_map_shift_x";
-	if (!(max_ray_map_shift_y == other.max_ray_map_shift_y)) return "max_ray_map_shift_y";
-
-	if (!(align == other.align)) return "align";
-	if (!(min_detector_pixel_x == other.min_detector_pixel_x)) return "min_detector_pixel_x";
-	if (!(max_detector_pixel_x == other.max_detector_pixel_x)) return "max_detector_pixel_x";
-	if (!(min_detector_pixel_y == other.min_detector_pixel_y)) return "min_detector_pixel_y";
-	if (!(max_detector_pixel_y == other.max_detector_pixel_y)) return "max_detector_pixel_y";
-	if (!(nr_ofInpAMIRAPoints == other.nr_ofInpAMIRAPoints)) return "nr_ofInpAMIRAPoints";
-	if (!(nr_ofOutAMIRAPoints == other.nr_ofOutAMIRAPoints)) return "nr_ofOutAMIRAPoints";
-	if (!(nr_ofInpMidDataPoints == other.nr_ofInpMidDataPoints)) return "nr_ofInpMidDataPoints";
-	if (!(nr_ofOutMidDataPoints == other.nr_ofOutMidDataPoints)) return "nr_ofOutMidDataPoints";
-	if (!(midplane_zoom == other.midplane_zoom)) return "midplane_zoom";
-	if (!(max_dust_component_choice == other.max_dust_component_choice)) return "max_dust_component_choice";
-
-	if (!(plot_inp_points == other.plot_inp_points)) return "plot_inp_points";
-	if (!(plot_out_points == other.plot_out_points)) return "plot_out_points";
-	if (!(write_radiation_field == other.write_radiation_field)) return "write_radiation_field";
-	if (!(write_g_zero == other.write_g_zero)) return "write_g_zero";
-	if (!(write_dust_files == other.write_dust_files)) return "write_dust_files";
-
-	if (!(midplane_3d_param == other.midplane_3d_param)) return "midplane_3d_param";
-	if (!(star_mass == other.star_mass)) return "star_mass";
-
-	if (!(plot_list == other.plot_list)) return "plot_list";
-
-	if (!(b_mrw == other.b_mrw)) return "b_mrw";
-	if (!(b_pda == other.b_pda)) return "b_pda";
-	if (!(b_enforced == other.b_enforced)) return "b_enforced";
-	if (!(is_speed_of_sound == other.is_speed_of_sound)) return "is_speed_of_sound";
-	if (!(peel_off == other.peel_off)) return "peel_off";
-	if (!(vel_maps == other.vel_maps)) return "vel_maps";
-
-	if (!(dust_offset == other.dust_offset)) return "dust_offset";
-	if (!(dust_gas_coupling == other.dust_gas_coupling)) return "dust_gas_coupling";
-	if (!(full_dust_temp == other.full_dust_temp)) return "full_dust_temp";
-	if (!(save_radiation_field == other.save_radiation_field)) return "save_radiation_field";
-	if (!(scattering_to_raytracing == other.scattering_to_raytracing)) return "scattering_to_raytracing";
-	if (!(split_dust_emision == other.split_dust_emision)) return "split_dust_emision";
-	if (!(individual_dust_fractions == other.individual_dust_fractions)) return "individual_dust_fractions";
-
-	if (!(zeeman_catalog_path == other.zeeman_catalog_path)) return "zeeman_catalog_path";
-
-	// if (!(phID == other.phID)) return "phID";
-	if (!(phIDs == other.phIDs)) return "phIDs";
-
-	if (!(min_obs_distance == other.min_obs_distance)) return "min_obs_distance";
-	if (!(max_obs_distance == other.max_obs_distance)) return "max_obs_distance";
-	if (!(kepler_star_mass == other.kepler_star_mass)) return "kepler_star_mass";
-	if (!(turbulent_velocity == other.turbulent_velocity)) return "turbulent_velocity";
-	if (!(stochastic_heating_max_size == other.stochastic_heating_max_size)) return "stochastic_heating_max_size";
-	if (!(delta0 == other.delta0)) return "delta0";
-	if (!(larm_f == other.larm_f)) return "larm_f";
-	if (!(acceptance_angle == other.acceptance_angle)) return "acceptance_angle";
-	if (!(offset_min_gas_dens == other.offset_min_gas_dens)) return "offset_min_gas_dens";
-
-	if (!(extinction_magnitude == other.extinction_magnitude)) return "extinction_magnitude";
-	if (!(extinction_magnitude_wavelength == other.extinction_magnitude_wavelength)) return "extinction_magnitude_wavelength";
-	if (!(extinction_i_mixture == other.extinction_i_mixture)) return "extinction_i_mixture";
-
-	if (!(nrOfPlotPoints == other.nrOfPlotPoints)) return "nrOfPlotPoints";
-	if (!(nrOfPlotVectors == other.nrOfPlotVectors)) return "nrOfPlotVectors";
-	if (!(maxPlotLines == other.maxPlotLines)) return "maxPlotLines";
-
-	if (!(nr_of_mc_lvl_pop_photons == other.nr_of_mc_lvl_pop_photons)) return "nr_of_mc_lvl_pop_photons";
-	if (!(mc_lvl_pop_seed == other.mc_lvl_pop_seed)) return "mc_lvl_pop_seed";
-
-	if (!(healpix_orientation == other.healpix_orientation)) return "healpix_orientation";
-
-	if (!(line_ray_detector_list == other.line_ray_detector_list)) return "line_ray_detector_list";
-
-	if (!(rt_grid_description == other.rt_grid_description)) return "rt_grid_description";
-
-	if (!(dust_mc_detectors == other.dust_mc_detectors)) return "dust_mc_detectors";
-	if (!(dust_ray_detectors == other.dust_ray_detectors)) return "dust_ray_detectors";
-	if (!(sync_ray_detectors == other.sync_ray_detectors)) return "sync_ray_detectors";
-
-	if (!(point_sources == other.point_sources)) return "point_sources";
-	if (!(diffuse_sources == other.diffuse_sources)) return "diffuse_sources";
-	if (!(laser_sources == other.laser_sources)) return "laser_sources";
-	if (!(background_sources == other.background_sources)) return "background_sources";
-	if (!(gas_species_abundance == other.gas_species_abundance)) return "gas_species_abundance";
-
-	if (!(gas_species_level_pop_type == other.gas_species_level_pop_type)) return "gas_species_level_pop_type";
-
-	if (!(gas_species_cat_path == other.gas_species_cat_path)) return "gas_species_cat_path";
-	if (!(point_sources_str == other.point_sources_str)) return "point_sources_str";
-	if (!(diffuse_sources_str == other.diffuse_sources_str)) return "diffuse_sources_str";
-	if (!(background_sources_path == other.background_sources_path)) return "background_sources_path";
-	if (!(isrf_path == other.isrf_path)) return "isrf_path: " + isrf_path + " << " + other.isrf_path;
-
-	if (!(xymin == other.xymin)) return "xymin";
-	if (!(xymax == other.xymax)) return "xymax";
-	if (!(xysteps == other.xysteps)) return "xysteps";
-	if (!(xy_bins == other.xy_bins)) return "xy_bins";
-	if (!(xylabel == other.xylabel)) return "xylabel";
-	if (!(autoscale == other.autoscale)) return "autoscale";
-	if (!(sublimate == other.sublimate)) return "sublimate";
-
-	if (!(axis1 == other.axis1)) return "axis1";
-	if (!(axis2 == other.axis2)) return "axis2";
-
-
-	if (!(f_highJ == other.f_highJ)) return "f_highJ";
-	if (!(f_cor == other.f_cor)) return "f_cor";
-	if (!(Q_ref == other.Q_ref)) return "Q_ref";
-	if (!(alpha_Q == other.alpha_Q)) return "alpha_Q";
-	if (!(R_rayleigh == other.R_rayleigh)) return "R_rayleigh";
-
-	if (!(adjTgas == other.adjTgas)) return "adjTgas";
-	if (!(isrf_g_zero == other.isrf_g_zero)) return "isrf_g_zero";
-	if (!(isrf_radius == other.isrf_radius)) return "isrf_radius";
-
-	if (!(nr_ofISRFPhotons == other.nr_ofISRFPhotons)) return "nr_ofISRFPhotons";
-	if (!(nr_ofDustPhotons == other.nr_ofDustPhotons)) return "nr_ofDustPhotons";
-
-	if (!(dust_fractions == other.dust_fractions)) return "dust_fractions";
-	if (!(material_density == other.material_density)) return "material_density";
-	if (!(a_min_global == other.a_min_global)) return "a_min_global";
-	if (!(a_max_global == other.a_max_global)) return "a_max_global";
-	if (!(size_parameter_map == other.size_parameter_map)) return "size_parameter_map";
-	if (!(dust_choices == other.dust_choices)) return "dust_choices";
-	if (!(component_id_to_choice == other.component_id_to_choice)) return "component_id_to_choice";
-
-	if (!(dust_paths == other.dust_paths)) return "dust_paths";
-	if (!(size_keywords == other.size_keywords)) return "size_keywords";
-
-	if (!(reset_dust_files == other.reset_dust_files)) return "reset_dust_files";
-
-	// opiate parameters
-	if (!(opiate_ray_detectors == other.opiate_ray_detectors)) return "opiate_ray_detectors";
-	if (!(opiate_spec_ids == other.opiate_spec_ids)) return "opiate_spec_ids";
-	if (!(opiata_path_emi == other.opiata_path_emi)) return "opiata_path_emi";
-	if (!(opiata_path_abs == other.opiata_path_abs)) return "opiata_path_abs";
-
-	return "equal";
-    }
-
+    // TODO: Plot parameter for testing
+#ifdef TEST_REWRITE
     bool operator==(const parameters& other) const {
-	if (!(cmd == other.cmd)) return false;
-	if (!(path_grid == other.path_grid)) return false;
-	if (!(path_input == other.path_input)) return false;
-	if (!(path_output == other.path_output)) return false;
+	std::array 	names = {
+	    "cmd",
+	    "path_grid",
+	    "path_input",
+	    "path_output",
 
-	if (!(max_subpixel_lvl == other.max_subpixel_lvl)) return false;
-	if (!(nr_ofThreads == other.nr_ofThreads)) return false;
-	if (!(task_id == other.task_id)) return false;
+	    "max_subpixel_lvl",
+	    "nr_ofThreads",
+	    "task_id",
 
-	if (!(conv_l_in_SI == other.conv_l_in_SI)) return false;
-	if (!(conv_dH_in_SI == other.conv_dH_in_SI)) return false;
-	if (!(conv_B_in_SI == other.conv_B_in_SI)) return false;
-	if (!(conv_V_in_SI == other.conv_V_in_SI)) return false;
-	if (!(conv_mass_fraction == other.conv_mass_fraction)) return false;
-	if (!(mu == other.mu)) return false;
+	    "conv_l_in_SI",
+	    "conv_dH_in_SI",
+	    "conv_B_in_SI",
+	    "conv_V_in_SI",
+	    "conv_mass_fraction",
+	    "mu",
 
-	if (!(min_rot_angle_1 == other.min_rot_angle_1)) return false;
-	if (!(max_rot_angle_1 == other.max_rot_angle_1)) return false;
-	if (!(min_rot_angle_2 == other.min_rot_angle_2)) return false;
-	if (!(max_rot_angle_2 == other.max_rot_angle_2)) return false;
+	    "min_rot_angle_1",
+	    "max_rot_angle_1",
+	    "min_rot_angle_2",
+	    "max_rot_angle_2",
 
-	if (!(min_sidelength_x == other.min_sidelength_x)) return false;
-	if (!(max_sidelength_x == other.max_sidelength_x)) return false;
-	if (!(min_sidelength_y == other.min_sidelength_y)) return false;
-	if (!(max_sidelength_y == other.max_sidelength_y)) return false;
-	if (!(use_grid_sidelength_x == other.use_grid_sidelength_x)) return false;
-	if (!(use_grid_sidelength_y == other.use_grid_sidelength_y)) return false;
+	    "min_sidelength_x",
+	    "max_sidelength_x",
+	    "min_sidelength_y",
+	    "max_sidelength_y",
+	    "use_grid_sidelength_x",
+	    "use_grid_sidelength_y",
 
-	if (!(min_ray_map_shift_x == other.min_ray_map_shift_x)) return false;
-	if (!(min_ray_map_shift_y == other.min_ray_map_shift_y)) return false;
-	if (!(max_ray_map_shift_x == other.max_ray_map_shift_x)) return false;
-	if (!(max_ray_map_shift_y == other.max_ray_map_shift_y)) return false;
+	    "min_ray_map_shift_x",
+	    "min_ray_map_shift_y",
+	    "max_ray_map_shift_x",
+	    "max_ray_map_shift_y",
 
-	if (!(align == other.align)) return false;
-	if (!(min_detector_pixel_x == other.min_detector_pixel_x)) return false;
-	if (!(max_detector_pixel_x == other.max_detector_pixel_x)) return false;
-	if (!(min_detector_pixel_y == other.min_detector_pixel_y)) return false;
-	if (!(max_detector_pixel_y == other.max_detector_pixel_y)) return false;
-	if (!(nr_ofInpAMIRAPoints == other.nr_ofInpAMIRAPoints)) return false;
-	if (!(nr_ofOutAMIRAPoints == other.nr_ofOutAMIRAPoints)) return false;
-	if (!(nr_ofInpMidDataPoints == other.nr_ofInpMidDataPoints)) return false;
-	if (!(nr_ofOutMidDataPoints == other.nr_ofOutMidDataPoints)) return false;
-	if (!(midplane_zoom == other.midplane_zoom)) return false;
-	if (!(max_dust_component_choice == other.max_dust_component_choice)) return false;
+	    "align",
+	    "min_detector_pixel_x",
+	    "max_detector_pixel_x",
+	    "min_detector_pixel_y",
+	    "max_detector_pixel_y",
+	    "nr_ofInpAMIRAPoints",
+	    "nr_ofOutAMIRAPoints",
+	    "nr_ofInpMidDataPoints",
+	    "nr_ofOutMidDataPoints",
+	    "midplane_zoom",
+	    "max_dust_component_choice",
 
-	if (!(plot_inp_points == other.plot_inp_points)) return false;
-	if (!(plot_out_points == other.plot_out_points)) return false;
-	if (!(write_radiation_field == other.write_radiation_field)) return false;
-	if (!(write_g_zero == other.write_g_zero)) return false;
-	if (!(write_dust_files == other.write_dust_files)) return false;
+	    "plot_inp_points",
+	    "plot_out_points",
+	    "write_radiation_field",
+	    "write_g_zero",
+	    "write_dust_files",
 
-	if (!(midplane_3d_param == other.midplane_3d_param)) return false;
-	if (!(star_mass == other.star_mass)) return false;
+	    "midplane_3d_param",
+	    "star_mass",
 
-	if (!(plot_list == other.plot_list)) return false;
+	    "plot_list",
 
-	if (!(b_mrw == other.b_mrw)) return false;
-	if (!(b_pda == other.b_pda)) return false;
-	if (!(b_enforced == other.b_enforced)) return false;
-	if (!(is_speed_of_sound == other.is_speed_of_sound)) return false;
-	if (!(peel_off == other.peel_off)) return false;
-	if (!(vel_maps == other.vel_maps)) return false;
+	    "b_mrw",
+	    "b_pda",
+	    "b_enforced",
+	    "is_speed_of_sound",
+	    "peel_off",
+	    "vel_maps",
 
-	if (!(dust_offset == other.dust_offset)) return false;
-	if (!(dust_gas_coupling == other.dust_gas_coupling)) return false;
-	if (!(full_dust_temp == other.full_dust_temp)) return false;
-	if (!(save_radiation_field == other.save_radiation_field)) return false;
-	if (!(scattering_to_raytracing == other.scattering_to_raytracing)) return false;
-	if (!(split_dust_emision == other.split_dust_emision)) return false;
-	if (!(individual_dust_fractions == other.individual_dust_fractions)) return false;
+	    "dust_offset",
+	    "dust_gas_coupling",
+	    "full_dust_temp",
+	    "save_radiation_field",
+	    "scattering_to_raytracing",
+	    "split_dust_emision",
+	    "individual_dust_fractions",
 
-	if (!(zeeman_catalog_path == other.zeeman_catalog_path)) return false;
+	    "zeeman_catalog_path",
 
-	// if (!(phID == other.phID)) return false;
-	if (!(phIDs == other.phIDs)) return false;
+	    "phIDs",
 
-	if (!(min_obs_distance == other.min_obs_distance)) return false;
-	if (!(max_obs_distance == other.max_obs_distance)) return false;
-	if (!(kepler_star_mass == other.kepler_star_mass)) return false;
-	if (!(turbulent_velocity == other.turbulent_velocity)) return false;
-	if (!(stochastic_heating_max_size == other.stochastic_heating_max_size)) return false;
-	if (!(delta0 == other.delta0)) return false;
-	if (!(larm_f == other.larm_f)) return false;
-	if (!(acceptance_angle == other.acceptance_angle)) return false;
-	if (!(offset_min_gas_dens == other.offset_min_gas_dens)) return false;
+	    "min_obs_distance",
+	    "max_obs_distance",
+	    "kepler_star_mass",
+	    "turbulent_velocity",
+	    "stochastic_heating_max_size",
+	    "delta0",
+	    "larm_f",
+	    "acceptance_angle",
+	    "offset_min_gas_dens",
 
-	if (!(extinction_magnitude == other.extinction_magnitude)) return false;
-	if (!(extinction_magnitude_wavelength == other.extinction_magnitude_wavelength)) return false;
-	if (!(extinction_i_mixture == other.extinction_i_mixture)) return false;
+	    "extinction_magnitude",
+	    "extinction_magnitude_wavelength",
+	    "extinction_i_mixture",
 
-	if (!(nrOfPlotPoints == other.nrOfPlotPoints)) return false;
-	if (!(nrOfPlotVectors == other.nrOfPlotVectors)) return false;
-	if (!(maxPlotLines == other.maxPlotLines)) return false;
+	    "nrOfPlotPoints",
+	    "nrOfPlotVectors",
+	    "maxPlotLines",
 
-	if (!(nr_of_mc_lvl_pop_photons == other.nr_of_mc_lvl_pop_photons)) return false;
-	if (!(mc_lvl_pop_seed == other.mc_lvl_pop_seed)) return false;
+	    "nr_of_mc_lvl_pop_photons",
+	    "mc_lvl_pop_seed",
 
-	if (!(healpix_orientation == other.healpix_orientation)) return false;
+	    "healpix_orientation",
 
-	if (!(line_ray_detector_list == other.line_ray_detector_list)) return false;
+	    "line_ray_detector_list",
 
-	if (!(rt_grid_description == other.rt_grid_description)) return false;
+	    "rt_grid_description",
 
-	if (!(dust_mc_detectors == other.dust_mc_detectors)) return false;
-	if (!(dust_ray_detectors == other.dust_ray_detectors)) return false;
-	if (!(sync_ray_detectors == other.sync_ray_detectors)) return false;
+	    "dust_mc_detectors",
+	    "dust_ray_detectors",
+	    "sync_ray_detectors",
 
-	if (!(point_sources == other.point_sources)) return false;
-	if (!(diffuse_sources == other.diffuse_sources)) return false;
-	if (!(laser_sources == other.laser_sources)) return false;
-	if (!(background_sources == other.background_sources)) return false;
-	if (!(gas_species_abundance == other.gas_species_abundance)) return false;
+	    "point_sources",
+	    "diffuse_sources",
+	    "laser_sources",
+	    "background_sources",
+	    "gas_species_abundance",
 
-	if (!(gas_species_level_pop_type == other.gas_species_level_pop_type)) return false;
+	    "gas_species_level_pop_type",
 
-	if (!(gas_species_cat_path == other.gas_species_cat_path)) return false;
-	if (!(point_sources_str == other.point_sources_str)) return false;
-	if (!(diffuse_sources_str == other.diffuse_sources_str)) return false;
-	if (!(background_sources_path == other.background_sources_path)) return false;
-	if (!(isrf_path == other.isrf_path)) return false;
+	    "gas_species_cat_path",
+	    "point_sources_str",
+	    "diffuse_sources_str",
+	    "background_sources_path",
+	    "isrf_path",
 
-	if (!(xymin == other.xymin)) return false;
-	if (!(xymax == other.xymax)) return false;
-	if (!(xysteps == other.xysteps)) return false;
-	if (!(xy_bins == other.xy_bins)) return false;
-	if (!(xylabel == other.xylabel)) return false;
-	if (!(autoscale == other.autoscale)) return false;
-	if (!(sublimate == other.sublimate)) return false;
+	    "xymin",
+	    "xymax",
+	    "xysteps",
+	    "xy_bins",
+	    "xylabel",
+	    "autoscale",
+	    "sublimate",
 
-	if (!(axis1 == other.axis1)) return false;
-	if (!(axis2 == other.axis2)) return false;
+	    "axis1",
+	    "axis2",
 
-	if (!(f_highJ == other.f_highJ)) return false;
-	if (!(f_cor == other.f_cor)) return false;
-	if (!(Q_ref == other.Q_ref)) return false;
-	if (!(alpha_Q == other.alpha_Q)) return false;
-	if (!(R_rayleigh == other.R_rayleigh)) return false;
+	    "f_highJ",
+	    "f_cor",
+	    "Q_ref",
+	    "alpha_Q",
+	    "R_rayleigh",
 
-	if (!(adjTgas == other.adjTgas)) return false;
-	if (!(isrf_g_zero == other.isrf_g_zero)) return false;
-	if (!(isrf_radius == other.isrf_radius)) return false;
+	    "adjTgas",
+	    "isrf_g_zero",
+	    "isrf_radius",
 
-	if (!(nr_ofISRFPhotons == other.nr_ofISRFPhotons)) return false;
-	if (!(nr_ofDustPhotons == other.nr_ofDustPhotons)) return false;
+	    "nr_ofISRFPhotons",
+	    "nr_ofDustPhotons",
 
-	if (!(dust_fractions == other.dust_fractions)) return false;
-	if (!(material_density == other.material_density)) return false;
-	if (!(a_min_global == other.a_min_global)) return false;
-	if (!(a_max_global == other.a_max_global)) return false;
-	if (!(size_parameter_map == other.size_parameter_map)) return false;
-	if (!(dust_choices == other.dust_choices)) return false;
-	if (!(component_id_to_choice == other.component_id_to_choice)) return false;
+	    "dust_fractions",
+	    "material_density",
+	    "a_min_global",
+	    "a_max_global",
+	    "size_parameter_map",
+	    "dust_choices",
+	    "component_id_to_choice",
 
-	if (!(dust_paths == other.dust_paths)) return false;
-	if (!(size_keywords == other.size_keywords)) return false;
+	    "dust_paths",
+	    "size_keywords",
 
-	if (!(reset_dust_files == other.reset_dust_files)) return false;
+	    "reset_dust_files",
 
-	// opiate parameters
-	if (!(opiate_ray_detectors == other.opiate_ray_detectors)) return false;
-	if (!(opiate_spec_ids == other.opiate_spec_ids)) return false;
-	if (!(opiata_path_emi == other.opiata_path_emi)) return false;
-	if (!(opiata_path_abs == other.opiata_path_abs)) return false;
+	    "opiate_ray_detectors",
+	    "opiate_spec_ids",
+	    "opiata_path_emi",
+	    "opiata_path_abs",
+	};
+	std::array 	vals = {
+	    cmd == other.cmd,
+	    path_grid == other.path_grid,
+	    path_input == other.path_input,
+	    path_output == other.path_output,
 
-	return true;
+	    max_subpixel_lvl == other.max_subpixel_lvl,
+	    nr_ofThreads == other.nr_ofThreads,
+	    task_id == other.task_id,
+
+	    conv_l_in_SI == other.conv_l_in_SI,
+	    conv_dH_in_SI == other.conv_dH_in_SI,
+	    conv_B_in_SI == other.conv_B_in_SI,
+	    conv_V_in_SI == other.conv_V_in_SI,
+	    conv_mass_fraction == other.conv_mass_fraction,
+	    mu == other.mu,
+
+	    min_rot_angle_1 == other.min_rot_angle_1,
+	    max_rot_angle_1 == other.max_rot_angle_1,
+	    min_rot_angle_2 == other.min_rot_angle_2,
+	    max_rot_angle_2 == other.max_rot_angle_2,
+
+	    min_sidelength_x == other.min_sidelength_x,
+	    max_sidelength_x == other.max_sidelength_x,
+	    min_sidelength_y == other.min_sidelength_y,
+	    max_sidelength_y == other.max_sidelength_y,
+	    use_grid_sidelength_x == other.use_grid_sidelength_x,
+	    use_grid_sidelength_y == other.use_grid_sidelength_y,
+
+	    min_ray_map_shift_x == other.min_ray_map_shift_x,
+	    min_ray_map_shift_y == other.min_ray_map_shift_y,
+	    max_ray_map_shift_x == other.max_ray_map_shift_x,
+	    max_ray_map_shift_y == other.max_ray_map_shift_y,
+
+	    align == other.align,
+	    min_detector_pixel_x == other.min_detector_pixel_x,
+	    max_detector_pixel_x == other.max_detector_pixel_x,
+	    min_detector_pixel_y == other.min_detector_pixel_y,
+	    max_detector_pixel_y == other.max_detector_pixel_y,
+	    nr_ofInpAMIRAPoints == other.nr_ofInpAMIRAPoints,
+	    nr_ofOutAMIRAPoints == other.nr_ofOutAMIRAPoints,
+	    nr_ofInpMidDataPoints == other.nr_ofInpMidDataPoints,
+	    nr_ofOutMidDataPoints == other.nr_ofOutMidDataPoints,
+	    midplane_zoom == other.midplane_zoom,
+	    max_dust_component_choice == other.max_dust_component_choice,
+
+	    plot_inp_points == other.plot_inp_points,
+	    plot_out_points == other.plot_out_points,
+	    write_radiation_field == other.write_radiation_field,
+	    write_g_zero == other.write_g_zero,
+	    write_dust_files == other.write_dust_files,
+
+	    midplane_3d_param == other.midplane_3d_param,
+	    star_mass == other.star_mass,
+
+	    plot_list == other.plot_list,
+
+	    b_mrw == other.b_mrw,
+	    b_pda == other.b_pda,
+	    b_enforced == other.b_enforced,
+	    is_speed_of_sound == other.is_speed_of_sound,
+	    peel_off == other.peel_off,
+	    vel_maps == other.vel_maps,
+
+	    dust_offset == other.dust_offset,
+	    dust_gas_coupling == other.dust_gas_coupling,
+	    full_dust_temp == other.full_dust_temp,
+	    save_radiation_field == other.save_radiation_field,
+	    scattering_to_raytracing == other.scattering_to_raytracing,
+	    split_dust_emision == other.split_dust_emision,
+	    individual_dust_fractions == other.individual_dust_fractions,
+
+	    zeeman_catalog_path == other.zeeman_catalog_path,
+
+	    // phID == other.phID,
+	    phIDs == other.phIDs,
+
+	    min_obs_distance == other.min_obs_distance,
+	    max_obs_distance == other.max_obs_distance,
+	    kepler_star_mass == other.kepler_star_mass,
+	    turbulent_velocity == other.turbulent_velocity,
+	    stochastic_heating_max_size == other.stochastic_heating_max_size,
+	    delta0 == other.delta0,
+	    larm_f == other.larm_f,
+	    acceptance_angle == other.acceptance_angle,
+	    offset_min_gas_dens == other.offset_min_gas_dens,
+
+	    extinction_magnitude == other.extinction_magnitude,
+	    extinction_magnitude_wavelength == other.extinction_magnitude_wavelength,
+	    extinction_i_mixture == other.extinction_i_mixture,
+
+	    nrOfPlotPoints == other.nrOfPlotPoints,
+	    nrOfPlotVectors == other.nrOfPlotVectors,
+	    maxPlotLines == other.maxPlotLines,
+
+	    nr_of_mc_lvl_pop_photons == other.nr_of_mc_lvl_pop_photons,
+	    mc_lvl_pop_seed == other.mc_lvl_pop_seed,
+
+	    healpix_orientation == other.healpix_orientation,
+
+	    line_ray_detector_list == other.line_ray_detector_list,
+
+	    rt_grid_description == other.rt_grid_description,
+
+	    dust_mc_detectors == other.dust_mc_detectors,
+	    dust_ray_detectors == other.dust_ray_detectors,
+	    sync_ray_detectors == other.sync_ray_detectors,
+
+	    point_sources == other.point_sources,
+	    diffuse_sources == other.diffuse_sources,
+	    laser_sources == other.laser_sources,
+	    background_sources == other.background_sources,
+	    gas_species_abundance == other.gas_species_abundance,
+
+	    gas_species_level_pop_type == other.gas_species_level_pop_type,
+
+	    gas_species_cat_path == other.gas_species_cat_path,
+	    point_sources_str == other.point_sources_str,
+	    diffuse_sources_str == other.diffuse_sources_str,
+	    background_sources_path == other.background_sources_path,
+	    isrf_path == other.isrf_path,
+
+	    xymin == other.xymin,
+	    xymax == other.xymax,
+	    xysteps == other.xysteps,
+	    xy_bins == other.xy_bins,
+	    xylabel == other.xylabel,
+	    autoscale == other.autoscale,
+	    sublimate == other.sublimate,
+
+	    axis1 == other.axis1,
+	    axis2 == other.axis2,
+
+	    f_highJ == other.f_highJ,
+	    f_cor == other.f_cor,
+	    Q_ref == other.Q_ref,
+	    alpha_Q == other.alpha_Q,
+	    R_rayleigh == other.R_rayleigh,
+
+	    adjTgas == other.adjTgas,
+	    isrf_g_zero == other.isrf_g_zero,
+	    isrf_radius == other.isrf_radius,
+
+	    nr_ofISRFPhotons == other.nr_ofISRFPhotons,
+	    nr_ofDustPhotons == other.nr_ofDustPhotons,
+
+	    dust_fractions == other.dust_fractions,
+	    material_density == other.material_density,
+	    a_min_global == other.a_min_global,
+	    a_max_global == other.a_max_global,
+	    size_parameter_map == other.size_parameter_map,
+	    dust_choices == other.dust_choices,
+	    component_id_to_choice == other.component_id_to_choice,
+
+	    dust_paths == other.dust_paths,
+	    size_keywords == other.size_keywords,
+
+	    reset_dust_files == other.reset_dust_files,
+
+	    // opiate == other.opiate,
+	    opiate_ray_detectors == other.opiate_ray_detectors,
+	    opiate_spec_ids == other.opiate_spec_ids,
+	    opiata_path_emi == other.opiata_path_emi,
+	    opiata_path_abs == other.opiata_path_abs
+	};
+
+	bool res = true;
+	for (size_t i = 0; i < names.size(); i++) {
+	    if (!vals[i]) {
+		cout << "\tError: " << names[i] << endl;
+		res = false;
+	    }
+	}
+	return res;
     }
+#endif
 
     class plot_parameter
     {

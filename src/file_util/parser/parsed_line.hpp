@@ -133,7 +133,8 @@ namespace rewrite {
 	// decltype(std::declval<decltype(*get_vector<pt>())>().back())
 	template<ParsedLine::ParamType pt, typename T>
 	auto get_param(const size_t idx) const
-	    -> std::expected<T, Message> {
+	    -> std::expected<T, Message>
+	{
 		//    -> std::expected<
 		// decltype(std::declval<decltype(*get_vector<pt>())>().back()), std::string> {
 

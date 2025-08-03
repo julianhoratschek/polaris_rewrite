@@ -28,8 +28,7 @@
 #include <filesystem>
 #include <string>
 
-#include "parser/message.hpp"
-#include "parser/polaris_parser.hpp"
+#include "file_util/parser/polaris_parser.hpp"
 
 
 bool error_handler(const rewrite::Message& msg) {

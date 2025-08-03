@@ -2,10 +2,12 @@
 
 #include <array>
 #include <cstddef>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <functional>
 #include <algorithm>
+#include <iterator>
 
 namespace rewrite {
 
@@ -231,6 +233,23 @@ namespace rewrite {
 
 	    return {};
 	}
+
+	// TODO: constriction to chartypes
+	template<typename T, size_t N>
+	std::string from_array(const std::array<T, N>& arr) {
+	    if (arr.empty())
+		return "[]";
+
+	    if (arr.size() == 1)
+		return arr.back();
+
+	    std::ostringstream		oss;
+	    oss << "[";
+	    std::copy(arr.begin(), arr.end() - 1,
+		std::ostream_iterator<std::string>(oss, ", "));
+	    oss << arr.back() << "]";
+	    return oss.str();
+	}
     }
 
     //---------------------------------------------------------------------
@@ -251,7 +270,11 @@ namespace rewrite {
 
 	auto res = std::ranges::find(commands, e.value());
 	if (res == commands.end())
-	    return std::unexpected{ Message { "Command cannot be recognized!" } };
+	    return std::unexpected{ Message { 
+		std::format( 
+		    "Unknown command {}"
+		    "\n\tPossible values are {}",
+		    e.value(), from_array(commands)) } };
 
 	param.setCommand(std::distance(commands.begin(), res));
 
@@ -279,8 +302,10 @@ namespace rewrite {
 	    if (id < minGRID || id > maxGRID)
 		return std::unexpected{ Message{
 		    std::format(
-			"Unknown grid ID!\nA plot Id of {} if not a valid POLARIS grid ID (see manual, Table 3.3)!\n", id ) } };
-	    param.addToPlotList(id);
+			"Invalid grid ID {} (see manual, Table 3.3)!"
+			"\n\tValues should be integers between {} and {}",
+			id, minGRID, maxGRID ) } };
+	    param.addToPlotList(static_cast<unsigned int>(id));
 	}
 
         return {};
@@ -299,7 +324,9 @@ namespace rewrite {
 
 	if (dust_component_choice < 0)
 	    return std::unexpected{ Message {
-		std::format( "ID {} is not valid!", dust_component_choice ) } };
+		std::format( 
+		    "ID {} is invalid, expected value greater than 0!",
+		     dust_component_choice ) } };
 
 	const auto e = line.get_id(0);
 	if (!e.has_value())
@@ -308,9 +335,15 @@ namespace rewrite {
 	const auto res = std::ranges::find(phfn, e.value());
 	if (res == phfn.end())
 	    return std::unexpected { Message {
-		"Phase function name could not be recognized!" } };
+		std::format(
+		    "Phase function name {} is not valid"
+		    "\n\tPossible values are{}",
+		    e.value(), from_array(phfn)) } };
 
-	param.setPhaseFunctionID(std::distance(phfn.begin(), res), dust_component_choice);
+	param.setPhaseFunctionID(
+	    std::distance(phfn.begin(), res),
+	    dust_component_choice);
+
 	return {};
     }
 
@@ -322,6 +355,7 @@ namespace rewrite {
     }
 
 
+    // TODO: Is "opiata" correct? Not "opiate"?
     DEFINE_COMMAND(opiata_path_emi) {
 	if (const auto e = line.get_str(0); !e)
 	    return std::unexpected{ e.error() };
@@ -341,7 +375,6 @@ namespace rewrite {
 
 
     DEFINE_COMMAND(gas_species) {
-
 	constexpr auto pop = std::array{
 	    "POP_MC", "POP_LTE", "POP_FEP", "POP_LVG", "POP_DEGUCHI_LVG"
 	};
@@ -358,8 +391,12 @@ namespace rewrite {
 	    const auto res_pop = std::ranges::find(pop, p1.value());
 	    if (res_pop == pop.end())
 		return std::unexpected{ Message{
-		    "Unrecognised POP index" } };
+		    std::format(
+			"Unrecognised POP index"
+			"\n\tPossible values are {}",
+			from_array(pop)) } };
 
+	    // Replace found ID with number in num_params
 	    line.num_params.insert(
 		line.num_params.begin(),
 		std::distance(pop.begin(), res_pop));
@@ -404,7 +441,8 @@ namespace rewrite {
 
 	if (nr_of_photons <= 0)
 	    return std::unexpected{ Message{
-		"Number of background source photons could not be recognized!" } };
+		"Number of background source photons could not be recognized!"
+		"\n\tExpected it to be greater than 0"} };
 
 	std::string ps_path;
 	const bool has_path = !line.str_params.empty();
@@ -416,7 +454,9 @@ namespace rewrite {
 		param.addBackgroundSource(ps_path);
 	    else
 		return std::unexpected{ Message {
-		    "Wrong number of parameters for background source!" } };
+		    std::format(
+			"Wrong number of parameters for background source!"
+			"\n\tMust be smaller than or equal to {}", NR_OF_BG_SOURCES - 5) } };
 	    return {};
 	}
 
@@ -445,7 +485,7 @@ namespace rewrite {
     DEFINE_COMMAND(axis1) {
 	if (line.num_params.size() != 3)
 	    return std::unexpected{ Message {
-		"Values for first axis are not a vector" } };
+		"Values for first axis are not a vector (expected 3 parameters)" } };
 	param.setAxis1(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return {};
     }
@@ -454,7 +494,7 @@ namespace rewrite {
     DEFINE_COMMAND(axis2) {
 	if (line.num_params.size() != 3)
 	    return std::unexpected{ Message {
-		"Values for second axis are not a vector" } };
+		"Values for second axis are not a vector (expected 3 parameters)" } };
 	param.setAxis2(line.num_params[0], line.num_params[1], line.num_params[2]);
 	return {};
     }
@@ -472,7 +512,11 @@ namespace rewrite {
 
 	const auto res = std::ranges::find(alignments, e.value());
 	if (res == alignments.end())
-	    return std::unexpected{ Message { "Unknown alignment" } };
+	    return std::unexpected{ Message { 
+		std::format(
+		    "Unknown alignment"
+		    "\n\tPossible values are {}",
+		    from_array(alignments)) } };
 
 	param.addAlignmentMechanism(1 << std::distance(alignments.begin(), res));
 	return {};
@@ -480,7 +524,7 @@ namespace rewrite {
 
 
     DEFINE_COMMAND(mu) {
-	    return param_set_number(line, param, &parameters::setMu);
+	return param_set_number(line, param, &parameters::setMu);
     }
 
 
@@ -540,10 +584,14 @@ namespace rewrite {
 	const auto e = line.get_id(0);
 	if (!e)
 	    return std::unexpected{ e.error() };
+
 	const auto res = std::ranges::find(healpix, e.value());
 	if (res == healpix.end())
 	    return std::unexpected{ Message {
-		"Unknown healpix orientation" } };
+		std::format(
+		    "Unknown healpix orientation"
+		    "\n\tPossible values are {}",
+		    from_array(healpix)) } };
 	param.setHealpixOrientation(std::distance(healpix.begin(), res));
 	return {};
     }
@@ -763,7 +811,8 @@ namespace rewrite {
 	if (value < 0) {
 	    param.updateSIConvDH(-value);
 	    return std::unexpected { Message{
-		"Negative conversion factors are no longer supported!\n\tGrid must always contain number densities",
+		"Negative conversion factors are no longer supported!"
+		"\n\tGrid must always contain number densities",
 		Message::Type::Warning } };
 	}
 	param.updateSIConvDH(value);
@@ -793,7 +842,8 @@ namespace rewrite {
 	if (conv < 0) {
 	    param.updateSIConvVField(std::abs(conv));
             return std::unexpected{ Message{
-		"Negative conversion factor are no longer allowed!\n\tThe grid can only contain number densities.",
+		"Negative conversion factor are no longer allowed!"
+		"\n\tThe grid can only contain number densities.",
 		Message::Type::Warning } };
 	}
 
@@ -1037,7 +1087,8 @@ namespace rewrite {
 		Message::Type::Warning } };
         }
 
-        if(tr <= 0) {
+        if(tr <= 0) [[unlikely]] {
+	// TODO: This will not be reached
 	    param.setNrOfThreads(1);
 	    return std::unexpected{ Message {
 		"Max. nr. of threads is: 1",
@@ -1119,7 +1170,7 @@ namespace rewrite {
 	    return std::unexpected{ e.error() };
 
 	const auto val = e.value();
-        if(val > 3) {
+        if (val < 0 || val > 3) {
 	    param.setWriteRadiationField(0);
             return std::unexpected{ Message{
 		"Command \"<write_radiation_field>\" accepts only parameters between 0 to 3!" } };

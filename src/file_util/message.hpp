@@ -48,11 +48,11 @@ namespace rewrite {
 	const auto label = labels[std::to_underlying(msg.type)];
 
 	constexpr auto colors = std::array{
-	    "\033[1m\033[31m", "\033[1m\033[33m", "\033[1m\033[32m"
+	    "\033[1;31m", "\033[1;33m", "\033[1;32m"
 	};
 	const auto color = colors[std::to_underlying(msg.type)];
 
-	std::cout << color << label << "\033[1m[0m" << sender << ' ' << msg.message << std::endl;
+	std::cout << color << label << "\033[0m" << sender << ' ' << msg.message << std::endl;
 
 	// Abort processing if message type was an error
 	return msg.type != rewrite::Message::Type::Error;

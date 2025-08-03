@@ -155,16 +155,10 @@ namespace rewrite {
 		// Here, Parser errors are marked as "sender: Parser"
 		// TODO: Correct format parameter for lines
 		if (!line_result) {
-		    const auto err = line_result.error();
-		    const Message parser_error {
-			std::format("[{:04}:{}]: {}\n{}\n{}",
-			    line_nr, error_distance(), err.message,
-			    current_line, error_pointer()),
-			err.type,
-			Message::Sender::Parser,
-			line_nr,
-			error_distance()
-		    };
+		    auto line_error = line_result.error();
+		    line_error.sender = Message::Sender::Parser;
+
+		    const auto parser_error = error_message(line_error);
 
 		    if (!err_fn || !err_fn(parser_error))
 			return std::unexpected{ parser_error };
@@ -175,14 +169,15 @@ namespace rewrite {
 
 		// Handle errors from processing
 		if (!line_result) {
-		    const auto err = line_result.error();
-		    const Message parser_error {
-			std::format("[{:04}]: {}\n",
-			    line_nr, err.message),
-			err.type,
-			Message::Sender::Processor,
-			line_nr
-		    };
+		    const auto line_error = line_result.error();
+		    const auto parser_error = error_message(line_error);
+			//    const Message parser_error {
+			// std::format("[{:04}]: {}\n",
+			//     line_nr, err.message),
+			// err.type,
+			// Message::Sender::Processor,
+			// line_nr
+			//    };
 
 		    if (!err_fn || !err_fn(parser_error))
 			return std::unexpected{ parser_error };

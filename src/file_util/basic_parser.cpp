@@ -4,8 +4,8 @@
 namespace rewrite {
 
     auto BasicParser::get_number()
-	    -> std::expected<double, Message> {
-
+	-> std::expected<double, Message>
+    {
 	const auto	tmp_string = read_while<is_number>();
 	double 		val = 0;
 
@@ -36,7 +36,7 @@ namespace rewrite {
 
 
     size_t BasicParser::error_distance() {
-	return std::distance(current_line.begin(), pos) - 2;
+	return std::distance(current_line.begin(), pos) - 1;
     }
 
 
@@ -45,14 +45,22 @@ namespace rewrite {
     }
 
     Message BasicParser::error_message(const Message& err) {
+	if (err.sender == Message::Sender::Parser)
+	    return Message {
+		std::format("[{}:{}]: {}\n|  {}\n|  {}",
+		    line_nr, error_distance(), err.message,
+		    current_line, error_pointer()),
+		err.type,
+		err.sender,
+		line_nr,
+		error_distance()
+	    };
+
 	return Message {
-	    std::format("[{:04}:{}]: {}\n{}\n{}",
-		0, error_distance(), err.message,
-		current_line, error_pointer()),
+	std::format("[{}]: {}", line_nr, err.message),
 	    err.type,
 	    err.sender,
-	    line_nr,
-	    error_distance()
+	    line_nr
 	};
     }
 }

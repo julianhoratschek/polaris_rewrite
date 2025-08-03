@@ -42,6 +42,13 @@ public:
     ~CCommandParser(void)
     {}
 
+
+    void setCommandFile(const std::string& filename) {
+	cmd_filename = filename;
+	tag = 0;
+	line_counter = 0;
+    }
+
     parameter_list& getParameterList()
     {
         return param_list;
