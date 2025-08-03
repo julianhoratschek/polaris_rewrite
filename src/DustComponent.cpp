@@ -11,10 +11,10 @@
 #include "Typedefs.hpp"
 #include "Parameters.hpp"
 
-#include "parser/dust_parameter_parser.hpp"
-#include "parser/refractive_index_loader.hpp"
-#include "parser/scamatr_parser.hpp"
-#include "parser/calorimetry_loader.hpp"
+#include "file_util/loader/dust_parameter_parser.hpp"
+#include "file_util/loader/refractive_index_loader.hpp"
+#include "file_util/loader/scamatr_parser.hpp"
+#include "file_util/loader/calorimetry_loader.hpp"
 
 #include <cstring>
 #include <numeric>

@@ -9,7 +9,6 @@ PROJECT (POLARIS
 SET (CMAKE_CXX_STANDARD 23)
 SET (CXX_STANDARD_REQUIRED ON)
 
-MESSAGE (${CMAKE_SOURCE_DIR})
 #begin Branch specific definitions
 set (BUILD_TESTING OFF)
 set (TEST_REWRITE ON)
@@ -68,98 +67,7 @@ TARGET_INCLUDE_DIRECTORIES (polaris PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CFITSIO_
 INSTALL (TARGETS polaris)
 
 if (TEST_REWRITE)
-    include(FetchContent)
-    FetchContent_Declare(
-	googletest
-	URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-    )
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
-    FetchContent_MakeAvailable(googletest)
-
-    FetchContent_Declare(
-	benchmark
-	URL https://github.com/google/benchmark/archive/refs/heads/main.zip
-    )
-    FetchContent_MakeAvailable(benchmark)
-
-    set (RW_FILES
-	file_util/basic_parser.cpp
-	file_util/parser/polaris_commands.cpp
-	file_util/parser/parsed_line.cpp
-	file_util/parser/polaris_parser.cpp
-    )
-
-    add_executable (test_polaris_parser
-	file_util/test/test_command_parser.cpp
-	Parameters.cpp
-	CommandParser.cpp
-	Vector3D.cpp
-	Matrix2D.cpp
-	MathFunctions.cpp
-	Faddeeva.cc
-	MathProbList.cpp
-	Stokes.cpp
-
-	${RW_FILES}
-    )
-    target_compile_definitions (test_polaris_parser PRIVATE TEST_REWRITE)
-    target_link_libraries (test_polaris_parser
-	OpenMP::OpenMP_CXX
-	GTest::gmock
-	GTest::gtest_main
-    )
-
-    add_executable (bm_polaris_parser
-	file_util/benchmark/bm_command_parser.cpp
-
-	Parameters.cpp
-	CommandParser.cpp
-	Vector3D.cpp
-	Matrix2D.cpp
-	MathFunctions.cpp
-	Faddeeva.cc
-	MathProbList.cpp
-	Stokes.cpp
-
-	${RW_FILES}
-    )
-    target_link_libraries (bm_polaris_parser
-	OpenMP::OpenMP_CXX
-	benchmark::benchmark
-    )
-
-    add_executable (test_dust_component
-	file_util/test/dust_component_parameter_parser.cpp
-	DustComponent_1.cpp
-
-	${SRC_FILES}
-	${RW_FILES}
-    )
-    target_compile_definitions (test_dust_component PRIVATE TEST_REWRITE)
-    target_link_libraries (test_dust_component
-	${CCFITS_LIBRARY}
-	${CFITSIO_LIBRARY}
-	OpenMP::OpenMP_CXX
-	GTest::gmock
-	GTest::gtest_main
-    )
-    target_include_directories (test_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
-
-    add_executable (bm_dust_component
-	file_util/benchmark/dust_component_parameter_parser.cpp
-	DustComponent_1.cpp
-	${SRC_FILES}
-	${RW_FILES}
-    )
-    target_link_libraries (bm_dust_component
-	${CCFITS_LIBRARY}
-	${CFITSIO_LIBRARY}
-	OpenMP::OpenMP_CXX
-	benchmark::benchmark
-    )
-    target_include_directories (bm_dust_component PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
+    add_subdirectory (file_util/test/)
 endif()
 
 if(BUILD_TESTING)

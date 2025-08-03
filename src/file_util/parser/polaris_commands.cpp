@@ -12,9 +12,11 @@
 namespace rewrite {
 
     // Local to this file
+    // TODO: Put some of this up for public use?
     namespace {
+
 	/**
-	 * 
+	 * Defines a Detector completely at compile-time
 	 */
 	struct DetectorRegistration {
 	    struct Flags {
@@ -473,32 +475,6 @@ namespace rewrite {
 
 	param.addBackgroundSource(line.num_params);
 	return {};
-
-	// if (sz == NR_OF_BG_SOURCES)
-	//     param.addBackgroundSource(line.num_params);
-	//
-	// else if (!line.str_params.empty()) {
-	//     std::string	path{line.str_params[0]};
-	//     if (sz == NR_OF_BG_SOURCES - 5)
-	// 	param.addBackgroundSource(path, line.num_params);
-	//     else if (sz < NR_OF_BG_SOURCES - 5)
-	// 	param.addBackgroundSource(path);
-	// }
-	//
-	// else if (line.num_params.size() == NR_OF_BG_SOURCES - 3) {
-	//     line.num_params.insert(line.num_params.begin() + 1, -1.0);
-	//     line.num_params.resize(NR_OF_BG_SOURCES, 0.0);
-	//     param.addBackgroundSource(line.num_params);
-	// }
-	//
-	// if (line.num_params.size() == NR_OF_BG_SOURCES - 1) {
-	//     line.num_params.insert(line.num_params.begin() + 1, -1.0);
-	//     param.addBackgroundSource(line.num_params);
-	//     return {};
-	// }
-	//
-	// return std::unexpected { Message {
-	//     "Cannot detect path for background parameters" } };
     }
 
 

@@ -124,6 +124,14 @@ namespace rewrite {
 
 
 	/**
+	 * Skip over whitespace, ignores pos at the beginning
+	 */
+	inline void eat_whitespace() {
+	    while (++pos < current_line.end() && is_whitespace(*pos));
+	}
+
+
+	/**
 	 * Skips whitespace and then returns true if check returns
 	 * true for the next character. Starts with the next
 	 * char after pos.
@@ -132,31 +140,21 @@ namespace rewrite {
 	 */
 	template<CharCheckFn check>
 	bool expect_next() {
-	    read_while<is_whitespace>();
+	    eat_whitespace();
 	    return pos < current_line.end() && check(*pos);
 	}
 
 
 	/**
-	 * Checks if the current pos returns true for check, or is white
-	 * space and the next non-whitespace check returns true for check.
-	 * Returns false, if current pos is anything other than whitespace
-	 * or true for check.
+	 * Checks if the current pos is true for check, if it is
+	 * whitespace, reads whitespace until the next non-whitespace
+	 * pos is found and the result for check(*pos) is returned.
 	 */
-	// template<CharCheckFn check>
-	// bool followed_by() {
-	//     --pos;
-	//     return pos >= current_line.begin() && expect_next<check>();
-	// }
-
-
 	template<CharCheckFn check>
 	bool is_or_next() {
 	    return pos < current_line.end() 
 		&& (check(*pos)
 		    || (is_whitespace(*pos) && expect_next<check>()));
-		//    return pos < current_line.end()
-		// && (check(*pos) || expect_next<check>());
 	}
 
 
@@ -172,6 +170,13 @@ namespace rewrite {
 	}
 
 
+	/**
+	 * Reads line from in_file, skips commented lines.
+	 * Counts line_nr up, sets current_line and sets pos to the beginning
+	 * of current_line.
+	 * @param in_file opened file to read from
+	 * @returns true if a line could be read, false otherwise
+	 */
 	bool next_line(std::ifstream& in_file) {
 	    while (std::getline(in_file, current_line)) {
 		++line_nr;
@@ -184,29 +189,29 @@ namespace rewrite {
 	}
 
 	/**
-	 *
+	 * Reads a number in format double from pos
 	 */
 	auto get_number()
 	    -> std::expected<double, Message>;
 
 	/**
-	 *
+	 * Reads a string from pos, removes quotes
 	 */
 	auto get_string()
 	    -> std::expected<std::string_view, Message>;
 
 	/**
-	 *
+	 * Calculates position of pos in current line
 	 */
 	size_t error_distance();
 
 	/**
-	 *
+	 * Returns a string "~~~^" pointing at pos
 	 */
 	std::string error_pointer();
 
 	/**
-	 *
+	 * Standard formatted error message
 	 */
 	Message error_message(const Message& msg);
     };

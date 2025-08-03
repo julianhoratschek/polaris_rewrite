@@ -44,6 +44,7 @@ namespace rewrite {
 	return std::string(error_distance(), '~') + '^';
     }
 
+
     Message BasicParser::error_message(const Message& err) {
 	if (err.sender == Message::Sender::Parser)
 	    return Message {

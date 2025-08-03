@@ -20,12 +20,10 @@
 
 namespace rewrite {
 
-    // TODO: Maybe do a tokenizer? Parse first, interpret later?
-
     /**
      * Flags controlling parser processing
      */
-    enum class CommandProcessingMode {
+    enum class CommandProcessingMode: unsigned char {
 	None = 0,
 	CommonProcessed = 0x1,
 	Skip = 0x2
@@ -38,6 +36,7 @@ namespace rewrite {
      * Per-line parser for POLARIS *.cmd-files
      */
     class PolarisParser: public BasicParser {
+
     private:
 
 	/**
@@ -72,9 +71,6 @@ namespace rewrite {
 	/// Currently processed block
 	BlockType			current_block{ BlockType::None };
 
-	/// Maps "command name" -> command_function
-	// command_map			commands;
-
 	/// Control flow of parser
 	CommandProcessingMode		processing_mode{ CommandProcessingMode::None };
 
@@ -106,10 +102,6 @@ namespace rewrite {
 
     public:
 
-	PolarisParser() = default;
-	    // : commands{make_cmd_map()} {}
-
-
 	/**
 	 * Will return the current ParsedLine object. Should only be called
 	 * after successful call of `parse_line()`. On Failure, the content
@@ -132,16 +124,17 @@ namespace rewrite {
 	 * @returns on failure Message with fatal error message
 	 */
 	template<ErrorHandlerFn ErrorFn>
-	auto parse_file(const std::filesystem::path& path,
-		ErrorFn err_fn = nullptr) -> std::expected<void, Message> {
-
+	auto parse_file(
+	    const std::filesystem::path& path,
+	    ErrorFn err_fn = nullptr)
+	    -> std::expected<void, Message>
+	{
 	    std::ifstream	file(path);
 
 	    if (file.fail())
-		return std::unexpected{ Message{
+		return std::unexpected{ Message {
 		    "Not a valid file", Message::Sender::Parser } };
 
-	    // while (std::getline(file, line)) {
 	    while (next_line(file)) {
 		parsed_line.clear();
 

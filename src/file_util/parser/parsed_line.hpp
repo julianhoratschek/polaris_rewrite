@@ -74,28 +74,31 @@ namespace rewrite {
 	/**
 	 * Convert ParamType to string for debugging and messages
 	 */
-	// TODO test with consteval
-	static std::string_view param_type(ParamType pt) {
-	    if (pt == ParamType::Identifier)
-		return "Identifier";
-	    else if (pt == ParamType::Number)
-		return "Number";
-	    else
-		return "String";
+	template<ParamType pt>
+	static constexpr std::string_view param_type() {
+	    using namespace std::literals;
+
+	    if constexpr (pt == ParamType::Identifier)
+		return "Identifier"sv;
+
+	    if constexpr (pt == ParamType::Number)
+		return "Number"sv;
+
+	    return "String"sv;
 	}
 
 	/**
 	 * Get vector for one parameter type
 	 */
-	// TODO test with consteval
 	template<ParsedLine::ParamType pt>
 	constexpr auto get_vector() {
 	    if constexpr (pt == ParamType::Number)
 		return &num_params;
-	    else if constexpr (pt == ParamType::Identifier)
+
+	    if constexpr (pt == ParamType::Identifier)
 		return &id_params;
-	    else
-		return &str_params;
+
+	    return &str_params;
 	}
 
 	/**
@@ -118,33 +121,26 @@ namespace rewrite {
 	template<ParsedLine::ParamType pt, typename T>
 	void push_param(T val) {
 	    auto	pv = get_vector<pt>();
-	    const auto idx = pv->size();
 
-	    sequence.emplace_back(pt, idx);
+	    sequence.emplace_back(pt, pv->size());
 	    pv->push_back(val);
 	}
-
 
 	/**
 	 * Get the parameter at index `idx`, returns an error if `pt` does not
 	 * designate the correct type of the parameter at position `idx`
 	 */
-	// TODO experiment with:
-	// decltype(std::declval<decltype(*get_vector<pt>())>().back())
 	template<ParsedLine::ParamType pt, typename T>
 	auto get_param(const size_t idx) const
 	    -> std::expected<T, Message>
 	{
-		//    -> std::expected<
-		// decltype(std::declval<decltype(*get_vector<pt>())>().back()), std::string> {
-
 	    if (idx >= sequence.size())
 		return std::unexpected{ Message { "Too few parameters" } };
 
 	    const auto param = sequence[idx];
 	    if (param.first != pt)
 		return std::unexpected{ Message {
-		    std::format("Expected {} at position {}", param_type(pt), idx) } };
+		    std::format("Expected {} at position {}", param_type<pt>(), idx) } };
 
 	    auto pv = get_vector<pt>();
 	    return pv->at(param.second);
@@ -190,7 +186,8 @@ namespace rewrite {
 	template<size_t N = 1>
 	    requires (N > 0) && (N < 3)
 	auto get_named(const std::string_view name)
-	    -> std::expected<std::array<double, N>, Message> {
+	    -> std::expected<std::array<double, N>, Message>
+	{
 	    if (!named_params.contains(name))
 		return std::unexpected { Message {
 		    std::format("Expected named parameter {}", name) } };

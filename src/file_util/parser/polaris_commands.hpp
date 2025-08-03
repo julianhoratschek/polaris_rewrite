@@ -4,6 +4,9 @@
 #include "polaris_command_register.hpp"
 
 namespace rewrite {
+
+    /// List of default POLARIS callbacks
+
     POLARIS_COMMAND(cmd);
     POLARIS_COMMAND(delta0);
     POLARIS_COMMAND(larm_f);

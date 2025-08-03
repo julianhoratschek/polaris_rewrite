@@ -18,20 +18,17 @@ namespace rewrite {
 	    return std::unexpected { Message { "Expected Polaris command after '<[/]'" } };
 
 	parsed_line.command = read_while<is_identifier>();
-	--pos;
 
 	// Read named parameters
-	while (expect_next<is_identifier>()) {
+	while (is_or_next<is_identifier>()) {
 	    const auto param_name = read_while<is_identifier>();
-	    --pos;
 
-	    if (!expect_next<is_equals>())
+	    if (!is_or_next<is_equals>())
 		return std::unexpected{ Message { "Expected '=' after named parameter", } };
 
 	    if (!expect_next<is_quote>())
 		return std::unexpected { Message { "Expected String after named parameter", } };
 
-	    // TODO: wonky
 	    std::vector<double>	named_params;
 	    while (expect_next<is_number>()) {
 		const auto num = get_number();
@@ -41,7 +38,6 @@ namespace rewrite {
 	    }
 
 	    parsed_line.named_params[param_name] = std::move(named_params);
-	    --pos;
 	}
 
 	if (pos >= current_line.end() || *pos != '>')

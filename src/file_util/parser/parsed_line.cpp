@@ -1,12 +1,30 @@
 #include "parsed_line.hpp"
 
 namespace rewrite {
+
     std::ostream& operator<<(std::ostream& os, const ParsedLine& line) {
 	os << "Parsed Line (Nr. " << line.line_nr << ")\n\n"
 	    << "Command: '" << line.command << "'\nParameter Sequence:\n";
 
-	for (auto& v: line.sequence)
-	    os << '\t' << ParsedLine::param_type(v.first) << " @ " << v.second << '\n';
+	for (auto& v: line.sequence) {
+	    os << '\t';
+
+	    switch (v.first) {
+		case ParsedLine::ParamType::Identifier:
+		    os << ParsedLine::param_type<ParsedLine::ParamType::Identifier>();
+		    break;
+
+		case ParsedLine::ParamType::String:
+		    os << ParsedLine::param_type<ParsedLine::ParamType::String>();
+		    break;
+
+		case ParsedLine::ParamType::Number:
+		    os << ParsedLine::param_type<ParsedLine::ParamType::Number>();
+		    break;
+	    }
+
+	    os << " @ " << v.second << '\n';
+	}
 
 	os << "\nNamed Parameters:\n";
 	for (auto& v: line.named_params) {
@@ -30,6 +48,7 @@ namespace rewrite {
 
 	return os;
     }
+
 
     void ParsedLine::clear() {
 	type = Type::ValueLine;
