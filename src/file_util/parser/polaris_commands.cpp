@@ -319,8 +319,8 @@ namespace rewrite {
 	using namespace std::literals;
 
         uint dust_component_choice = 0;
-	if (line.named_params.contains("id"sv))
-	    dust_component_choice = line.named_params["id"sv].at(0);
+	if (const auto named_param = line.get_named("id"sv);
+	    named_param) dust_component_choice = named_param.value()[0];
 
 	if (dust_component_choice < 0)
 	    return std::unexpected{ Message {
@@ -434,45 +434,69 @@ namespace rewrite {
     DEFINE_COMMAND(source_background) {
 
 	using namespace std::literals;
-	
-	ullong	nr_of_photons = 0;
-	if (line.named_params.contains("nr_photons"sv))
-	    nr_of_photons = line.named_params["nr_photons"sv].at(0);
 
+	const auto named_param = line.get_named("nr_photons"sv);
+	if (!named_param)
+	    return std::unexpected{ named_param.error() };
+	
+	const ullong	nr_of_photons = named_param.value()[0];
 	if (nr_of_photons <= 0)
 	    return std::unexpected{ Message{
 		"Number of background source photons could not be recognized!"
 		"\n\tExpected it to be greater than 0"} };
 
-	std::string ps_path;
-	const bool has_path = !line.str_params.empty();
-	if (has_path) {
-	    ps_path = line.str_params[0];
-	    if (line.num_params.size() == NR_OF_BG_SOURCES - 5)
-		param.addBackgroundSource(ps_path, line.num_params);
-	    else if (line.num_params.size() < NR_OF_BG_SOURCES - 5)
-		param.addBackgroundSource(ps_path);
+	line.num_params.push_back(nr_of_photons);
+
+	const size_t sz = line.num_params.size();
+
+	if (sz <= NR_OF_BG_SOURCES - 5) {
+	    const auto path = line.get_str(0);
+
+	    if (!path)
+		return std::unexpected { path.error() };
+
+	    if (sz == NR_OF_BG_SOURCES - 5)
+		param.addBackgroundSource(std::string{path.value()}, line.num_params);
 	    else
-		return std::unexpected{ Message {
-		    std::format(
-			"Wrong number of parameters for background source!"
-			"\n\tMust be smaller than or equal to {}", NR_OF_BG_SOURCES - 5) } };
+		param.addBackgroundSource(std::string{path.value()});
+
 	    return {};
 	}
 
-	if (line.num_params.size() == NR_OF_BG_SOURCES - 3
-	    || line.num_params.size() == NR_OF_BG_SOURCES - 1)
-	    line.num_params.insert(line.num_params.begin(), -1);
-	
-	if (line.num_params.size() == NR_OF_BG_SOURCES - 2)
-	    line.num_params.resize(NR_OF_BG_SOURCES, 0);
+	if (sz <= NR_OF_BG_SOURCES - 3)
+	    line.num_params.insert(line.num_params.begin() + 1, -1.0);
 
-	if (line.num_params.size() != NR_OF_BG_SOURCES)
-	    return std::unexpected{ Message {
-		"Wrong number of parameters for background source!" } };
+	if (sz < NR_OF_BG_SOURCES)
+	    line.num_params.resize(NR_OF_BG_SOURCES, 0.0);
 
 	param.addBackgroundSource(line.num_params);
 	return {};
+
+	// if (sz == NR_OF_BG_SOURCES)
+	//     param.addBackgroundSource(line.num_params);
+	//
+	// else if (!line.str_params.empty()) {
+	//     std::string	path{line.str_params[0]};
+	//     if (sz == NR_OF_BG_SOURCES - 5)
+	// 	param.addBackgroundSource(path, line.num_params);
+	//     else if (sz < NR_OF_BG_SOURCES - 5)
+	// 	param.addBackgroundSource(path);
+	// }
+	//
+	// else if (line.num_params.size() == NR_OF_BG_SOURCES - 3) {
+	//     line.num_params.insert(line.num_params.begin() + 1, -1.0);
+	//     line.num_params.resize(NR_OF_BG_SOURCES, 0.0);
+	//     param.addBackgroundSource(line.num_params);
+	// }
+	//
+	// if (line.num_params.size() == NR_OF_BG_SOURCES - 1) {
+	//     line.num_params.insert(line.num_params.begin() + 1, -1.0);
+	//     param.addBackgroundSource(line.num_params);
+	//     return {};
+	// }
+	//
+	// return std::unexpected { Message {
+	//     "Cannot detect path for background parameters" } };
     }
 
 

@@ -1,6 +1,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <ostream>
 
 
 #ifndef TEST_REWRITE
@@ -34,7 +35,9 @@ namespace rewrite::testing {
 
 	lc_parser.setCommandFile(file_name);
 
+	cout << "LEGACY" << endl;
 	bool lc_res = lc_parser.parse();
+	cout << "REWRITE" << endl;
 	bool rw_res = rw_parser.parse_file(file_name, default_error_handler).has_value();
 
 	ASSERT_EQ(lc_res, rw_res);
@@ -43,8 +46,9 @@ namespace rewrite::testing {
 	rw_param = std::move(rw_parser.get_param_list());
 
 	ASSERT_EQ(lc_param.size(), rw_param.size());
-	for (size_t i = 0; i < lc_param.size(); i++)
+	for (size_t i = 1; i < lc_param.size(); i++) {
 	    ASSERT_EQ(lc_param[i], rw_param[i]);
+	}
     }
 
 

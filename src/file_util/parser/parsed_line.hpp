@@ -180,6 +180,33 @@ namespace rewrite {
 	    return get_param<ParamType::String, std::string_view>(idx);
 	}
 
+
+	/**
+	 * Get named parameters. Only 1 or 2 values can be derived from one
+	 * named parameter (easily extendible here). Returns an std::array
+	 * with the requested values, or std::unexpected, if name or values
+	 * don't exist. Should be used with structured binding.
+	 */
+	template<size_t N = 1>
+	    requires (N > 0) && (N < 3)
+	auto get_named(const std::string_view name)
+	    -> std::expected<std::array<double, N>, Message> {
+	    if (!named_params.contains(name))
+		return std::unexpected { Message {
+		    std::format("Expected named parameter {}", name) } };
+
+	    const auto& values = named_params[name];
+	    if (values.size() != N)
+		return std::unexpected{ Message {
+		    std::format("Expected {} values for named parameter {}", N, name) } };
+
+	    if constexpr (N == 1)
+		return std::array{ values[0] };
+
+	    if constexpr (N == 2)
+		return std::array{ values[0], values[1] };
+	}
+
 	/**
 	 * Completely empty line
 	 */

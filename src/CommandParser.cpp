@@ -3076,7 +3076,9 @@ bool CCommandParser::parseLine(parameters * param, string cmd, string data, uint
             value = -value;
         }
 
-        param->updateSIConvDH(atof(data.c_str()));
+	// Original code: corrected during rewrite
+        // param->updateSIConvDH(atof(data.c_str()));
+	param->updateSIConvDH(value);
         return true;
     }
 
