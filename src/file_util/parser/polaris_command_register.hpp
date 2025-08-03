@@ -11,7 +11,7 @@
 
 namespace rewrite {
 
-    using CommandFunction = t_ret(*)(ParsedLine&, parameters&);
+    using CommandFunction = std::expected<void, Message>(*)(ParsedLine&, parameters&);
 
     class PolarisCommands {
 	PolarisCommands() = default;
@@ -48,11 +48,11 @@ namespace rewrite {
     // TODO as views instead of strings?
 
 #define POLARIS_COMMAND(name) \
-    t_ret cmd_##name(ParsedLine& line, parameters& param);\
+    std::expected<void, Message> cmd_##name(ParsedLine& line, parameters& param);\
     static RegisterCommand polaris_command_registered_##name(#name, cmd_##name);
 
 #define DEFINE_COMMAND(name) \
-    t_ret cmd_##name(ParsedLine& line, parameters& param)
+    std::expected<void, Message> cmd_##name(ParsedLine& line, parameters& param)
 }
 
 

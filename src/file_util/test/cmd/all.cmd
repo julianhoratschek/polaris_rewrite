@@ -15,10 +15,10 @@
     <opiata_path_emi> "Path or something"
     <opiata_path_abs> "Another one"
     <gas_species> "Path to gas" POP_LTE 12.4 "zeeman path"
-    # <source_star>
-    # <source_starfield>
+    <source_star nr_photons="129384"> "path to star source" 293 484 54
+    <source_starfield nr_photons="19384"> "path to star field" 39 390 23 09
     <source_background nr_photons = "1293"> "bg source path" 123,3 43 45.2 34.5 34.5
-    # <source_laser>
+    <source_laser nr_photons="1949"> 39 49 30 2  54 324 2 3 4
     <axis1> 32.43 445.34 63.345
     <axis2> 645.53 234,245 34.54e-34
     <align> ALIG_NONPA
@@ -127,7 +127,7 @@
 
 <task>
     <phase_function id="43"> PH_DHG
-    # <cmd> CMD_PROBING
+    # <cmd> CMD_PROBING						# Not supported by legacy parser
     <align> ALIG_IDG
 </task>
 

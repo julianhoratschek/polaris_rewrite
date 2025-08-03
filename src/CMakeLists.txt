@@ -106,13 +106,29 @@ if (TEST_REWRITE)
     )
     target_compile_definitions (test_polaris_parser PRIVATE TEST_REWRITE)
     target_link_libraries (test_polaris_parser
-	# ${CCFITS_LIBRARY}
-	# ${CFITSIO_LIBRARY}
 	OpenMP::OpenMP_CXX
 	GTest::gmock
 	GTest::gtest_main
     )
-    # target_include_directories (test_polaris_parser PRIVATE ${CCFITS_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
+
+    add_executable (bm_polaris_parser
+	file_util/benchmark/bm_command_parser.cpp
+
+	Parameters.cpp
+	CommandParser.cpp
+	Vector3D.cpp
+	Matrix2D.cpp
+	MathFunctions.cpp
+	Faddeeva.cc
+	MathProbList.cpp
+	Stokes.cpp
+
+	${RW_FILES}
+    )
+    target_link_libraries (bm_polaris_parser
+	OpenMP::OpenMP_CXX
+	benchmark::benchmark
+    )
 
     add_executable (test_dust_component
 	file_util/test/dust_component_parameter_parser.cpp

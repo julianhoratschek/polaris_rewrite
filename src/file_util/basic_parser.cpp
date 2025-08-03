@@ -24,8 +24,8 @@ namespace rewrite {
 
 
     auto BasicParser::get_string()
-	    -> std::expected<std::string_view, Message> {
-
+	-> std::expected<std::string_view, Message>
+    {
 	auto res = read_while<is_string>();
 	if (pos >= current_line.end())
 	    return std::unexpected{ Message { "Missing '\"'" } };

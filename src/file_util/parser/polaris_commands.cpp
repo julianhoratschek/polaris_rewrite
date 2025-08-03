@@ -40,9 +40,10 @@ namespace rewrite {
 	 *
 	 */
 	template<DetectorRegistration reg, size_t N>
-	t_ret register_detector(
+	auto register_detector(
 	    ParsedLine& line,
 	    std::array<double, N> defaults)
+	    -> std::expected<void, Message>
 	{
 	    using namespace std::literals;
 	    
@@ -153,7 +154,8 @@ namespace rewrite {
 	 */
 	template<typename SetterFn>
 	    requires std::is_invocable_v<SetterFn, parameters, double>
-	t_ret param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
+	auto param_set_number(ParsedLine& line, parameters& param, SetterFn setter)
+	    -> std::expected<void, Message>
 	{
 	    if (const auto e = line.get_num(0); !e)
 		return std::unexpected{ e.error() };
@@ -168,22 +170,22 @@ namespace rewrite {
 	template<typename Fn>
 	    requires std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>
 		  || std::is_invocable_v<Fn, parameters, std::vector<double>&>
-	t_ret add_source(
+	auto add_source(
 	    ParsedLine& line, parameters& param,
 	    Fn add_function, const std::string& source_name, const size_t nr_of_sources)
+	    -> std::expected<void, Message>
 	{
 	    using namespace std::literals;
 
 	    constexpr bool with_path = std::is_invocable_v<Fn, parameters, std::vector<double>&, std::string>;
 
-	    if (!line.named_params.contains("nr_photons"sv))
+	    const auto named_param = line.get_named("nr_photons"sv);
+
+	    if (!named_param)
 		return std::unexpected{ Message {
 		    "Expected parameter 'nr_photons'" } };
 
-	    if (line.named_params["nr_photons"sv].empty())
-		return std::unexpected{ Message{ "Named parameter nr_photons not defined" } };
-
-	    const ullong nr_of_photons = line.named_params["nr_photons"sv].at(0);
+	    const double nr_of_photons = named_param.value()[0];
 
 	    if (nr_of_photons <= 0)
 		return std::unexpected{ Message {
@@ -198,7 +200,7 @@ namespace rewrite {
 		    if (line.num_params.size() != nr_of_sources - 5)
 			return std::unexpected{ Message {
 			    std::format(
-				"False amount of parameters for source {} (expected {})",
+				"False amount of number parameters for source {} (expected {})",
 				source_name, nr_of_sources - 5 ) } };
 		    line.num_params.resize(nr_of_sources - 1, 0);
 		}

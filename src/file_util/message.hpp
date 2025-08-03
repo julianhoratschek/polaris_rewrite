@@ -2,7 +2,6 @@
 #define RW_MESSAGE
 
 #include <cstddef>
-#include <expected>
 #include <string>
 #include <array>
 #include <utility>
@@ -22,9 +21,16 @@ namespace rewrite {
 	    Error, Warning, Info
 	};
 
+	/// Message to display
 	std::string		message;
+
+	/// What kind of message (error, warning, info)
 	Type			type;
+
+	/// Where does the message come from (parser, processor)
 	Sender			sender;
+
+	/// Location of the message in current file
 	size_t			line, col;
 
 
@@ -37,8 +43,13 @@ namespace rewrite {
 
 
     /// Return value for most POLARIS cmd methods
-    using t_ret = std::expected<void, Message>;
+    // using t_ret = std::expected<void, Message>;
 
+    /**
+     * Default handler for error messages:
+     *   - Displays message with minimmal formatting
+     *   - Returns true when Message::type != Error, otherwise false
+     */
     inline bool default_error_handler(const Message& msg) {
 	constexpr auto	senders = std::array{ "", "Parser", "Processor" };
 	const auto sender = senders[std::to_underlying(msg.sender)];

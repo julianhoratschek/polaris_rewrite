@@ -12,43 +12,46 @@
 
 namespace rewrite {
 
+    /**
+     * Default error handling function. Should take a Message-class as
+     * parameter and output boolean.
+     * An ErrorHandlerFn will be called, when any Message is propagated
+     * by a parser or processor.
+     * When an ErrorHandlerFn returns true, execution will resume. When
+     * an ErrorHandlerFn returns false, processing of the file will end.
+     */
     template<typename Fn>
     concept ErrorHandlerFn = requires (Fn fn, const Message msg) {
 	{ fn(msg) } -> std::same_as<bool>;
     };
 
-    struct Token {
-
-	enum class Type: unsigned char {
-	    Number, Identifier, String, Comment, 
-	    Equals = '=', Slash = '/', CommandBegin = '<', CommandEnd = '>'
-	};
-
-	unsigned long long value;
-	
-	std::string_view get_text(const std::string_view& text) const {
-	    return text.substr(
-		value >> (sizeof(unsigned long long) / 2),
-		value & 0x11111111);
-	}
-
-	double get_number() const {
-	    return static_cast<double>(value);
-	}
-    };
+    // TODO unused, do we need a tokenizer?
+	//    struct Token {
+	// enum class Type: unsigned char {
+	//     Number, Identifier, String, Comment, 
+	//     Equals = '=', Slash = '/', CommandBegin = '<', CommandEnd = '>'
+	// };
+	//
+	// unsigned long long value;
+	//
+	// std::string_view get_text(const std::string_view& text) const {
+	//     return text.substr(
+	// 	value >> (sizeof(unsigned long long) / 2),
+	// 	value & 0x11111111);
+	// }
+	//
+	// double get_number() const {
+	//     return static_cast<double>(value);
+	// }
+	//    };
     
-    /**
-     * This is a strict per-line parser. Parsed lines are invalidated as soon
-     * as the next line is read. Processing should be done by passing a
-     * processing function pointer, which will be called after each line is
-     * successfully parsed.
-     */
-
     /**
      * Strict base class for static inheritance. Provides
      * multiple useful methods for file parsing
      */
     class BasicParser {
+
+	/// Used to determine the type of a character
 	using CharCheckFn = bool(*)(const char);
 
     protected:
@@ -57,6 +60,8 @@ namespace rewrite {
 	static bool is_whitespace(const char c) {
 	    return std::isspace(c) || c == ';' || c == '?' || c == '*'; }
 
+	/// Tries to find anything that is a number
+	//TODO split into number_begin and number?
 	static bool is_number(const char c) {
 	    return std::isdigit(c) || c == '+' || c == '-' || c == ',' || c == '.' || c == 'e' || c == 'E'; }
 
@@ -68,19 +73,23 @@ namespace rewrite {
 	static bool is_identifier(const char c) {
 	    return std::isalpha(c) || c == '_' || std::isdigit(c); }
 
+	/// Finds quotes as string delimiter
 	static bool is_quote(const char c) {
 	    return c == '"'; }
 
+	/// Inverse method of is_quote
 	static bool is_string(const char c) {
 	    return c != '"'; }
 
+	/// Multiple comment types are supported
 	static bool is_comment(const char c) {
-	    return c == '#' || c == '!';
-	}
+	    return c == '#' || c == '!'; }
 
+	/// Mostly used for polaris parser
 	static bool is_equals(const char c) {
 	    return c == '='; }
 
+	/// Mostly used for polaris parser
 	static bool is_slash(const char c) {
 	    return c == '/'; }
 
@@ -128,10 +137,26 @@ namespace rewrite {
 	}
 
 
+	/**
+	 * Checks if the current pos returns true for check, or is white
+	 * space and the next non-whitespace check returns true for check.
+	 * Returns false, if current pos is anything other than whitespace
+	 * or true for check.
+	 */
+	// template<CharCheckFn check>
+	// bool followed_by() {
+	//     --pos;
+	//     return pos >= current_line.begin() && expect_next<check>();
+	// }
+
+
 	template<CharCheckFn check>
 	bool is_or_next() {
-	    return pos < current_line.end()
-		&& (check(*pos) || expect_next<check>());
+	    return pos < current_line.end() 
+		&& (check(*pos)
+		    || (is_whitespace(*pos) && expect_next<check>()));
+		//    return pos < current_line.end()
+		// && (check(*pos) || expect_next<check>());
 	}
 
 
@@ -164,13 +189,25 @@ namespace rewrite {
 	auto get_number()
 	    -> std::expected<double, Message>;
 
+	/**
+	 *
+	 */
 	auto get_string()
 	    -> std::expected<std::string_view, Message>;
 
+	/**
+	 *
+	 */
 	size_t error_distance();
 
+	/**
+	 *
+	 */
 	std::string error_pointer();
 
+	/**
+	 *
+	 */
 	Message error_message(const Message& msg);
     };
 }
