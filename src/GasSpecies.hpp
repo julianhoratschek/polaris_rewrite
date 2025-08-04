@@ -52,7 +52,7 @@ public:
         energy_level = 0;
         nr_of_col_transition = 0;
 
-        spectral_lines = 0;
+        // spectral_lines = 0;
 
         level_to_index = 0;
         trans_to_index = 0;
@@ -106,8 +106,8 @@ public:
         if(g_level != 0)
             delete[] g_level;
 
-        if(spectral_lines != 0)
-            delete[] spectral_lines;
+        // if(spectral_lines != 0)
+        //     delete[] spectral_lines;
 
         if(level_to_index != 0)
         {

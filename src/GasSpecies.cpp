@@ -4,9 +4,9 @@
 ************************************************************************************/
 
 #include "GasSpecies.hpp"
-#include "parser/gas_parameter_loader.hpp"
-#include "parser/zeeman_file_loader.hpp"
-#include "parser/message.hpp"
+#include "file_util/loader/gas_parameter_loader.hpp"
+#include "file_util/loader/zeeman_file_loader.hpp"
+#include "file_util/message.hpp"
 
 
 // This function is based on

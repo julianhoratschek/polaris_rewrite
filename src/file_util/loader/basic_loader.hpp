@@ -12,6 +12,12 @@ namespace rewrite {
 	{ t.cleanup() };
     };
 
+
+    /**
+     * Basic loader providing general utility methods
+     * Child classes should implement "parse_file" to take
+     * A pathlike input and parse as well as load FileType.
+     */
     template<FileType LoadFile>
     class BasicLoader: public BasicParser {
 
@@ -21,6 +27,12 @@ namespace rewrite {
 
 	LoadFile		result;
 
+	/**
+	 * Close current file and calls result.cleanup.
+	 * Returns an error Message with msg as content
+	 * @param msg string to display in returned message
+	 * @returns std::unexpected<Message> with current line-nr and msg
+	 */
 	std::unexpected<Message> safe_error(const std::string& msg)
 	{
 	    result.cleanup();
@@ -35,8 +47,12 @@ namespace rewrite {
 	    } };
 	}
 
-
-	std::expected<void, Message> read_values() {
+	/**
+	 * Reads all numerical values found from current pos
+	 * and saves it in values.
+	 */
+	std::expected<void, Message> read_values()
+	{
 	    std::expected<double, Message>	val(0.0);
 
 	    values.clear();
@@ -51,24 +67,39 @@ namespace rewrite {
 	}
 
 
+	/**
+	 * Reads a single numerical value from the next line
+	 */
 	template<typename T>
-	auto rdline_number(
-	    const std::string& param_name)
-	    -> std::expected<T, Message>
+	std::expected<T, Message> rdline_number(const std::string& param_name)
 	{
 	    if (!next_line(file) || !is_or_next<is_number>())
 		return safe_error( 
-		    std::format( "Expected single numerical value for {}", param_name ) );
+		    std::format( 
+			"Expected single numerical value for {}",
+			param_name ) );
 
-	    if (const auto num = get_number(); !num.has_value())
+	    if (const auto num = get_number(); !num)
 		return safe_error( 
-		    std::format( "Could not read {}: {}", param_name, num.error().message ) );
+		    std::format(
+			    "Could not read {}: {}",
+			    param_name, num.error().message ) );
+
 	    else return static_cast<T>(num.value());
 	}
 
 
-	auto rdline_values(const size_t length, const std::string& param_names)
-	    -> std::expected<void, Message>
+	/**
+	 * Reads next line as all numeric values, expects exactly length
+	 * values in the next line, uses param names as marker in error
+	 * messages.
+	 * @param length number of values expected numbers to read
+	 * @param param_names string declaring all values representing the
+	 * 		      read numbers.
+	 */
+	std::expected<void, Message> rdline_values(
+	    const size_t length,
+	    const std::string& param_names)
 	{
 	    if (!next_line(file) || !is_or_next<is_number>())
 		return safe_error(
@@ -76,7 +107,7 @@ namespace rewrite {
 			"Expected {} numeric values: {}",
 			length, param_names ) );
 
-	    if (const auto res = read_values(); !res.has_value())
+	    if (const auto res = read_values(); !res)
 		return safe_error(
 		    std::format( "Could not read values {}: {}",
 			param_names, res.error().message ) );
@@ -99,8 +130,7 @@ namespace rewrite {
 
 	    out.resize(size);
 
-	    for (i = 0;
-		next_line(file) && (num = get_number()) && i < size; i++)
+	    for (i = 0; next_line(file) && (num = get_number()) && i < size; i++)
 		out[i] = *num;
 
 	    if (!num)

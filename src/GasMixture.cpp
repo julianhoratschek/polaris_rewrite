@@ -5,7 +5,7 @@
 
 #include "GasMixture.hpp"
 #include "CommandParser.hpp"
-#include "parser/message.hpp"
+#include "file_util/message.hpp"
 
 // This function is based on
 // Mol3d: 3D line and dust continuum radiative transfer code

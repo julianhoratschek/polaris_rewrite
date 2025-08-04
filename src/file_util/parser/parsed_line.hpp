@@ -93,12 +93,12 @@ namespace rewrite {
 	template<ParsedLine::ParamType pt>
 	constexpr auto get_vector() {
 	    if constexpr (pt == ParamType::Number)
-		return &num_params;
+			return &num_params;
 
-	    if constexpr (pt == ParamType::Identifier)
-		return &id_params;
-
-	    return &str_params;
+	    else if constexpr (pt == ParamType::Identifier)
+			return &id_params;
+		else
+			return &str_params;
 	}
 
 	/**

@@ -35,6 +35,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 FIND_PACKAGE (CCFITS REQUIRED)
 FIND_PACKAGE (OpenMP REQUIRED)
 
+set (RW_FILES 
+    file_util/basic_parser.cpp
+    file_util/parser/parsed_line.cpp
+    file_util/parser/polaris_commands.cpp
+    file_util/parser/polaris_parser.cpp
+)
+
 SET (SRC_FILES
     CellBasic.cpp CellCylindrical.cpp CellOcTree.cpp CellSpherical.cpp CellVoronoi.cpp
     CommandParser.cpp
@@ -59,7 +66,7 @@ SET (SRC_FILES
     Vector3D.cpp
 )
 
-ADD_EXECUTABLE (polaris main.cpp ${SRC_FILES})
+ADD_EXECUTABLE (polaris main.cpp ${SRC_FILES} ${RW_FILES})
 TARGET_LINK_LIBRARIES (polaris PRIVATE OpenMP::OpenMP_CXX ${CCFITS_LIBRARY} ${CFITSIO_LIBRARY})
 
 # CCFITS_INCLUDE_DIR must be set, if we only have relative paths

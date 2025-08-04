@@ -53,7 +53,8 @@ namespace rewrite::testing {
 
 
     std::vector<std::string> get_cmd_files() {
-	std::filesystem::path		path("./src/file_util/test/cmd/");
+	// std::filesystem::path		path("./src/file_util/test/cmd/");
+	std::filesystem::path		path("../../../file_util/test/cmd/");
 	std::vector<std::string>	res;
 
 	for (const auto& p: std::filesystem::directory_iterator{path}) {

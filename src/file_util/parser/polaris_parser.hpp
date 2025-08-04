@@ -164,13 +164,6 @@ namespace rewrite {
 		if (!line_result) {
 		    const auto line_error = line_result.error();
 		    const auto parser_error = error_message(line_error);
-			//    const Message parser_error {
-			// std::format("[{:04}]: {}\n",
-			//     line_nr, err.message),
-			// err.type,
-			// Message::Sender::Processor,
-			// line_nr
-			//    };
 
 		    if (!err_fn || !err_fn(parser_error))
 			return std::unexpected{ parser_error };
