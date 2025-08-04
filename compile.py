@@ -4,9 +4,13 @@ import tarfile
 import argparse
 import os
 import shutil
+import socket
 
 import requests
 
+# TODO: what should we do with polaristools?
+# TODO: Auto-install packages for python? Pythonic version?
+# TODO: Update paths env vars?
 
 root_path: Path = Path(__file__).parent
 default_install_path: Path = root_path / "bin"
@@ -16,8 +20,12 @@ default_cc: str = "gcc"
 default_c_flags: str = "-w -O3"
 default_cxx: str = "g++"
 default_cxx_flags: str = "-w -O3"
-#TODO win/linux
-default_cmake_generator: str = "MinGW Makefiles"
+
+default_cmake_generator: str = ""
+if os.name == "nt":
+    default_cmake_generator = "MinGW Makefiles"
+else:
+    default_cmake_generator = "Unix Makefiles"
 
 
 def clone_repository(rep_name: str, dest: Path) -> bool:
@@ -31,7 +39,7 @@ def clone_repository(rep_name: str, dest: Path) -> bool:
         print("[!] Wrong repository format. Expected <username>/<projectname>")
         return False
 
-    rep_usr, rep_dir = rep_name.split('/')
+    # rep_usr, rep_dir = rep_name.split('/')
     if dest.exists():
         print(f"[i] Directory {dest} is not empty, download is skipped")
         return True
@@ -64,6 +72,7 @@ def find_ccfits(path: Path) -> bool:
         print("[*] Found extracted files, renaming...")
         glob[0].rename(glob[0].with_name("CCfits"))
         return True
+
     return False
 
 
@@ -71,9 +80,9 @@ def extract_ccfits(tar_path: Path, dest: Path) -> bool:
     """Extracts all data from tar_path into dest directory"""
 
     # Test if ccfits library is present
-    if result := find_ccfits(dest):
+    if find_ccfits(dest):
         print("[i] CCfits was already extracted")
-        return result
+        return True
 
     # Extract all data
     print(f"[*] Extracting ccfits from {tar_path} to {dest}")
@@ -131,14 +140,14 @@ def run_cmake( src_dir: Path, build_dir: Path, install_path: Path,
     if (sp.run([
         "cmake", f"-S {src_dir.relative_to(root_path)}", f"-B {build_dir.relative_to(root_path)}",
         f"-G {default_cmake_generator}",
-        "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",               # Used for cfitsio
+        # "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",               # Used for cfitsio
         f"-DCMAKE_INSTALL_PREFIX={install_path.relative_to(root_path)}",
         f"-DCMAKE_PREFIX_PATH={';'.join(map(lambda p: str(p), prefix_path))}",
         *[f"-D{o}" for o in cmake_options]
     ], env=os.environ)).returncode != 0:
         return False
 
-    prefix_path.append(install_path.absolute().as_posix())
+    prefix_path.append(Path(install_path.absolute().as_posix()))
 
     if (sp.run([
         "cmake", "--build", build_dir.relative_to(root_path).as_posix(),
@@ -151,6 +160,27 @@ def run_cmake( src_dir: Path, build_dir: Path, install_path: Path,
         return False
 
     return True
+
+
+def get_host_flags() -> str:
+    host_flags: dict[str, str] = {
+        "prometheus": "-march=skylake-avx512",
+        "nesh": "-xCORE-AVX512",
+        "fenrir": "-I/usr/include/x86_64-linux-gnu/c++/8/ -march=skylake",
+        "oberon": "_march=broadwell",
+        "hera": "-march=ivybridge",
+        "rhea": "-march=ivybridge",
+        "hydra": "-march=ivybridge",
+        "atlas": "-march=sandybridge"
+    }
+
+    hostname: str = socket.gethostname()
+    for name, arch in host_flags.items():
+        if name in hostname:
+            return arch
+
+    return "-xHost"
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -186,28 +216,37 @@ if __name__ == "__main__":
 
     match args.compiler:
         case "icc":
-            # TODO: Hosts
+            base_flags = "-I/usr/include/x86_64-linux-gnu/c++/8/"
             profiles = {
-                "debug": "-O1 -g3 -debug inline-debug-info",
-                "fast-debug": "-O3 -parallel -ip -ipo -g3 -debug inline-debug-info",
-                "release": "-O3 -parallel -ip -ipo -g" # + hosts
+                "debug": f"-O1 -g3 -debug inline-debug-info {base_flags}",
+                "fast-debug": f"-O3 -parallel -ip -ipo -g3 -debug inline-debug-info {get_host_flags()} {base_flags}",
+                "release": f"-O3 -parallel -ip -ipo -g {get_host_flags()} {base_flags}",
+
+                # Both can't be accessed right now, only for compatibility:
+                "release-multi": f"-O3 -parallel -ip -ipo -g- xAVX -axCORE-AVX512,CORE-AVX2 {base_flags}",
+                "fast-debug-multi": f"-O3 -parallel -ip -ipo -g3 -debug inline-debug-info -xAVX -axCORE-AVX512,CORE-AVX2 {base_flags}"
             }
 
         case "gcc" | "g++" | "c++" | "gnu" | "cpp" | "gpp":
+            base_flags = "-fuse-linker-plugin -fuse-ld=gold"
             profiles = {
-                "debug": "-O1 -g3 -Wall",
-                "fast-debug": "-march=native -O3 -funroll-loops -g3 -Wall -flto=auto -fuse-linker-plugin -fuse-ld=gold",
-                "release": "-march=native -O3 -funroll-loops -flto=auto -fuse-linker-plugin -fuse-ld=gold"
+                "debug": f"-O1 -g3 -Wall -Wno-unused-function -Wno-sign-compare -Wno-unused-but-set-variable -Wno-comment -Wno-unknown-pragmas -Wno-maybe-uninitialized {base_flags}",
+
+                "fast-debug": f"-march=native -O3 -funroll-loops -g3 -Wall -flto=auto -Wno-unused-function -Wno-sign-compare -Wno-unused-but-set-variable -Wno-comment -Wno-unknown-pragmas -Wno-maybe-uninitialized {base_flags}",
+
+                "release": f"-march=native -O3 -funroll-loops -flto=auto {base_flags}"
             }
 
             default_cc = "gcc"
             default_cxx = "g++"
 
         case "clang" | "clang++":
+            base_flags = "-Wno-comment"
+
             profiles = {
-                "debug": "-O1 -g3 -Wall",
-                "fast-debug": "-march=native -O3 -g3 -Wall -flto=auto",
-                "release": "-march=native -O3 -flto=auto"
+                "debug": f"-O1 -g3 -Wall -Wno-unused-function -Qno-sign-compare -Wno-unused-private-field -Wno-unknown-pragmas {base_flags}",
+                "fast-debug": f"-march=native -O3 -g3 -Wall -flto=auto {base_flags}",
+                "release": f"-march=native -O3 -flto=auto {base_flags}"
             }
 
             default_cc = "clang"
@@ -235,11 +274,11 @@ if __name__ == "__main__":
     print("[*] Compiling Dependencies...")
     # TODO: add optimization flags
     targets = {
-        "zlib": ['ZLIB_BUILD_TESTING:BOOL=OFF', 'ZLIB_BUILD_STATIC:BOOL=OFF', 'ZLIB_INSTALL_COMPAT_DLL:BOOL=OFF'],
+        "zlib": ['ZLIB_BUILD_TESTING:BOOL=OFF', 'ZLIB_BUILD_STATIC:BOOL=OFF', 'ZLIB_INSTALL_COMPAT_DLL:BOOL=OFF', 'CMAKE_C_FLAGS="-w -O3"', 'CMAKE_CXX_FLAGS="-w -O3"'],
 
-        "cfitsio": ['TESTS:BOOL=OFF', 'USE_CURL:BOOL=OFF', 'UTILS:BOOL=OFF'],
+        "cfitsio": ['TESTS:BOOL=OFF', 'USE_CURL:BOOL=OFF', 'UTILS:BOOL=OFF', 'CMAKE_C_FLAGS="-w -O3"', 'CMAKE_CXX_FLAGS="-w -O3"'],
 
-        "CCfits": []
+        "CCfits": ['CMAKE_C_FLAGS="-w -O3"', 'CMAKE_CXX_FLAGS="-w -O3"']
     }
 
     prefix_path: list[Path] = []
